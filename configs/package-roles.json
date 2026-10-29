@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "roles": {
+    "web": {
+      "description": "Web server or reverse proxy: its server package and modules stay installed.",
+      "protected": {
+        "apt": ["nginx*", "libnginx-mod-*", "apache2*", "caddy", "haproxy"],
+        "dnf": ["nginx*", "httpd*", "caddy", "haproxy"],
+        "brew": ["nginx", "httpd", "caddy", "haproxy"]
+      }
+    },
+    "database": {
+      "description": "Database server: server and client packages of the common engines.",
+      "protected": {
+        "apt": ["postgresql*", "mysql-server*", "mysql-client*", "mariadb-*", "redis-server", "redis-tools"],
+        "dnf": ["postgresql*", "mysql*", "mariadb*", "redis"],
+        "brew": ["postgresql@*", "mysql*", "mariadb", "redis"]
+      }
+    },
+    "gitea": {
+      "description": "Gitea server: the service, git and the database client it talks to.",
+      "protected": {
+        "apt": ["gitea", "git", "postgresql-client*", "sqlite3"],
+        "dnf": ["gitea", "git", "postgresql", "sqlite"],
+        "brew": ["gitea", "git"]
+      }
+    },
+    "headscale": {
+      "description": "Headscale control server (the hub's mesh): the service and its sqlite client.",
+      "protected": {
+        "apt": ["headscale*", "sqlite3"],
+        "dnf": ["headscale*", "sqlite"]
+      }
+    },
+    "llm_cli_host": {
+      "description": "Runs the LLM CLIs of the debate engine: the Node runtime and the global CLI packages.",
+      "protected": {
+        "apt": ["nodejs", "npm"],
+        "dnf": ["nodejs", "npm"],
+        "brew": ["node"],
+        "npm": ["@anthropic-ai/claude-code", "@openai/codex", "@google/gemini-cli"],
+        "bun": ["@anthropic-ai/claude-code", "@openai/codex", "@google/gemini-cli"]
+      }
+    },
+    "build": {
+      "description": "Build host: compilers, make and the language toolchains projects are built with.",
+      "protected": {
+        "apt": ["build-essential", "gcc*", "g++*", "make", "cmake", "golang*", "git"],
+        "dnf": ["gcc*", "make", "cmake", "golang", "git"],
+        "brew": ["go", "cmake", "make", "git"]
+      }
+    },
+    "monitoring": {
+      "description": "Monitoring host: metrics collectors, exporters and dashboards.",
+      "protected": {
+        "apt": ["prometheus*", "grafana*", "telegraf", "zabbix-agent*", "collectd*", "netdata*"],
+        "dnf": ["prometheus*", "grafana*", "telegraf", "node_exporter", "zabbix-agent*", "collectd*", "netdata*"],
+        "brew": ["prometheus", "grafana", "telegraf"]
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "bundles": {
+    "nginx": {
+      "description": "Web server or reverse proxy: nginx, with the certificate client as an extra.",
+      "reviewed": "2026-10-19",
+      "notes": [
+        "Installing nginx does not configure it: sites, certificates and the service state are not managed by package actions.",
+        "apt and dnf install the nginx branch the distribution ships (it follows the OS release); no vendor repository is added."
+      ],
+      "packages": {
+        "apt": { "required": ["nginx"], "optional": ["certbot", "python3-certbot-nginx"] },
+        "dnf": { "required": ["nginx"], "optional": ["certbot", "python3-certbot-nginx"] },
+        "brew": { "required": ["nginx"], "optional": ["certbot"] }
+      }
+    },
+    "postgresql": {
+      "description": "PostgreSQL database server, with contrib modules and client headers as extras.",
+      "reviewed": "2026-10-19",
+      "notes": [
+        "apt and dnf install the major version the distribution ships (it follows the OS release); only brew pins a major here.",
+        "On dnf the cluster must be initialised (postgresql-setup --initdb) before the service can start; package actions do not do that.",
+        "brew formulae are versioned (postgresql@17); a newer major version is a different package."
+      ],
+      "packages": {
+        "apt": { "required": ["postgresql"], "optional": ["libpq-dev"] },
+        "dnf": { "required": ["postgresql-server"], "optional": ["postgresql-contrib", "postgresql-devel"] },
+        "brew": { "required": ["postgresql@17"], "optional": [] }
+      }
+    }
+  }
+}

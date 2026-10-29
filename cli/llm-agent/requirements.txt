@@ -1,0 +1,6 @@
+# Server Guardian Multi-Agent (Python)
+# Note: Core CLI runs with 100% Python standard library (no pip packages strictly required).
+# Optional packages for direct Cloud LLM SDK integration:
+# google-genai>=0.1.0
+# anthropic>=0.18.0
+# ollama>=0.1.6

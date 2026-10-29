@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Server Guardian hub decision DB backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

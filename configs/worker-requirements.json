@@ -1,0 +1,8 @@
+{
+  "min_total_memory_mib": 4096,
+  "free_memory_mib_per_job": 1536,
+  "default_max_jobs": 2,
+  "python_min": "3.9",
+  "min_free_disk_mib": 1024,
+  "min_working_cli": 1
+}

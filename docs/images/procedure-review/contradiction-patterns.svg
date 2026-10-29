@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 534" width="980" height="534" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+<title id="t">Cross-domain contradiction patterns</title>
+<desc id="d">Matrix of how often each of seven contradiction patterns appears in four domains. Circle size is the count.</desc>
+<style>.h{fill:#7c8594;font-weight:600}.c{fill:#7c8594;font-size:11px}.n{font-weight:700;font-size:13px}.g{stroke:#7c8594;stroke-opacity:.25}</style>
+<text class="h" x="385.0" y="40" text-anchor="middle" fill="#3b82f6" style="fill:#3b82f6">Development</text>
+<text class="h" x="555.0" y="40" text-anchor="middle" fill="#10b981" style="fill:#10b981">Server management</text>
+<text class="h" x="725.0" y="40" text-anchor="middle" fill="#a855f7" style="fill:#a855f7">Debate &amp; actions</text>
+<text class="h" x="895.0" y="40" text-anchor="middle" fill="#f59e0b" style="fill:#f59e0b">UI</text>
+<line class="g" x1="10" x2="970" y1="64" y2="64"/>
+<text class="h" x="16" y="92">P1</text><text class="h" x="50" y="92">Dual paths, different rules</text>
+<text class="c" x="50" y="110">16 total</text>
+<circle cx="385.0" cy="90" r="12.4" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="95" text-anchor="middle" style="fill:#3b82f6">3</text>
+<text class="c" x="385.0" y="127" text-anchor="middle">3, 8, 17</text>
+<circle cx="555.0" cy="90" r="16.0" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-opacity=".8"/>
+<text class="n" x="555.0" y="95" text-anchor="middle" style="fill:#10b981">5</text>
+<text class="c" x="555.0" y="127" text-anchor="middle">9, 10, 12, 17, 20</text>
+<circle cx="725.0" cy="90" r="16.0" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="95" text-anchor="middle" style="fill:#a855f7">5</text>
+<text class="c" x="725.0" y="127" text-anchor="middle">7, 9, 12, 13, 15</text>
+<circle cx="895.0" cy="90" r="12.4" fill="#f59e0b" fill-opacity=".22" stroke="#f59e0b" stroke-opacity=".8"/>
+<text class="n" x="895.0" y="95" text-anchor="middle" style="fill:#f59e0b">3</text>
+<text class="c" x="895.0" y="127" text-anchor="middle">3, 4, 9</text>
+<line class="g" x1="10" x2="970" y1="126" y2="126"/>
+<text class="h" x="16" y="154">P2</text><text class="h" x="50" y="154">Copies posing as source of truth</text>
+<text class="c" x="50" y="172">11 total</text>
+<circle cx="385.0" cy="152" r="10.6" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="157" text-anchor="middle" style="fill:#3b82f6">2</text>
+<text class="c" x="385.0" y="189" text-anchor="middle">6, 7</text>
+<circle cx="555.0" cy="152" r="12.4" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-opacity=".8"/>
+<text class="n" x="555.0" y="157" text-anchor="middle" style="fill:#10b981">3</text>
+<text class="c" x="555.0" y="189" text-anchor="middle">5, 11, 12</text>
+<circle cx="725.0" cy="152" r="10.6" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="157" text-anchor="middle" style="fill:#a855f7">2</text>
+<text class="c" x="725.0" y="189" text-anchor="middle">5, 8</text>
+<circle cx="895.0" cy="152" r="14.2" fill="#f59e0b" fill-opacity=".22" stroke="#f59e0b" stroke-opacity=".8"/>
+<text class="n" x="895.0" y="157" text-anchor="middle" style="fill:#f59e0b">4</text>
+<text class="c" x="895.0" y="189" text-anchor="middle">1, 2, 5, 6</text>
+<line class="g" x1="10" x2="970" y1="188" y2="188"/>
+<text class="h" x="16" y="216">P3</text><text class="h" x="50" y="216">Silent fallback or overwrite</text>
+<text class="c" x="50" y="234">13 total</text>
+<circle cx="385.0" cy="214" r="12.4" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="219" text-anchor="middle" style="fill:#3b82f6">3</text>
+<text class="c" x="385.0" y="251" text-anchor="middle">1, 2, 10</text>
+<circle cx="555.0" cy="214" r="19.6" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-opacity=".8"/>
+<text class="n" x="555.0" y="219" text-anchor="middle" style="fill:#10b981">7</text>
+<text class="c" x="555.0" y="251" text-anchor="middle">1, 2, 8, 11, 16, 18, 22</text>
+<circle cx="725.0" cy="214" r="10.6" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="219" text-anchor="middle" style="fill:#a855f7">2</text>
+<text class="c" x="725.0" y="251" text-anchor="middle">13, 14</text>
+<circle cx="895.0" cy="214" r="8.8" fill="#f59e0b" fill-opacity=".22" stroke="#f59e0b" stroke-opacity=".8"/>
+<text class="n" x="895.0" y="219" text-anchor="middle" style="fill:#f59e0b">1</text>
+<text class="c" x="895.0" y="251" text-anchor="middle">13</text>
+<line class="g" x1="10" x2="970" y1="250" y2="250"/>
+<text class="h" x="16" y="278">P4</text><text class="h" x="50" y="278">States with no way out</text>
+<text class="c" x="50" y="296">8 total</text>
+<circle cx="385.0" cy="276" r="10.6" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="281" text-anchor="middle" style="fill:#3b82f6">2</text>
+<text class="c" x="385.0" y="313" text-anchor="middle">3, 9</text>
+<circle cx="555.0" cy="276" r="10.6" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-opacity=".8"/>
+<text class="n" x="555.0" y="281" text-anchor="middle" style="fill:#10b981">2</text>
+<text class="c" x="555.0" y="313" text-anchor="middle">6, 24</text>
+<circle cx="725.0" cy="276" r="12.4" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="281" text-anchor="middle" style="fill:#a855f7">3</text>
+<text class="c" x="725.0" y="313" text-anchor="middle">1, 10, 19</text>
+<circle cx="895.0" cy="276" r="8.8" fill="#f59e0b" fill-opacity=".22" stroke="#f59e0b" stroke-opacity=".8"/>
+<text class="n" x="895.0" y="281" text-anchor="middle" style="fill:#f59e0b">1</text>
+<text class="c" x="895.0" y="313" text-anchor="middle">2</text>
+<line class="g" x1="10" x2="970" y1="312" y2="312"/>
+<text class="h" x="16" y="340">P5</text><text class="h" x="50" y="340">Work clone HEAD as implicit lock</text>
+<text class="c" x="50" y="358">8 total</text>
+<circle cx="385.0" cy="338" r="14.2" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="343" text-anchor="middle" style="fill:#3b82f6">4</text>
+<text class="c" x="385.0" y="375" text-anchor="middle">3, 5, 6, 9</text>
+<text class="c" x="555.0" y="343" text-anchor="middle">–</text>
+<circle cx="725.0" cy="338" r="14.2" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="343" text-anchor="middle" style="fill:#a855f7">4</text>
+<text class="c" x="725.0" y="375" text-anchor="middle">2, 4, 10, 19</text>
+<text class="c" x="895.0" y="343" text-anchor="middle">–</text>
+<line class="g" x1="10" x2="970" y1="374" y2="374"/>
+<text class="h" x="16" y="402">P6</text><text class="h" x="50" y="402">Term and status-name drift</text>
+<text class="c" x="50" y="420">7 total</text>
+<circle cx="385.0" cy="400" r="8.8" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="405" text-anchor="middle" style="fill:#3b82f6">1</text>
+<text class="c" x="385.0" y="437" text-anchor="middle">20</text>
+<circle cx="555.0" cy="400" r="8.8" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-opacity=".8"/>
+<text class="n" x="555.0" y="405" text-anchor="middle" style="fill:#10b981">1</text>
+<text class="c" x="555.0" y="437" text-anchor="middle">14</text>
+<circle cx="725.0" cy="400" r="12.4" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="405" text-anchor="middle" style="fill:#a855f7">3</text>
+<text class="c" x="725.0" y="437" text-anchor="middle">8, 11, 18</text>
+<circle cx="895.0" cy="400" r="10.6" fill="#f59e0b" fill-opacity=".22" stroke="#f59e0b" stroke-opacity=".8"/>
+<text class="n" x="895.0" y="405" text-anchor="middle" style="fill:#f59e0b">2</text>
+<text class="c" x="895.0" y="437" text-anchor="middle">7, 15</text>
+<line class="g" x1="10" x2="970" y1="436" y2="436"/>
+<text class="h" x="16" y="464">P7</text><text class="h" x="50" y="464">Docs lag behind the code</text>
+<text class="c" x="50" y="482">12 total</text>
+<circle cx="385.0" cy="462" r="17.8" fill="#3b82f6" fill-opacity=".22" stroke="#3b82f6" stroke-opacity=".8"/>
+<text class="n" x="385.0" y="467" text-anchor="middle" style="fill:#3b82f6">6</text>
+<text class="c" x="385.0" y="499" text-anchor="middle">1, 11, 12, 14, 19, 21</text>
+<circle cx="555.0" cy="462" r="14.2" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-opacity=".8"/>
+<text class="n" x="555.0" y="467" text-anchor="middle" style="fill:#10b981">4</text>
+<text class="c" x="555.0" y="499" text-anchor="middle">3, 4, 19, 23</text>
+<circle cx="725.0" cy="462" r="10.6" fill="#a855f7" fill-opacity=".22" stroke="#a855f7" stroke-opacity=".8"/>
+<text class="n" x="725.0" y="467" text-anchor="middle" style="fill:#a855f7">2</text>
+<text class="c" x="725.0" y="499" text-anchor="middle">6, 17</text>
+<text class="c" x="895.0" y="467" text-anchor="middle">–</text>
+</svg>

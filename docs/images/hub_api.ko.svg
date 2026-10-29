@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 784" width="1000" height="784" role="img" lang="ko">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">허브 API (포트 9870)</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">127.0.0.1과 허브의 Tailscale IP에서만 받는다. 모든 /api/ 경로는 withSecurity(withAuth(mux))를 거친다: Bearer AGENT_TOKEN, 또는</text>
+<text x="500.0" y="75.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">대시보드가 로그인 때 받는 세션 쿠키.</text>
+<rect x="24" y="96" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">상태와 지표</text>
+<text x="38" y="142.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/status</text>
+<text x="38" y="161.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/metrics</text>
+<text x="38" y="180.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/stream/metrics (SSE)</text>
+<rect x="510" y="96" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">허브의 sshd</text>
+<text x="524" y="142.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/ssh/config</text>
+<text x="524" y="161.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/ssh/security</text>
+<text x="524" y="180.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/ssh/keys</text>
+<rect x="24" y="226" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="250.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">플릿</text>
+<text x="38" y="272.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/fleet/diagnose</text>
+<text x="38" y="291.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/fleet/ssh</text>
+<text x="38" y="310.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/fleet/exec (/stream)</text>
+<rect x="510" y="226" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="250.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">명령과 audit</text>
+<text x="524" y="272.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/exec, /api/exec/remote</text>
+<text x="524" y="291.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/audit</text>
+<rect x="24" y="356" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="380.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">노드</text>
+<text x="38" y="402.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/nodes, /api/nodes/registration</text>
+<text x="38" y="421.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/nodes/check</text>
+<text x="38" y="440.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/nodes, /api/nodes/{id}/probe</text>
+<text x="38" y="459.5" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">PUT, DELETE /api/nodes/{id}; revoke-key</text>
+<text x="38" y="478.3" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET, POST /api/mesh/join, /api/mesh/nodes(/{id}/remove)</text>
+<rect x="510" y="356" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="380.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">그룹</text>
+<text x="524" y="402.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET, POST /api/groups</text>
+<text x="524" y="421.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/groups/preview</text>
+<text x="524" y="440.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">DELETE /api/groups/{id}</text>
+<rect x="24" y="486" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="510.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">토론</text>
+<text x="38" y="532.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST, GET /api/debates</text>
+<text x="38" y="551.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/debates/{id}(/events, /prompts/{seq})</text>
+<text x="38" y="570.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">DELETE /api/debates/{id} (cancel)</text>
+<rect x="510" y="486" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="510.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">조치와 스레드</text>
+<text x="524" y="532.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/actions(/{id})</text>
+<text x="524" y="551.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/actions/{id}/run, reject, fail-stale</text>
+<text x="524" y="570.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/threads/{t}/publish, close, jev-recheck</text>
+<text x="524" y="589.5" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/threads/{t}/report</text>
+<rect x="24" y="616" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="640.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">프로젝트, 팀, 페르소나, 코드</text>
+<text x="38" y="662.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET, POST, DELETE /api/projects | teams | personas</text>
+<text x="38" y="681.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/projects/{id}/sync, workspace-reset</text>
+<text x="38" y="700.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/projects/{id}/files, wiki</text>
+<rect x="510" y="616" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="640.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">로그인</text>
+<text x="524" y="662.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/auth/login</text>
+<text x="524" y="681.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/auth/logout</text>
+<text x="500" y="762.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">토론, 조치, 스레드, 그룹, 프로젝트, 팀, 페르소나, 파일, 위키 경로는 guardian.py를 실행한다; /api/exec* 명령은 audit 로그에 남는다.</text>
+</svg>

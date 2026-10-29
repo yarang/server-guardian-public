@@ -1,0 +1,32 @@
+[Unit]
+Description=Server Guardian nightly watch of ops projects (starts a debate for disks or journals over a threshold)
+Documentation=https://git.example.com/owner/server-guardian
+# docs/design/server-ops-project.md, P6. The checks and the debate go through the agent's API, so it must run.
+Wants=server-guardian-agent.service
+After=server-guardian-agent.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/.guardian/current/cli/llm-agent
+# AGENT_TOKEN for the API, GUARDIAN_SERVERS_FILE and GUARDIAN_DATA_DIR as the agent sees them.
+EnvironmentFile=/home/ubuntu/.guardian/agent.env
+# Design artifacts (docs/design/design-project.md, decision 11): expire old versions first; "-" keeps a failure here from
+# skipping the watch.
+ExecStartPre=-/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --artifacts-prune
+ExecStart=/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --ops-watch
+
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+# It never needs a key: every command reaches the hosts through the agent.
+InaccessiblePaths=-/etc/guardian -/home/ubuntu/.ssh -/home/ubuntu/.guardian/llm.env
+ProtectSystem=full
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+SystemCallArchitectures=native
+UMask=0077

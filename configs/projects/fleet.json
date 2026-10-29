@@ -1,0 +1,34 @@
+{
+  "id": "fleet",
+  "kind": "ops",
+  "name": "Fleet",
+  "description": "Every fleet node except the hub: server checks and remediation without a repository.",
+  "team": "fleet-ops",
+  "targets": {
+    "all": true
+  },
+  "policy": {
+    "allowed_actions": [
+      "ops:docker_prune",
+      "ops:journal_vacuum",
+      "ops:apt_clean",
+      "ops:remove_paths",
+      "ops:truncate_logs",
+      "ops:remove_old_kernels",
+      "ops:restart_service",
+      "ops:package_install",
+      "ops:package_remove",
+      "ops:run_command_set",
+      "ops:run_script",
+      "jev_mcp:server_remediation"
+    ],
+    "include_hub": false,
+    "deny_paths": [],
+    "watch": {
+      "disk_percent": 85,
+      "inode_percent": 85,
+      "journal_max": "3G",
+      "headscale": true
+    }
+  }
+}

@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+apps/web-desktop/dist/
+apps/web-desktop/src-tauri/target/
+
+# Go compiled binary
+apps/agent/agent
+apps/agent/agent_*
+apps/agent/bin/
+tools/goindex/goindex
+
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / Secret files (NEVER commit secrets!)
+*.env
+*.env.local
+.netrc
+*.enc
+credentials*
+*.tar.gz
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+agentthread-gitea-skill/
+
+# IDE
+.vscode/
+
+upgrade-logs/
+
+# Hub runtime data lives in ~/.guardian/data (GUARDIAN_DATA_DIR), never in git
+docs/decisions/*.db
+docs/decisions/projects/
+
+# design-sync (staged converter, build output, machine state)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+
+# Subagent notes written into working directories
+.claude/agent-memory/
+**/.claude/agent-memory/
+
+# Local snapshot of the hub inventory (real hosts; scripts/pull-inventory.sh). Format: configs/servers.example.json
+configs/servers.json
+configs/servers.json.bak
+
+# Private session context with the real host names (see CLAUDE.md)
+CLAUDE.local.md

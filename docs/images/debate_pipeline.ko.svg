@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" role="img" lang="ko">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">토론: 과제에서 검증된 조치까지</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">코드 프로젝트는 저장소를 읽고, ops 프로젝트는 서버를 점검한다. 사람이나 정책이 승인하기 전에는 아무것도 실행되지 않는다.</text>
+<rect x="24" y="92" width="172" height="96" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="116.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">과제</text>
+<text x="38" y="138.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">대시보드, CLI 또는 야간</text>
+<text x="38" y="155.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">점검</text>
+<rect x="218" y="92" width="172" height="96" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+<text x="232" y="116.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#3730a3" text-anchor="start">전문가</text>
+<text x="232" y="138.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">제안</text>
+<line x1="196" y1="140" x2="218" y2="140" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="412" y="92" width="172" height="96" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+<text x="426" y="116.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#3730a3" text-anchor="start">비판자</text>
+<text x="426" y="138.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">병렬 비판</text>
+<line x1="390" y1="140" x2="412" y2="140" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="606" y="92" width="172" height="96" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+<text x="620" y="116.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#3730a3" text-anchor="start">판정자</text>
+<text x="620" y="138.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">판정과 조치</text>
+<line x1="584" y1="140" x2="606" y2="140" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="800" y="92" width="172" height="96" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="814" y="116.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">jev 관문</text>
+<text x="814" y="138.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">결정에 대한 독립 검토</text>
+<line x1="778" y1="140" x2="800" y2="140" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="218" y="202" width="660" height="88" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="232" y="228.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="700" fill="#334155" text-anchor="start">모든 에이전트는 답하기 전에 직접 볼 수 있다:</text>
+<text x="232" y="248.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">```repo 블록 또는 MCP 도구 (코드 프로젝트) · ```ops 점검 (ops 프로젝트) · 인용 검사</text>
+<text x="232" y="266.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="start">승인되거나 팀의 라운드 한도에 이를 때까지 라운드를 반복한다.</text>
+<rect x="24" y="312" width="210" height="136" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="336.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">기록된 조치</text>
+<text x="38" y="358.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">PROPOSED, 측정한 미리보기와</text>
+<text x="38" y="373.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">함께</text>
+<text x="38" y="392.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">jev 통과 전에는 HELD</text>
+<text x="38" y="411.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">INVALID: 프로젝트·정책 밖</text>
+<rect x="256" y="312" width="240" height="136" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="270" y="336.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">승인</text>
+<text x="270" y="358.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">사람: 대시보드 또는 CLI</text>
+<text x="270" y="377.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">jev 통과 후 코드 수정 (auto:engine)</text>
+<text x="270" y="396.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">policy.auto_run의 low ops 조치</text>
+<text x="270" y="411.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">(auto:&lt;project&gt;)</text>
+<rect x="518" y="312" width="230" height="136" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="532" y="336.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">실행</text>
+<text x="532" y="358.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">호스트당 한 번에 하나</text>
+<text x="532" y="377.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">다시 측정: 대상이 바뀌면 STALE</text>
+<text x="532" y="396.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">허브 API를 거쳐 audit에 기록</text>
+<rect x="770" y="312" width="206" height="136" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="784" y="336.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">결과</text>
+<text x="784" y="358.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">EXECUTED 또는 FAILED</text>
+<text x="784" y="377.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">검증: 실행 전, 후, 확보량</text>
+<text x="784" y="396.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">코드: 테스트 후 브랜치 게시</text>
+<line x1="900" y1="188" x2="900" y2="300" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="908" y="246.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="start">승인됨</text>
+<line x1="900" y1="300" x2="129" y2="300" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 4"/>
+<line x1="129" y1="300" x2="129" y2="312" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="234" y1="376" x2="256" y2="376" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="496" y1="376" x2="518" y2="376" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="748" y1="376" x2="770" y2="376" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="24" y="470" width="952" height="102" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="40" y="496.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#1f2937" text-anchor="start">규칙이 있는 곳</text>
+<text x="40" y="518.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">팀과 페르소나: 누가 토론하고 판정자가 어떤 도구를 제안할 수 있는지 (configs/teams, configs/personas). 프로젝트: 에이전트가 읽는 대상 또는 다룰 수</text>
+<text x="40" y="534.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">있는 서버, 그리고 ops 정책 (configs/projects).</text>
+</svg>

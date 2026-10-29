@@ -1,0 +1,28 @@
+{
+  "id": "fleet-services",
+  "name": "Fleet services (service and container diagnosis, restart review)",
+  "category": "operations",
+  "created": "2026-10-20T12:00:00+09:00",
+  "expert": {
+    "persona": "ops_service_engineer",
+    "providers": []
+  },
+  "critic": [
+    {
+      "persona": "ops_service_safety_critic",
+      "providers": []
+    },
+    {
+      "persona": "ops_service_cause_critic",
+      "providers": []
+    }
+  ],
+  "judge": {
+    "persona": "ops_service_judge",
+    "providers": []
+  },
+  "max_rounds": 2,
+  "allowed_tools": [
+    "ops:restart_service"
+  ]
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Server Guardian ops watch
+
+[Timer]
+# Before the 03:30 DB backup, so a debate it starts is in that night's backup.
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

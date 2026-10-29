@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="1000" height="680" role="img" lang="en">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">Actions: risk, approval and guards</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">Risk is computed per action (docker_prune depends on its scope). Every server command goes through the hub API and the audit</text>
+<text x="500.0" y="75.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">log.</text>
+<text x="32" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Risk</text>
+<text x="142" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Tools</text>
+<text x="442" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Approval</text>
+<text x="612" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Runs by itself</text>
+<text x="798" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Guards</text>
+<rect x="24" y="114" width="952" height="140" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+<text x="34" y="140.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="15" font-weight="700" fill="#166534" text-anchor="start">LOW</text>
+<text x="142" y="138.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:apt_clean</text>
+<text x="142" y="155.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:journal_vacuum</text>
+<text x="142" y="172.4" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:docker_prune</text>
+<text x="142" y="189.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">  (dangling images, build cache)</text>
+<text x="442" y="138.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">A person ticks a</text>
+<text x="442" y="154.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">confirmation box</text>
+<text x="612" y="138.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Only if listed in the</text>
+<text x="612" y="154.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">project's</text>
+<text x="612" y="170.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">policy.auto_run, after a</text>
+<text x="612" y="186.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">real jev PASSED, under a</text>
+<text x="612" y="202.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">daily cap</text>
+<text x="798" y="138.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Measured preview; drift →</text>
+<text x="798" y="154.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">STALE; verify after; one</text>
+<text x="798" y="170.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">action per host</text>
+<rect x="24" y="264" width="952" height="210" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="34" y="290.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="15" font-weight="700" fill="#92400e" text-anchor="start">MEDIUM</text>
+<text x="142" y="288.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:remove_paths</text>
+<text x="142" y="305.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:truncate_logs</text>
+<text x="142" y="322.4" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:remove_old_kernels</text>
+<text x="142" y="339.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:restart_service</text>
+<text x="142" y="356.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:docker_prune</text>
+<text x="142" y="374.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">  (stopped containers, unused images)</text>
+<text x="142" y="391.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:apply_patch</text>
+<text x="142" y="408.4" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:execute_code_action</text>
+<text x="442" y="288.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">A person ticks a</text>
+<text x="442" y="304.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">confirmation box</text>
+<text x="612" y="288.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Code edits only: applied</text>
+<text x="612" y="304.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">after jev PASSED (not</text>
+<text x="612" y="320.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">with run_test). Ops:</text>
+<text x="612" y="336.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">never</text>
+<text x="798" y="288.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Protected paths and</text>
+<text x="798" y="304.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">units; code edits only on</text>
+<text x="798" y="320.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">code the judge read;</text>
+<text x="798" y="336.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">base-commit and workspace</text>
+<text x="798" y="352.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">locks</text>
+<rect x="24" y="484" width="952" height="110" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.5"/>
+<text x="34" y="510.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="15" font-weight="700" fill="#991b1b" text-anchor="start">HIGH</text>
+<text x="142" y="508.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:server_remediation</text>
+<text x="142" y="525.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:run_tests</text>
+<text x="442" y="508.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">A person types the</text>
+<text x="442" y="524.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">action number</text>
+<text x="612" y="508.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Never</text>
+<text x="798" y="508.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Only target hosts of the</text>
+<text x="798" y="524.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">project, the hub only as</text>
+<text x="798" y="540.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">local; allow-listed test</text>
+<text x="798" y="556.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">commands</text>
+<text x="500" y="626.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">Every proposal is validated first: an unknown tool, a host outside the project or a protected path is recorded INVALID and never runs. Off switches:</text>
+<text x="500" y="640.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">GUARDIAN_AUTO_APPLY=off, GUARDIAN_UI_ACTIONS=off.</text>
+</svg>

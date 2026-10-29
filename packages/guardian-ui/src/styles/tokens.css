@@ -1,0 +1,95 @@
+/* Server Guardian design tokens: warm paper light theme after docs/design/reference/DESIGN-notion.md
+   (mapping and deviations in docs/design/dashboard-notion-theme.md). */
+:root {
+  color-scheme: light;
+
+  /* Ground and surfaces: warm paper canvas, white cards and fields */
+  --sg-bg: #f6f5f4;
+  --sg-surface-sunken: #f1f0ee;
+  --sg-surface: #ffffff;
+  --sg-surface-raised: #ffffff;
+  --sg-surface-hover: #efeeec;
+  --sg-surface-selected: #e6f0fb;
+  --sg-code-bg: #f7f6f3;
+
+  /* Lines: hairlines, not frames */
+  --sg-border: #e6e6e6;
+  --sg-border-subtle: #eeedeb;
+  --sg-border-strong: #dddddd;
+
+  /* Text: near-black ink and warm greys */
+  --sg-text: rgba(0, 0, 0, 0.95);
+  --sg-text-secondary: #31302e;
+  --sg-text-muted: #615d59;
+
+  /* Accent: the single structural blue (actions, links, focus, selection) */
+  --sg-accent: #0075de;
+  --sg-accent-hover: #005bab;
+  --sg-on-accent: #ffffff;
+
+  /* Status: a semantic ramp the marketing reference lacks; dots, chips and meters only, never a CTA fill
+     except the danger button. Each passes 4.5:1 on white. */
+  --sg-ok: #16833a;
+  --sg-warn: #b25000;
+  --sg-crit: #d1242f;
+  --sg-info: #0075de;
+  --sg-idle: #615d59;
+  --sg-on-crit: #ffffff;
+  --sg-on-warn: #ffffff;
+
+  /* Tinted chip pattern: ~8% background, ~28% border */
+  --sg-ok-bg: rgba(22, 131, 58, 0.08);
+  --sg-ok-border: rgba(22, 131, 58, 0.28);
+  --sg-warn-bg: rgba(178, 80, 0, 0.08);
+  --sg-warn-border: rgba(178, 80, 0, 0.28);
+  --sg-crit-bg: rgba(209, 36, 47, 0.08);
+  --sg-crit-border: rgba(209, 36, 47, 0.28);
+  --sg-info-bg: rgba(0, 117, 222, 0.08);
+  --sg-info-border: rgba(0, 117, 222, 0.28);
+  --sg-idle-bg: rgba(97, 93, 89, 0.08);
+  --sg-idle-border: rgba(97, 93, 89, 0.28);
+
+  /* Type: Inter for Latin, IBM Plex Sans KR for Hangul */
+  --sg-font-sans: 'Inter', 'IBM Plex Sans KR', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --sg-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sg-font-size: 14px;
+  --sg-line-height: 1.5;
+  /* Headline tracking (tighter the larger the size) */
+  --sg-track-title: -0.125px;
+  --sg-track-h3: -0.25px;
+  --sg-track-h2: -0.625px;
+  --sg-track-h1: -1px;
+
+  /* Radii */
+  --sg-r-tag: 4px;
+  --sg-r-sm: 5px;
+  --sg-r-md: 8px;
+  --sg-r-card: 12px;
+  --sg-r-panel: 12px;
+  --sg-r-dialog: 16px;
+  --sg-r-pill: 9999px;
+
+  /* Spacing scale */
+  --sg-s-1: 4px;
+  --sg-s-2: 6px;
+  --sg-s-3: 8px;
+  --sg-s-4: 10px;
+  --sg-s-5: 12px;
+  --sg-s-6: 14px;
+  --sg-s-7: 16px;
+  --sg-s-8: 18px;
+  --sg-s-9: 20px;
+  --sg-s-10: 24px;
+  --sg-s-11: 32px;
+
+  /* Elevation: many near-transparent layers, never a hard cast */
+  --sg-shadow-1: rgba(0, 0, 0, 0.01) 0 0.175px 1.041px, rgba(0, 0, 0, 0.02) 0 0.8px 2.925px,
+    rgba(0, 0, 0, 0.027) 0 2.025px 7.847px, rgba(0, 0, 0, 0.04) 0 4px 18px;
+  --sg-shadow-2: rgba(0, 0, 0, 0.01) 0 1px 3px, rgba(0, 0, 0, 0.02) 0 3px 7px, rgba(0, 0, 0, 0.02) 0 7px 15px,
+    rgba(0, 0, 0, 0.04) 0 14px 28px, rgba(0, 0, 0, 0.05) 0 23px 52px;
+  --sg-overlay: rgba(15, 15, 15, 0.4);
+
+  /* Misc */
+  --sg-touch: 40px;
+  --sg-focus-ring: 0 0 0 2px var(--sg-surface), 0 0 0 4px var(--sg-accent);
+}

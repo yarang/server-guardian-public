@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 530" width="900" height="530" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+<title id="t">재분석 단계별 상태 추이</title>
+<desc id="d">1단계 발견 80건의 상태를 3단계, 4단계, 5단계 재분석에서 도메인별로 비교한 누적 막대.</desc>
+<style>.h{fill:#7c8594;font-weight:600}.c{fill:#7c8594;font-size:11.5px}.w{fill:#fff;font-size:11px;font-weight:700}</style>
+<text class="h" x="20" y="30">1단계 발견 80건: 3단계 → 4단계 → 5단계 상태</text>
+<rect x="170" y="44" width="12" height="12" rx="2" fill="#10b981" fill-opacity=".85"/><text class="c" x="188" y="54">해소</text>
+<rect x="280" y="44" width="12" height="12" rx="2" fill="#f59e0b" fill-opacity=".85"/><text class="c" x="298" y="54">부분 해소</text>
+<rect x="390" y="44" width="12" height="12" rx="2" fill="#ef4444" fill-opacity=".85"/><text class="c" x="408" y="54">미해결</text>
+<rect x="500" y="44" width="12" height="12" rx="2" fill="#a855f7" fill-opacity=".85"/><text class="c" x="518" y="54">회귀</text>
+<text class="h" x="20" y="111">개발 (21)</text>
+<text class="c" x="126" y="89">3단계</text>
+<rect x="170.0" y="76" width="138.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="239.0" y="89" text-anchor="middle">12</text>
+<rect x="308.0" y="76" width="46.0" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="331.0" y="89" text-anchor="middle">4</text>
+<rect x="354.0" y="76" width="57.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="382.8" y="89" text-anchor="middle">5</text>
+<text class="c" x="419.5" y="89">해소 57%</text>
+<text class="c" x="126" y="111">4단계</text>
+<rect x="170.0" y="98" width="138.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="239.0" y="111" text-anchor="middle">12</text>
+<rect x="308.0" y="98" width="57.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="336.8" y="111" text-anchor="middle">5</text>
+<rect x="365.5" y="98" width="34.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="382.8" y="111" text-anchor="middle">3</text>
+<rect x="400.0" y="98" width="11.5" height="18" fill="#a855f7" fill-opacity=".85"/>
+<text class="c" x="419.5" y="111">해소 57%</text>
+<text class="c" x="126" y="133">5단계</text>
+<rect x="170.0" y="120" width="172.5" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="256.2" y="133" text-anchor="middle">15</text>
+<rect x="342.5" y="120" width="57.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="371.2" y="133" text-anchor="middle">5</text>
+<rect x="400.0" y="120" width="11.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="c" x="419.5" y="133">해소 71%</text>
+<text class="h" x="20" y="199">서버 관리 (24)</text>
+<text class="c" x="126" y="177">3단계</text>
+<rect x="170.0" y="164" width="92.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="216.0" y="177" text-anchor="middle">8</text>
+<rect x="262.0" y="164" width="57.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="290.8" y="177" text-anchor="middle">5</text>
+<rect x="319.5" y="164" width="126.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="382.8" y="177" text-anchor="middle">11</text>
+<text class="c" x="454.0" y="177">해소 33%</text>
+<text class="c" x="126" y="199">4단계</text>
+<rect x="170.0" y="186" width="138.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="239.0" y="199" text-anchor="middle">12</text>
+<rect x="308.0" y="186" width="80.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="348.2" y="199" text-anchor="middle">7</text>
+<rect x="388.5" y="186" width="57.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="417.2" y="199" text-anchor="middle">5</text>
+<text class="c" x="454.0" y="199">해소 50%</text>
+<text class="c" x="126" y="221">5단계</text>
+<rect x="170.0" y="208" width="195.5" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="267.8" y="221" text-anchor="middle">17</text>
+<rect x="365.5" y="208" width="80.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="405.8" y="221" text-anchor="middle">7</text>
+<text class="c" x="454.0" y="221">해소 71%</text>
+<text class="h" x="20" y="287">토론·조치 (19)</text>
+<text class="c" x="126" y="265">3단계</text>
+<rect x="170.0" y="252" width="92.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="216.0" y="265" text-anchor="middle">8</text>
+<rect x="262.0" y="252" width="80.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="302.2" y="265" text-anchor="middle">7</text>
+<rect x="342.5" y="252" width="46.0" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="365.5" y="265" text-anchor="middle">4</text>
+<text class="c" x="396.5" y="265">해소 42%</text>
+<text class="c" x="126" y="287">4단계</text>
+<rect x="170.0" y="274" width="138.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="239.0" y="287" text-anchor="middle">12</text>
+<rect x="308.0" y="274" width="80.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="348.2" y="287" text-anchor="middle">7</text>
+<text class="c" x="396.5" y="287">해소 63%</text>
+<text class="c" x="126" y="309">5단계</text>
+<rect x="170.0" y="296" width="149.5" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="244.8" y="309" text-anchor="middle">13</text>
+<rect x="319.5" y="296" width="69.0" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="354.0" y="309" text-anchor="middle">6</text>
+<text class="c" x="396.5" y="309">해소 68%</text>
+<text class="h" x="20" y="375">UI (16)</text>
+<text class="c" x="126" y="353">3단계</text>
+<rect x="170.0" y="340" width="46.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="193.0" y="353" text-anchor="middle">4</text>
+<rect x="216.0" y="340" width="103.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="267.8" y="353" text-anchor="middle">9</text>
+<rect x="319.5" y="340" width="34.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="336.8" y="353" text-anchor="middle">3</text>
+<text class="c" x="362.0" y="353">해소 25%</text>
+<text class="c" x="126" y="375">4단계</text>
+<rect x="170.0" y="362" width="92.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="216.0" y="375" text-anchor="middle">8</text>
+<rect x="262.0" y="362" width="80.5" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="302.2" y="375" text-anchor="middle">7</text>
+<rect x="342.5" y="362" width="11.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="c" x="362.0" y="375">해소 50%</text>
+<text class="c" x="126" y="397">5단계</text>
+<rect x="170.0" y="384" width="92.0" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="216.0" y="397" text-anchor="middle">8</text>
+<rect x="262.0" y="384" width="92.0" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="308.0" y="397" text-anchor="middle">8</text>
+<text class="c" x="362.0" y="397">해소 50%</text>
+<line x1="20" x2="880" y1="420" y2="420" stroke="#7c8594" stroke-opacity=".3"/>
+<text class="h" x="20" y="463">합계 (80)</text>
+<text class="c" x="126" y="441">3단계</text>
+<rect x="170.0" y="428" width="110.4" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="225.2" y="441" text-anchor="middle">32</text>
+<rect x="280.4" y="428" width="86.2" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="323.5" y="441" text-anchor="middle">25</text>
+<rect x="366.6" y="428" width="79.4" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="406.3" y="441" text-anchor="middle">23</text>
+<text class="c" x="454.0" y="441">해소 40%</text>
+<text class="c" x="126" y="463">4단계</text>
+<rect x="170.0" y="450" width="151.8" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="245.9" y="463" text-anchor="middle">44</text>
+<rect x="321.8" y="450" width="89.7" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="366.7" y="463" text-anchor="middle">26</text>
+<rect x="411.5" y="450" width="31.1" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="427.0" y="463" text-anchor="middle">9</text>
+<rect x="442.6" y="450" width="3.5" height="18" fill="#a855f7" fill-opacity=".85"/>
+<text class="c" x="454.0" y="463">해소 55%</text>
+<text class="c" x="126" y="485">5단계</text>
+<rect x="170.0" y="472" width="182.9" height="18" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="261.4" y="485" text-anchor="middle">53</text>
+<rect x="352.9" y="472" width="89.7" height="18" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="397.7" y="485" text-anchor="middle">26</text>
+<rect x="442.6" y="472" width="3.5" height="18" fill="#ef4444" fill-opacity=".85"/>
+<text class="c" x="454.0" y="485">해소 66%</text>
+</svg>

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" width="1000" height="640" role="img" lang="en">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">Server Guardian: one hub, a fleet reached over SSH</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">Only the hub runs the agent. Other servers run no agent; LLM CLIs on Tier-1 servers get Guardian skills.</text>
+<rect x="24" y="96" width="230" height="300" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+<text x="38" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Admin Mac</text>
+<text x="38" y="142.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">scripts/ci.sh: the CI gate</text>
+<text x="38" y="163.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">install-agent-service.sh:</text>
+<text x="38" y="179.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">deploy the hub</text>
+<text x="38" y="199.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">deploy-llm-env.sh,</text>
+<text x="38" y="215.7" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">deploy-llm-skills.sh</text>
+<text x="38" y="235.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">export-public.sh: masked</text>
+<text x="38" y="252.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">public copy</text>
+<text x="38" y="272.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Dashboard in a browser or the</text>
+<text x="38" y="288.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Tauri app</text>
+<rect x="300" y="80" width="400" height="420" rx="14" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+<text x="500" y="106.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="16" font-weight="700" fill="#3730a3" text-anchor="middle">Hub (site-a-arm1)</text>
+<rect x="318" y="120" width="364" height="92" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="332" y="144.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Go agent :9870</text>
+<text x="332" y="166.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Dashboard, REST and SSE API, audit log</text>
+<text x="332" y="187.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Bearer AGENT_TOKEN or session cookie</text>
+<rect x="318" y="222" width="364" height="112" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="332" y="246.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Debate engine (Python CLI)</text>
+<text x="332" y="268.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Expert, critics, judge; jev gate</text>
+<text x="332" y="289.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Reads code (repo blocks, MCP) or checks servers</text>
+<text x="332" y="305.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">(ops blocks)</text>
+<text x="332" y="325.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Actions: measure, run, verify</text>
+<rect x="318" y="344" width="176" height="142" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="332" y="368.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">~/.guardian/data</text>
+<text x="332" y="390.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">Decision DB, projects,</text>
+<text x="332" y="405.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">teams, debate jobs, code</text>
+<text x="332" y="420.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">index, wiki</text>
+<rect x="506" y="344" width="176" height="142" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="520" y="368.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">systemd timers</text>
+<text x="520" y="390.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">02:30 UTC ops watch</text>
+<text x="520" y="409.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">03:30 UTC DB backup</text>
+<text x="520" y="428.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">LLM CLIs: claude, codex,</text>
+<text x="520" y="443.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">agy</text>
+<rect x="748" y="96" width="228" height="150" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+<text x="762" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#166534" text-anchor="start">Tier-1 servers</text>
+<text x="762" y="142.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">LLM CLIs with Guardian skills</text>
+<text x="762" y="159.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">(host check, host cleanup)</text>
+<text x="762" y="179.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">No agent; one keeps the</text>
+<text x="762" y="195.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">backup copy</text>
+<rect x="748" y="270" width="228" height="120" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+<text x="762" y="294.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#166534" text-anchor="start">Tier-2 servers</text>
+<text x="762" y="316.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">SSH targets only: checks,</text>
+<text x="762" y="333.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">commands, approved actions</text>
+<rect x="24" y="528" width="300" height="88" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+<text x="38" y="552.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#9a3412" text-anchor="start">Gitea (source of truth)</text>
+<text x="38" y="574.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">git push also updates the private GitHub</text>
+<text x="38" y="591.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">mirror</text>
+<rect x="348" y="528" width="300" height="88" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+<text x="362" y="552.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#9a3412" text-anchor="start">Release and checkouts</text>
+<text x="362" y="574.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">~/.guardian/current (the running</text>
+<text x="362" y="591.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">release), ~/server-guardian and</text>
+<text x="362" y="607.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">~/guardian-workspace (debates)</text>
+<rect x="672" y="528" width="304" height="88" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="686" y="552.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#9a3412" text-anchor="start">Public copy on GitHub</text>
+<text x="686" y="574.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">export-public.sh on the admin Mac</text>
+<text x="686" y="591.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">rewrites the whole history with private</text>
+<text x="686" y="607.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">names masked</text>
+<line x1="254" y1="200" x2="300" y2="200" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="277.0" y="194.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">Tailscale</text>
+<line x1="700" y1="170" x2="748" y2="170" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="724.0" y="164.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">fleet SSH</text>
+<line x1="700" y1="330" x2="748" y2="330" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="724.0" y="324.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">fleet SSH</text>
+<line x1="140" y1="396" x2="140" y2="528" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="148" y="466.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="start">git push</text>
+<line x1="324" y1="572" x2="348" y2="572" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="500" y1="528" x2="500" y2="500" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="508" y="518.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="start">release on deploy</text>
+</svg>

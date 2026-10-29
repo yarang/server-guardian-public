@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    The dashboard fetches agents over plain http (e.g. the hub at http://100.64.0.7:9870 over
+    Tailscale). ATS blocks cleartext loads in WKWebView except for localhost, and exceptions take
+    exact domains only, while the agent URL is user-chosen. Scope the exception to web content;
+    the CSP connect-src still limits requests to port 9870.
+  -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoadsInWebContent</key>
+    <true/>
+  </dict>
+</dict>
+</plist>

@@ -1,0 +1,22 @@
+{
+  "id": "fleet-mesh",
+  "name": "Fleet mesh (headscale and tailnet node report, no actions)",
+  "category": "operations",
+  "created": "2026-10-20T12:00:00+09:00",
+  "expert": {
+    "persona": "ops_mesh_engineer",
+    "providers": []
+  },
+  "critic": [
+    {
+      "persona": "ops_mesh_risk_critic",
+      "providers": []
+    }
+  ],
+  "judge": {
+    "persona": "ops_mesh_judge",
+    "providers": []
+  },
+  "max_rounds": 2,
+  "allowed_tools": []
+}

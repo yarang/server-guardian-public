@@ -1,0 +1,14 @@
+{
+  "id": "cross-review",
+  "name": "Cross-provider review (critic panel)",
+  "category": "development",
+  "created": "2026-10-04T00:16:36+09:00",
+  "expert": {"persona": "domain_architect", "providers": ["claude", "codex"]},
+  "critic": [
+    {"persona": "critic_redteam", "providers": ["codex", "agy"]},
+    {"persona": "devops_specialist", "providers": ["agy", "codex"]}
+  ],
+  "judge": {"persona": "jev_mcp_decision", "providers": ["claude", "codex"]},
+  "max_rounds": 3,
+  "allowed_tools": ["jev_mcp:run_tests", "jev_mcp:apply_patch", "jev_mcp:execute_code_action"]
+}

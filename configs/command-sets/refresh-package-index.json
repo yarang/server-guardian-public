@@ -1,0 +1,13 @@
+{
+  "id": "refresh-package-index",
+  "description": "Refreshes the apt package index (apt-get update) so a later install sees current versions; installs nothing.",
+  "os": ["linux"],
+  "needs_sudo": true,
+  "risk": "medium",
+  "reversible": true,
+  "undo": "The index is a cache; the next apt-get update replaces it. No package changes.",
+  "reviewed": "2026-10-20",
+  "timeout": 300,
+  "check": "command -v apt-get >/dev/null",
+  "script": "apt-get update -qq\n"
+}

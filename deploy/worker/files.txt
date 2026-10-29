@@ -1,0 +1,20 @@
+# Files of the model worker, relative to the repository root. scripts/install-worker.sh copies exactly these
+# (from a git revision, flat, into ~/.guardian/worker/ on the host). The closed-set test in
+# cli/llm-agent/test_worker_install.py starts the worker from a directory holding only these files, so a new
+# import in the worker must be added here or CI fails.
+cli/llm-agent/code_context.py
+cli/llm-agent/code_index.py
+cli/llm-agent/code_select.py
+cli/llm-agent/code_wiki.py
+cli/llm-agent/env_policy.py
+cli/llm-agent/evidence.py
+cli/llm-agent/go_facts.py
+cli/llm-agent/go_ops.py
+cli/llm-agent/llm_runner.py
+cli/llm-agent/mcp_stdio.py
+cli/llm-agent/remote_agents.py
+cli/llm-agent/repo_map.py
+cli/llm-agent/repo_mcp.py
+cli/llm-agent/repo_snapshot.py
+cli/llm-agent/repo_tools.py
+cli/llm-agent/worker.py

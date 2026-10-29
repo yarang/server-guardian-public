@@ -1,0 +1,15 @@
+{
+  "id": "server-guardian",
+  "name": "Server Guardian",
+  "description": "This repository: Go agent, Python debate engine, React dashboard and deploy scripts.",
+  "repo": "${GUARDIAN_SELF_REPO}",
+  "branch": "main",
+  "workspace": "~/guardian-workspace",
+  "tests": {
+    "default": [
+      "python3 -m unittest discover -s cli/llm-agent -p test_*.py -q",
+      "go vet ./apps/agent/...",
+      "go test -race ./apps/agent/..."
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 464" width="940" height="464" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+<title id="t">결정 사항 처리 결과</title>
+<desc id="d">결정 사항 14개를 Jev 판정에 따라 구현, 현행 유지, 보류, 사용자 결정으로 나눈 카드.</desc>
+<style>.h{fill:#7c8594;font-weight:700}.c{fill:#7c8594;font-size:12px}.s{font-size:11px;font-weight:600}</style>
+<rect x="14" y="18" width="12" height="12" rx="2" fill="#10b981" fill-opacity=".85"/><text class="c" x="32" y="28">구현·배포 12</text>
+<rect x="144" y="18" width="12" height="12" rx="2" fill="#3b82f6" fill-opacity=".85"/><text class="c" x="162" y="28">현행 유지 2</text>
+<rect x="274" y="18" width="12" height="12" rx="2" fill="#f59e0b" fill-opacity=".85"/><text class="c" x="292" y="28">보류 0</text>
+<rect x="404" y="18" width="12" height="12" rx="2" fill="#ef4444" fill-opacity=".85"/><text class="c" x="422" y="28">사용자 결정 0</text>
+<rect x="14" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="84">D1</text><text class="h" x="64" y="84">git_commit_push 폐지</text>
+<text class="c" x="26" y="108">폐지 (0.90)</text>
+<text class="s" x="26" y="130" style="fill:#10b981">구현·배포</text>
+<rect x="246" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="258" y="84">D2</text><text class="h" x="296" y="84">게시 브랜치 CI</text>
+<text class="c" x="258" y="108">허브 게이트 확대 (사용자 결정)</text>
+<text class="s" x="258" y="130" style="fill:#10b981">구현·배포</text>
+<rect x="478" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="490" y="84">D3</text><text class="h" x="528" y="84">비허브 agent 설치</text>
+<text class="c" x="490" y="108">지원 중단 (0.97)</text>
+<text class="s" x="490" y="130" style="fill:#10b981">구현·배포</text>
+<rect x="710" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="722" y="84">D4</text><text class="h" x="760" y="84">인벤토리 원천</text>
+<text class="c" x="722" y="108">허브 사본 사용 (0.80)</text>
+<text class="s" x="722" y="130" style="fill:#10b981">구현·배포</text>
+<rect x="14" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="180">D5</text><text class="h" x="64" y="180">노드 키 회수</text>
+<text class="c" x="26" y="204">별도 회수 동작 (0.93)</text>
+<text class="s" x="26" y="226" style="fill:#10b981">구현·배포</text>
+<rect x="246" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="258" y="180">D6</text><text class="h" x="296" y="180">명령 감사</text>
+<text class="c" x="258" y="204">감사 로그 + History (0.79)</text>
+<text class="s" x="258" y="226" style="fill:#10b981">구현·배포</text>
+<rect x="478" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="490" y="180">D7</text><text class="h" x="528" y="180">백업·복원</text>
+<text class="c" x="490" y="204">범위 확대 + 복원 문서 (0.82)</text>
+<text class="s" x="490" y="226" style="fill:#10b981">구현·배포</text>
+<rect x="710" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="722" y="180">D8</text><text class="h" x="760" y="180">실행 확인 단계</text>
+<text class="c" x="722" y="204">대상 목록 확인 (0.97)</text>
+<text class="s" x="722" y="226" style="fill:#10b981">구현·배포</text>
+<rect x="14" y="252" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="276">D9</text><text class="h" x="64" y="276">내비게이션 통합</text>
+<text class="c" x="26" y="300">4개 목적지 (0.95)</text>
+<text class="s" x="26" y="322" style="fill:#10b981">구현·배포</text>
+<rect x="246" y="252" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="258" y="276">D10</text><text class="h" x="296" y="276">CLOSED 의미</text>
+<text class="c" x="258" y="300">숨김만 + 배지 (0.94)</text>
+<text class="s" x="258" y="322" style="fill:#10b981">구현·배포</text>
+<rect x="478" y="252" width="222" height="86" rx="10" fill="#3b82f6" fill-opacity=".09" stroke="#3b82f6" stroke-opacity=".7"/>
+<text class="h" x="490" y="276">D11</text><text class="h" x="528" y="276">스레드당 게시</text>
+<text class="c" x="490" y="300">1회 유지 (0.84)</text>
+<text class="s" x="490" y="322" style="fill:#3b82f6">현행 유지</text>
+<rect x="710" y="252" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="722" y="276">D12</text><text class="h" x="760" y="276">작업 클론 정리</text>
+<text class="c" x="722" y="300">미리보기 + 확인 (0.78)</text>
+<text class="s" x="722" y="322" style="fill:#10b981">구현·배포</text>
+<rect x="14" y="348" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="372">D13</text><text class="h" x="64" y="372">긴 작업 결과</text>
+<text class="c" x="26" y="396">앱 저장소 + 게시 이력 (0.97)</text>
+<text class="s" x="26" y="418" style="fill:#10b981">구현·배포</text>
+<rect x="246" y="348" width="222" height="86" rx="10" fill="#3b82f6" fill-opacity=".09" stroke="#3b82f6" stroke-opacity=".7"/>
+<text class="h" x="258" y="372">D14</text><text class="h" x="296" y="372">게시 커밋 유형</text>
+<text class="c" x="258" y="396">판정 갈림 → 현행 유지</text>
+<text class="s" x="258" y="418" style="fill:#3b82f6">현행 유지</text>
+</svg>

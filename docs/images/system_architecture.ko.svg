@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" width="1000" height="640" role="img" lang="ko">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">Server Guardian: 허브 하나, SSH로 다루는 플릿</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">에이전트는 허브에서만 돈다. 다른 서버에는 에이전트가 없고, Tier-1 서버의 LLM CLI에는 Guardian skill이 있다.</text>
+<rect x="24" y="96" width="230" height="300" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+<text x="38" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">관리용 Mac</text>
+<text x="38" y="142.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">scripts/ci.sh: CI 관문</text>
+<text x="38" y="163.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">install-agent-service.sh: 허브</text>
+<text x="38" y="179.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">배포</text>
+<text x="38" y="199.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">deploy-llm-env.sh,</text>
+<text x="38" y="215.7" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">deploy-llm-skills.sh</text>
+<text x="38" y="235.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">export-public.sh: 가린 공개</text>
+<text x="38" y="252.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">사본</text>
+<text x="38" y="272.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">대시보드: 브라우저 또는 Tauri 앱</text>
+<rect x="300" y="80" width="400" height="420" rx="14" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+<text x="500" y="106.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="16" font-weight="700" fill="#3730a3" text-anchor="middle">허브 (site-a-arm1)</text>
+<rect x="318" y="120" width="364" height="92" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="332" y="144.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Go agent :9870</text>
+<text x="332" y="166.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">대시보드, REST·SSE API, audit 로그</text>
+<text x="332" y="187.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Bearer AGENT_TOKEN 또는 세션 쿠키</text>
+<rect x="318" y="222" width="364" height="112" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="332" y="246.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">토론 엔진 (Python CLI)</text>
+<text x="332" y="268.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">전문가, 비판자, 판정자; jev 관문</text>
+<text x="332" y="289.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">코드 읽기(repo 블록, MCP) 또는 서버 점검(ops 블록)</text>
+<text x="332" y="309.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">조치: 측정, 실행, 검증</text>
+<rect x="318" y="344" width="176" height="142" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="332" y="368.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">~/.guardian/data</text>
+<text x="332" y="390.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">결정 DB, 프로젝트, 팀,</text>
+<text x="332" y="405.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">토론 작업, 코드 인덱스,</text>
+<text x="332" y="420.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">위키</text>
+<rect x="506" y="344" width="176" height="142" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="520" y="368.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">systemd 타이머</text>
+<text x="520" y="390.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">02:30 UTC 야간 점검</text>
+<text x="520" y="409.8" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">03:30 UTC DB 백업</text>
+<text x="520" y="428.6" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">LLM CLI: claude, codex,</text>
+<text x="520" y="443.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">agy</text>
+<rect x="748" y="96" width="228" height="150" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+<text x="762" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#166534" text-anchor="start">Tier-1 서버</text>
+<text x="762" y="142.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">Guardian skill이 있는 LLM CLI</text>
+<text x="762" y="159.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">(호스트 점검·정리)</text>
+<text x="762" y="179.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">에이전트 없음; 한 대가 백업 사본</text>
+<text x="762" y="195.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">보관</text>
+<rect x="748" y="270" width="228" height="120" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+<text x="762" y="294.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#166534" text-anchor="start">Tier-2 서버</text>
+<text x="762" y="316.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">SSH 대상만: 점검, 명령, 승인된</text>
+<text x="762" y="333.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">조치</text>
+<rect x="24" y="528" width="300" height="88" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+<text x="38" y="552.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#9a3412" text-anchor="start">Gitea (원본)</text>
+<text x="38" y="574.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">git push가 비공개 GitHub 미러도 갱신</text>
+<rect x="348" y="528" width="300" height="88" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+<text x="362" y="552.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#9a3412" text-anchor="start">릴리스와 체크아웃</text>
+<text x="362" y="574.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">~/.guardian/current (실행 중인 릴리스),</text>
+<text x="362" y="591.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">~/server-guardian과 ~/guardian-workspace</text>
+<text x="362" y="607.3" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">(토론용)</text>
+<rect x="672" y="528" width="304" height="88" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="686" y="552.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#9a3412" text-anchor="start">GitHub 공개 사본</text>
+<text x="686" y="574.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">관리용 Mac의 export-public.sh가 사적 이름을</text>
+<text x="686" y="591.1" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">가려 전체 이력을 다시 씀</text>
+<line x1="254" y1="200" x2="300" y2="200" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="277.0" y="194.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">Tailscale</text>
+<line x1="700" y1="170" x2="748" y2="170" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="724.0" y="164.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">플릿 SSH</text>
+<line x1="700" y1="330" x2="748" y2="330" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="724.0" y="324.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">플릿 SSH</text>
+<line x1="140" y1="396" x2="140" y2="528" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="148" y="466.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="start">git push</text>
+<line x1="324" y1="572" x2="348" y2="572" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<line x1="500" y1="528" x2="500" y2="500" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="508" y="518.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="start">배포 때 릴리스</text>
+</svg>

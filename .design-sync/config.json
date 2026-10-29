@@ -1,0 +1,72 @@
+{
+  "projectId": "bd231288-0dbc-40a8-b01a-a72af185a838",
+  "pkg": "@server-guardian/ui",
+  "globalName": "GuardianUI",
+  "shape": "package",
+  "buildCmd": "cd packages/guardian-ui && npm ci && npm run build",
+  "cssEntry": "dist/guardian-ui.css",
+  "guidelinesGlob": [],
+  "provider": {
+    "component": "GuardianRoot"
+  },
+  "overrides": {
+    "NodeTable": {
+      "cardMode": "column",
+      "viewport": "1040x460"
+    },
+    "NodeRow": {
+      "cardMode": "column",
+      "viewport": "1040x460"
+    },
+    "CommandPalette": {
+      "cardMode": "column",
+      "viewport": "900x860"
+    },
+    "ActionCard": {
+      "cardMode": "column"
+    },
+    "Button": {
+      "cardMode": "column"
+    },
+    "CodeBlock": {
+      "cardMode": "column"
+    },
+    "Heatmap": {
+      "cardMode": "column"
+    },
+    "ProcessTable": {
+      "cardMode": "column"
+    },
+    "Terminal": {
+      "cardMode": "column"
+    },
+    "GuardianRoot": {
+      "cardMode": "column"
+    },
+    "Icon": {
+      "cardMode": "column"
+    },
+    "Panel": {
+      "cardMode": "column"
+    },
+    "TextField": {
+      "cardMode": "column"
+    },
+    "TabBar": {
+      "cardMode": "column"
+    },
+    "ConfirmDialog": {
+      "cardMode": "column"
+    },
+    "Meter": {
+      "cardMode": "column"
+    },
+    "StatCard": {
+      "cardMode": "column"
+    },
+    "VerdictChain": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}

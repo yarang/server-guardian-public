@@ -1,0 +1,35 @@
+{
+  "id": "fleet-ops",
+  "name": "Fleet operations (SRE, safety and capacity review)",
+  "category": "operations",
+  "created": "2026-10-18T01:49:30+09:00",
+  "expert": {
+    "persona": "ops_sre",
+    "providers": []
+  },
+  "critic": [
+    {
+      "persona": "ops_safety_critic",
+      "providers": []
+    },
+    {
+      "persona": "ops_capacity_critic",
+      "providers": []
+    }
+  ],
+  "judge": {
+    "persona": "ops_judge",
+    "providers": []
+  },
+  "max_rounds": 2,
+  "allowed_tools": [
+    "ops:docker_prune",
+    "ops:journal_vacuum",
+    "ops:apt_clean",
+    "ops:remove_paths",
+    "ops:truncate_logs",
+    "ops:remove_old_kernels",
+    "ops:restart_service",
+    "jev_mcp:server_remediation"
+  ]
+}

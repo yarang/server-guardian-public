@@ -1,0 +1,83 @@
+flowchart TB
+    %% ========================================================
+    %% Server Guardian - System Architecture & Agent Interaction
+    %% ========================================================
+
+    subgraph CLIENT["Client Layer (Web & Desktop)"]
+        direction TB
+        UI["React Web UI (Dashboard, SSH Views, Chat, Terminal)"]
+        TAURI["Tauri Host Runtime (Rust, Keyring, IPC)"]
+        UI <--> TAURI
+    end
+
+    subgraph MULTI_AGENT["LLM Multi-Agent System (CLI & Orchestrator)"]
+        direction TB
+        SUPERVISOR["👑 Supervisor Agent (Planner & Router)"]
+        
+        subgraph SPECIALIZED_AGENTS["Specialized Domain Agents"]
+            DIAGNOSTIC["🔍 Diagnostic Agent (Telemetry & Top Processes)"]
+            SECURITY["🛡️ Security Auditor Agent (CIS Benchmark & SSH)"]
+            REMEDIATION["🔧 Remediation Agent (Human-in-the-Loop Safe Fixes)"]
+        end
+
+        LLM_ADAPTER["LLM CLI Adapter (Gemini, Claude, Ollama, Heuristic Engine)"]
+
+        SUPERVISOR --> DIAGNOSTIC
+        SUPERVISOR --> SECURITY
+        SUPERVISOR --> REMEDIATION
+        DIAGNOSTIC <--> LLM_ADAPTER
+        SECURITY <--> LLM_ADAPTER
+        REMEDIATION <--> LLM_ADAPTER
+    end
+
+    subgraph NODE_AGENT["Target Node Agent (Go Daemon :9870)"]
+        direction TB
+        API_ROUTER["HTTP / REST & SSE Stream Router"]
+        
+        subgraph AGENT_MODULES["Core Engine Modules"]
+            METRICS_COLLECTOR["Telemetry Collector (CPU, RAM, Disk, LoadAvg, Procs)"]
+            SSHD_MANAGER["SSHD Manager (Config Parser, Syntax Validator, Keys)"]
+            SECURITY_EVAL["CIS Security Evaluator (Score 0-100, Rules SEC-001~005)"]
+            SANDBOX_EXEC["Sandbox Command Executor (Timeout, Stderr/Stdout Buffer)"]
+        end
+
+        API_ROUTER --> METRICS_COLLECTOR
+        API_ROUTER --> SSHD_MANAGER
+        API_ROUTER --> SECURITY_EVAL
+        API_ROUTER --> SANDBOX_EXEC
+    end
+
+    subgraph HOST_OS["Target Host OS & SSH Infrastructure"]
+        direction TB
+        SSHD_DAEMON["sshd Service & Daemon"]
+        SSHD_CONFIG["/etc/ssh/sshd_config"]
+        AUTH_KEYS["~/.ssh/authorized_keys"]
+        KERNEL["OS Kernel (procfs, sysctl, Processes)"]
+    end
+
+    %% Communication Links
+    CLIENT <== "HTTP REST / SSE Stream" ==> API_ROUTER
+    CLIENT <== "IPC / Natural Language Prompt" ==> SUPERVISOR
+    
+    MULTI_AGENT <== "NodeAgentClient (JSON API)" ==> API_ROUTER
+
+    METRICS_COLLECTOR -. "Inspect Metrics & Procs" .-> KERNEL
+    SSHD_MANAGER -. "Read & Parse" .-> SSHD_CONFIG
+    SSHD_MANAGER -. "Validate (sshd -t)" .-> SSHD_DAEMON
+    SSHD_MANAGER -. "Read & Audit Keys" .-> AUTH_KEYS
+    SANDBOX_EXEC -. "Execute Approved Shell Cmd" .-> KERNEL
+
+    %% Human Approval Flow
+    REMEDIATION -. "1. Propose Safe Fix Plan" .-> UI
+    UI -. "2. User Explicit Approval" .-> SANDBOX_EXEC
+
+    %% Styling & Classes
+    classDef clientStyle fill:#1e293b,stroke:#06b6d4,stroke-width:2px,color:#f8fafc;
+    classDef agentStyle fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+    classDef nodeStyle fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef osStyle fill:#18181b,stroke:#64748b,stroke-width:2px,color:#f8fafc;
+
+    class UI,TAURI clientStyle;
+    class SUPERVISOR,DIAGNOSTIC,SECURITY,REMEDIATION,LLM_ADAPTER agentStyle;
+    class API_ROUTER,METRICS_COLLECTOR,SSHD_MANAGER,SECURITY_EVAL,SANDBOX_EXEC nodeStyle;
+    class SSHD_DAEMON,SSHD_CONFIG,AUTH_KEYS,KERNEL osStyle;

@@ -1,0 +1,16 @@
+# Paths that scripts/export-public.sh never publishes (git glob pathspecs, relative to the repository root).
+# A directory needs a trailing /** . Excluding a path here does not remove what an earlier public snapshot
+# already contains; it only keeps it out of later snapshots.
+
+# private data and credentials
+configs/servers.json
+configs/servers.json.bak
+docs/decisions/guardian_decisions.db
+CLAUDE.local.md
+**/*.enc
+**/*.pyc
+**/__pycache__/**
+
+# evaluation results (decided 2026-10-23: not public)
+docs/analysis/*-eval*/**
+docs/analysis/*-audit-*/**

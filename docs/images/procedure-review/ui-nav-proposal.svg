@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13">
+  <title id="t">Proposed simplified navigation for the Server Guardian dashboard</title>
+  <desc id="d">Four top-level destinations: Fleet, Debates, Approvals, Settings. Each lists the current pages it absorbs and the procedures reachable from it.</desc>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8a8f98"/>
+    </marker>
+  </defs>
+
+  <!-- Left: desktop sidebar -->
+  <text x="30" y="34" fill="#8a8f98" font-size="15" font-weight="700">Proposed sidebar (4 items, same on mobile tab bar)</text>
+  <rect x="30" y="50" width="200" height="330" rx="10" fill="#8a8f98" fill-opacity="0.07" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="46" y="78" fill="#8a8f98" font-weight="700">Server Guardian</text>
+
+  <rect x="42" y="94" width="176" height="44" rx="8" fill="#4f8fd6" fill-opacity="0.18" stroke="#4f8fd6" stroke-width="2"/>
+  <text x="58" y="121" fill="#4f8fd6" font-weight="700" font-size="14">Fleet</text>
+  <rect x="42" y="148" width="176" height="44" rx="8" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="58" y="175" fill="#8a8f98" font-weight="700" font-size="14">Debates</text>
+  <rect x="42" y="202" width="176" height="44" rx="8" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="58" y="229" fill="#8a8f98" font-weight="700" font-size="14">Approvals</text>
+  <rect x="180" y="214" width="26" height="20" rx="10" fill="#d1604f" fill-opacity="0.25" stroke="#d1604f" stroke-width="1.5"/>
+  <text x="193" y="229" text-anchor="middle" fill="#d1604f" font-size="12" font-weight="700">3</text>
+  <rect x="42" y="256" width="176" height="44" rx="8" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="58" y="283" fill="#8a8f98" font-weight="700" font-size="14">Settings</text>
+
+  <text x="46" y="330" fill="#8a8f98" font-size="11">Footer: hub URL + Agent status chip</text>
+  <text x="46" y="348" fill="#8a8f98" font-size="11">(click = Settings / Connection)</text>
+
+  <!-- Right: what each item contains -->
+  <text x="270" y="34" fill="#8a8f98" font-size="15" font-weight="700">Destination contents (tabs inside the page)</text>
+
+  <!-- Fleet -->
+  <rect x="270" y="50" width="660" height="108" rx="10" fill="#4f8fd6" fill-opacity="0.07" stroke="#4f8fd6" stroke-width="1.5"/>
+  <text x="286" y="74" fill="#4f8fd6" font-weight="700" font-size="14">Fleet</text>
+  <g font-size="12" fill="#8a8f98">
+    <rect x="286" y="84" width="104" height="26" rx="13" fill="none" stroke="#4f8fd6" stroke-width="1.5"/><text x="338" y="101" text-anchor="middle" fill="#4f8fd6">Nodes</text>
+    <rect x="398" y="84" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="450" y="101" text-anchor="middle">Groups</text>
+    <rect x="510" y="84" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="562" y="101" text-anchor="middle">SSH audit</text>
+    <rect x="622" y="84" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="674" y="101" text-anchor="middle">Run</text>
+    <text x="286" y="132">Nodes = Overview cards (attention first) + inventory + hub host; node page: probe, audit, pin host key, add / remove.</text>
+    <text x="286" y="148">Selection bar on Nodes: Run on selection, Add to group, Debate selection.</text>
+  </g>
+
+  <!-- Debates -->
+  <rect x="270" y="172" width="660" height="98" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="196" fill="#8a8f98" font-weight="700" font-size="14">Debates</text>
+  <g font-size="12" fill="#8a8f98">
+    <rect x="286" y="206" width="130" height="26" rx="13" fill="none" stroke="#4f8fd6" stroke-width="1.5"/><text x="351" y="223" text-anchor="middle" fill="#4f8fd6">New debate</text>
+    <rect x="424" y="206" width="130" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="489" y="223" text-anchor="middle">Live and recent</text>
+    <text x="286" y="252">One list (project filter, closed hidden) + one detail: progress lanes, result, jev recheck, Close thread, Publish.</text>
+  </g>
+
+  <!-- Approvals -->
+  <rect x="270" y="284" width="660" height="70" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="308" fill="#8a8f98" font-weight="700" font-size="14">Approvals</text>
+  <text x="286" y="332" fill="#8a8f98" font-size="12">Opens on "Awaiting decision", all projects with a project column. Run / Reject one confirm pattern.</text>
+
+  <!-- Settings -->
+  <rect x="270" y="368" width="660" height="98" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="392" fill="#8a8f98" font-weight="700" font-size="14">Settings</text>
+  <g font-size="12" fill="#8a8f98">
+    <rect x="286" y="402" width="104" height="26" rx="13" fill="none" stroke="#4f8fd6" stroke-width="1.5"/><text x="338" y="419" text-anchor="middle" fill="#4f8fd6">Connection</text>
+    <rect x="398" y="402" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="450" y="419" text-anchor="middle">Projects</text>
+    <rect x="510" y="402" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="562" y="419" text-anchor="middle">Personas</text>
+    <rect x="622" y="402" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="674" y="419" text-anchor="middle">Teams</text>
+    <text x="286" y="450">Connection = hub URL, token, sign out (one place; the header button goes away).</text>
+  </g>
+
+  <!-- Arrows from sidebar to blocks -->
+  <path d="M230 116 H262 V104 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M230 170 H250 V221 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M230 224 H246 V319 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M230 278 H242 V417 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Cross-links legend -->
+  <rect x="30" y="486" width="900" height="92" rx="10" fill="#8a8f98" fill-opacity="0.07" stroke="#8a8f98" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="46" y="510" fill="#8a8f98" font-weight="700">Cross-links that replace today's split pages</text>
+  <g font-size="12" fill="#8a8f98">
+    <text x="46" y="530">Node / group / audit finding  to  "Debate this" (prefills Debates).   Debate result action  to  Approvals #id.   Approvals #id  to  its debate.</text>
+    <text x="46" y="548">Agents monitor becomes the detail pane of Debates; Security becomes the SSH audit tab of Fleet; Overview becomes the top of Fleet.</text>
+    <text x="46" y="566">Open question for the operator: keep Run as a Fleet tab, or make it a drawer opened from any node / group / selection.</text>
+  </g>
+</svg>

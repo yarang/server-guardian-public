@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 784" width="1000" height="784" role="img" lang="en">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">Hub API (port 9870)</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">Listens on 127.0.0.1 and the hub's Tailscale IP only. Every /api/ route passes withSecurity(withAuth(mux)): Bearer</text>
+<text x="500.0" y="75.5" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">AGENT_TOKEN, or the session cookie the dashboard gets at sign-in.</text>
+<rect x="24" y="96" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Status and metrics</text>
+<text x="38" y="142.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/status</text>
+<text x="38" y="161.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/metrics</text>
+<text x="38" y="180.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/stream/metrics (SSE)</text>
+<rect x="510" y="96" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="120.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">sshd of the hub</text>
+<text x="524" y="142.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/ssh/config</text>
+<text x="524" y="161.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/ssh/security</text>
+<text x="524" y="180.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/ssh/keys</text>
+<rect x="24" y="226" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="250.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Fleet</text>
+<text x="38" y="272.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/fleet/diagnose</text>
+<text x="38" y="291.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/fleet/ssh</text>
+<text x="38" y="310.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/fleet/exec (/stream)</text>
+<rect x="510" y="226" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="250.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Commands and audit</text>
+<text x="524" y="272.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/exec, /api/exec/remote</text>
+<text x="524" y="291.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/audit</text>
+<rect x="24" y="356" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="380.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Nodes</text>
+<text x="38" y="402.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/nodes, /api/nodes/registration</text>
+<text x="38" y="421.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/nodes/check</text>
+<text x="38" y="440.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/nodes, /api/nodes/{id}/probe</text>
+<text x="38" y="459.5" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">PUT, DELETE /api/nodes/{id}; revoke-key</text>
+<text x="38" y="478.3" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET, POST /api/mesh/join, /api/mesh/nodes(/{id}/remove)</text>
+<rect x="510" y="356" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="380.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Groups</text>
+<text x="524" y="402.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET, POST /api/groups</text>
+<text x="524" y="421.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/groups/preview</text>
+<text x="524" y="440.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">DELETE /api/groups/{id}</text>
+<rect x="24" y="486" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="510.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Debates</text>
+<text x="38" y="532.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST, GET /api/debates</text>
+<text x="38" y="551.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/debates/{id}(/events, /prompts/{seq})</text>
+<text x="38" y="570.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">DELETE /api/debates/{id} (cancel)</text>
+<rect x="510" y="486" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="510.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Actions and threads</text>
+<text x="524" y="532.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/actions(/{id})</text>
+<text x="524" y="551.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/actions/{id}/run, reject, fail-stale</text>
+<text x="524" y="570.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/threads/{t}/publish, close, jev-recheck</text>
+<text x="524" y="589.5" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/threads/{t}/report</text>
+<rect x="24" y="616" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="38" y="640.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Projects, teams, personas, code</text>
+<text x="38" y="662.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET, POST, DELETE /api/projects | teams | personas</text>
+<text x="38" y="681.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/projects/{id}/sync, workspace-reset</text>
+<text x="38" y="700.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">GET /api/projects/{id}/files, wiki</text>
+<rect x="510" y="616" width="466" height="118" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="524" y="640.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="14" font-weight="700" fill="#334155" text-anchor="start">Sign-in</text>
+<text x="524" y="662.9" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/auth/login</text>
+<text x="524" y="681.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#1f2937" text-anchor="start">POST /api/auth/logout</text>
+<text x="500" y="762.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">Debates, actions, threads, groups, projects, teams, personas, files and the wiki run guardian.py; commands on /api/exec* are written to the audit log.</text>
+</svg>

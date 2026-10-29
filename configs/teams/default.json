@@ -1,0 +1,9 @@
+{
+  "id": "default",
+  "name": "Default lineup",
+  "category": "general",
+  "created": "2026-10-04T00:16:36+09:00",
+  "expert": {"persona": "domain_architect", "providers": []},
+  "critic": [{"persona": "critic_redteam", "providers": []}],
+  "judge": {"persona": "jev_mcp_decision", "providers": []}
+}

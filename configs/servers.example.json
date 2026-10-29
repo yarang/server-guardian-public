@@ -1,0 +1,38 @@
+[
+  {
+    "id": "hub-1",
+    "name": "hub-1",
+    "hostname": "hub-1.example.com",
+    "user": "ubuntu",
+    "port": 22,
+    "arch": "aarch64",
+    "group": "Example Cluster",
+    "description": "The Server Guardian hub: runs the agent, the dashboard and the debates",
+    "tailscale_ip": "100.64.0.10",
+    "tailscale_domain": "hub-1.example.ts.net",
+    "tailscale_tags": ["tag:fleet"],
+    "tier": "Tier-1",
+    "role": "llm_cli_host",
+    "cli_support": ["claude", "codex"],
+    "guardian_role": "hub",
+    "backup_replica": "node-1"
+  },
+  {
+    "id": "node-1",
+    "name": "node-1",
+    "hostname": "node-1.example.com",
+    "user": "ubuntu",
+    "port": 22,
+    "arch": "x86_64",
+    "group": "Example Cluster",
+    "description": "A fleet node the hub reaches over SSH (no agent runs here)",
+    "tailscale_ip": "100.64.0.11",
+    "tailscale_domain": "node-1.example.ts.net",
+    "tailscale_tags": ["tag:fleet"],
+    "tier": "Tier-2",
+    "role": "ssh_target_node",
+    "cli_support": ["ssh_agent_remote_exec"],
+    "guardian_role": "node",
+    "ops_roles": ["web"]
+  }
+]

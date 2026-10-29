@@ -1,0 +1,6 @@
+{
+  "guardian-host-check": "all",
+  "guardian-host-cleanup": "all",
+  "guardian-fleet-ops": "hub",
+  "guardian-hub-status": "hub"
+}

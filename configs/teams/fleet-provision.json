@@ -1,0 +1,32 @@
+{
+  "id": "fleet-provision",
+  "name": "Fleet provisioning (package install and removal, safety and dependency review)",
+  "category": "operations",
+  "created": "2026-10-19T12:00:00+09:00",
+  "expert": {
+    "persona": "ops_provisioner",
+    "providers": []
+  },
+  "critic": [
+    {
+      "persona": "ops_provision_safety_critic",
+      "providers": []
+    },
+    {
+      "persona": "ops_dependency_critic",
+      "providers": []
+    }
+  ],
+  "judge": {
+    "persona": "ops_provision_judge",
+    "providers": []
+  },
+  "max_rounds": 2,
+  "allowed_tools": [
+    "ops:package_install",
+    "ops:package_remove",
+    "ops:restart_service",
+    "ops:run_command_set",
+    "ops:run_script"
+  ]
+}

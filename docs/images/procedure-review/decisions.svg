@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 464" width="940" height="464" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+<title id="t">Decision outcomes</title>
+<desc id="d">Cards sorting the 14 decisions by Jev verdict into implemented, kept as is, deferred and user decision.</desc>
+<style>.h{fill:#7c8594;font-weight:700}.c{fill:#7c8594;font-size:12px}.s{font-size:11px;font-weight:600}</style>
+<rect x="14" y="18" width="12" height="12" rx="2" fill="#10b981" fill-opacity=".85"/><text class="c" x="32" y="28">Deployed 12</text>
+<rect x="144" y="18" width="12" height="12" rx="2" fill="#3b82f6" fill-opacity=".85"/><text class="c" x="162" y="28">Kept as is 2</text>
+<rect x="274" y="18" width="12" height="12" rx="2" fill="#f59e0b" fill-opacity=".85"/><text class="c" x="292" y="28">Deferred 0</text>
+<rect x="404" y="18" width="12" height="12" rx="2" fill="#ef4444" fill-opacity=".85"/><text class="c" x="422" y="28">User decision 0</text>
+<rect x="14" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="84">D1</text><text class="h" x="64" y="84">Drop git_commit_push</text>
+<text class="c" x="26" y="108">Remove (0.90)</text>
+<text class="s" x="26" y="130" style="fill:#10b981">Deployed</text>
+<rect x="246" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="258" y="84">D2</text><text class="h" x="296" y="84">Publish-branch CI</text>
+<text class="c" x="258" y="108">Extend hub gate (by user)</text>
+<text class="s" x="258" y="130" style="fill:#10b981">Deployed</text>
+<rect x="478" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="490" y="84">D3</text><text class="h" x="528" y="84">Non-hub agent install</text>
+<text class="c" x="490" y="108">Drop support (0.97)</text>
+<text class="s" x="490" y="130" style="fill:#10b981">Deployed</text>
+<rect x="710" y="60" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="722" y="84">D4</text><text class="h" x="760" y="84">Inventory source</text>
+<text class="c" x="722" y="108">Use hub copy (0.80)</text>
+<text class="s" x="722" y="130" style="fill:#10b981">Deployed</text>
+<rect x="14" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="180">D5</text><text class="h" x="64" y="180">Node key revocation</text>
+<text class="c" x="26" y="204">Separate revoke step (0.93)</text>
+<text class="s" x="26" y="226" style="fill:#10b981">Deployed</text>
+<rect x="246" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="258" y="180">D6</text><text class="h" x="296" y="180">Command audit</text>
+<text class="c" x="258" y="204">Audit log + History (0.79)</text>
+<text class="s" x="258" y="226" style="fill:#10b981">Deployed</text>
+<rect x="478" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="490" y="180">D7</text><text class="h" x="528" y="180">Backup and restore</text>
+<text class="c" x="490" y="204" style="font-size:11px">Wider scope + restore doc (0.82)</text>
+<text class="s" x="490" y="226" style="fill:#10b981">Deployed</text>
+<rect x="710" y="156" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="722" y="180">D8</text><text class="h" x="760" y="180">Run confirmation step</text>
+<text class="c" x="722" y="204">Confirm target list (0.97)</text>
+<text class="s" x="722" y="226" style="fill:#10b981">Deployed</text>
+<rect x="14" y="252" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="276">D9</text><text class="h" x="64" y="276">Navigation merge</text>
+<text class="c" x="26" y="300">4 destinations (0.95)</text>
+<text class="s" x="26" y="322" style="fill:#10b981">Deployed</text>
+<rect x="246" y="252" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="258" y="276">D10</text><text class="h" x="296" y="276">CLOSED meaning</text>
+<text class="c" x="258" y="300">Hide only + badge (0.94)</text>
+<text class="s" x="258" y="322" style="fill:#10b981">Deployed</text>
+<rect x="478" y="252" width="222" height="86" rx="10" fill="#3b82f6" fill-opacity=".09" stroke="#3b82f6" stroke-opacity=".7"/>
+<text class="h" x="490" y="276">D11</text><text class="h" x="528" y="276">Publishes per thread</text>
+<text class="c" x="490" y="300">Keep one (0.84)</text>
+<text class="s" x="490" y="322" style="fill:#3b82f6">Kept as is</text>
+<rect x="710" y="252" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="722" y="276">D12</text><text class="h" x="760" y="276">Work clone cleanup</text>
+<text class="c" x="722" y="300">Preview + confirm (0.78)</text>
+<text class="s" x="722" y="322" style="fill:#10b981">Deployed</text>
+<rect x="14" y="348" width="222" height="86" rx="10" fill="#10b981" fill-opacity=".09" stroke="#10b981" stroke-opacity=".7"/>
+<text class="h" x="26" y="372">D13</text><text class="h" x="64" y="372">Long job results</text>
+<text class="c" x="26" y="396" style="font-size:10.5px">App storage + publish log (0.97)</text>
+<text class="s" x="26" y="418" style="fill:#10b981">Deployed</text>
+<rect x="246" y="348" width="222" height="86" rx="10" fill="#3b82f6" fill-opacity=".09" stroke="#3b82f6" stroke-opacity=".7"/>
+<text class="h" x="258" y="372">D14</text><text class="h" x="296" y="372">Publish commit type</text>
+<text class="c" x="258" y="396">Split verdict → keep as is</text>
+<text class="s" x="258" y="418" style="fill:#3b82f6">Kept as is</text>
+</svg>

@@ -1,0 +1,47 @@
+{
+  "id": "guardian-dev",
+  "name": "Server Guardian development (Claude lead, Codex and Gemini critics)",
+  "category": "development",
+  "created": "2026-10-19T08:42:42+09:00",
+  "expert": {
+    "persona": "guardian_lead_dev",
+    "providers": [
+      "claude"
+    ]
+  },
+  "critic": [
+    {
+      "persona": "guardian_security_critic",
+      "providers": [
+        "codex",
+        "agy"
+      ]
+    },
+    {
+      "persona": "guardian_qa_critic",
+      "providers": [
+        "agy",
+        "codex"
+      ]
+    },
+    {
+      "persona": "guardian_release_critic",
+      "providers": [
+        "agy",
+        "codex"
+      ]
+    }
+  ],
+  "judge": {
+    "persona": "guardian_dev_judge",
+    "providers": [
+      "claude"
+    ]
+  },
+  "max_rounds": 3,
+  "allowed_tools": [
+    "jev_mcp:run_tests",
+    "jev_mcp:apply_patch",
+    "jev_mcp:execute_code_action"
+  ]
+}

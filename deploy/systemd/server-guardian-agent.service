@@ -1,0 +1,58 @@
+[Unit]
+Description=Server Guardian Agent (metrics, sshd audit and command API)
+Documentation=https://git.example.com/owner/server-guardian
+Wants=network-online.target guardian-fleet-agent.service
+After=network-online.target tailscaled.service guardian-fleet-agent.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+# The release the hub runs (docs/design/install-tracks.md, section 5): ~/.guardian/current links to
+# ~/.guardian/releases/<name>. guardian.py is cli/llm-agent/guardian.py relative to it (GUARDIAN_CLI). The
+# inventory is GUARDIAN_SERVERS_FILE (~/.guardian/data/servers.json).
+WorkingDirectory=/home/ubuntu/.guardian/current
+# AGENT_HOST is comma-separated (e.g. 127.0.0.1,100.64.0.7). Keep it on loopback
+# and the Tailscale IP only:
+# /api/* requires AGENT_TOKEN (bearer header or session cookie) from agent.env.
+Environment=AGENT_HOST=127.0.0.1
+Environment=AGENT_PORT=9870
+EnvironmentFile=-/home/ubuntu/.guardian/agent.env
+ExecStart=/home/ubuntu/.guardian/current/bin/agent
+# Binding to the Tailscale IP fails until tailscaled has assigned it; retry.
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ubuntu/.guardian/agent.log
+StandardError=append:/home/ubuntu/.guardian/agent.log
+
+# --- Isolation (docs/analysis/2026-10-04-system-analysis.md, item 6) ---
+# The agent and everything it starts (debates, LLM CLIs, tool actions, /api/exec) keep running as
+# ubuntu, but can never gain privileges: sudo and other setuid programs stop working inside this
+# tree, so a prompt-injected CLI or a dashboard command cannot become root on the hub. Fleet hosts
+# are still reached as before (their own sudo is unaffected).
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+# Secrets the agent tree must not read. The fleet key is only usable through the ssh-agent socket
+# (guardian-fleet-agent.service); "-" ignores paths that do not exist on a host.
+InaccessiblePaths=-/etc/guardian -/home/ubuntu/.ssh/guardian_fleet -/home/ubuntu/.ssh/id_ed25519 -/home/ubuntu/.ssh/id_rsa -/home/ubuntu/.guardian/backup.env -/home/ubuntu/.config/headscale
+# /usr, /boot and /etc are read-only; home stays writable for ~/.guardian, the workspace clone and
+# the CLIs' own state (~/.claude, ~/.codex, ~/.gemini, ~/.cache).
+ProtectSystem=full
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

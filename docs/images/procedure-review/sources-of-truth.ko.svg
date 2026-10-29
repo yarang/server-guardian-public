@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+  <title id="t">진실 원천 분산</title>
+  <desc id="d">같은 정보가 여러 곳에 있고, 각각 다른 절차로 움직이는 다섯 가지 영역.</desc>
+  <style>
+    .h{fill:#7c8594;font-weight:600}
+    .c{fill:#7c8594;font-size:12px}
+    .cell{fill:#7c8594;fill-opacity:.07;stroke:#7c8594;stroke-opacity:.5}
+    .w{fill:#ef4444;fill-opacity:.12;stroke:#ef4444;stroke-opacity:.7}
+    .o{fill:#10b981;fill-opacity:.12;stroke:#10b981;stroke-opacity:.7}
+    .x{fill:#ef4444;font-size:12px;font-weight:600}
+    .ok{fill:#10b981;font-size:12px;font-weight:600}
+  </style>
+  <text class="h" x="20" y="30">영역</text>
+  <text class="h" x="190" y="30">사본 A</text>
+  <text class="h" x="390" y="30">사본 B</text>
+  <text class="h" x="590" y="30">동기화 절차</text>
+
+  <g>
+    <rect class="cell" x="14" y="44" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="72">인벤토리</text>
+    <text class="c" x="190" y="68">Mac configs/servers.json</text>
+    <text class="c" x="190" y="86">(설치·SSH 스크립트가 읽음)</text>
+    <text class="c" x="390" y="68">허브 ~/.guardian/data/servers.json</text>
+    <text class="c" x="390" y="86">(대시보드 등록이 씀)</text>
+    <rect class="w" x="586" y="54" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="72">허브 → Mac 단방향 (pull)</text>
+    <text class="c" x="596" y="90">Mac 편집을 허브로 보낼 절차 없음 (OPS-5)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="116" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="144">코드 버전</text>
+    <text class="c" x="190" y="140">Mac 작업 트리 · agent 바이너리</text>
+    <text class="c" x="190" y="158">(로컬 트리에서 빌드)</text>
+    <text class="c" x="390" y="140">허브 체크아웃 · 작업 클론</text>
+    <text class="c" x="390" y="158">(git pull --ff-only)</text>
+    <rect class="w" x="586" y="126" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="144">경고만, 강제 없음 (DEV-7)</text>
+    <text class="c" x="596" y="162">→ 수정: 바이너리 버전 스탬프 (F34)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="188" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="216">agent.env 설정</text>
+    <text class="c" x="190" y="212">설치 스크립트가 쓰는 키</text>
+    <text class="c" x="390" y="212">운영자가 손으로 넣은 키</text>
+    <text class="c" x="390" y="230">(GUARDIAN_UI_ACTIONS=off 등)</text>
+    <rect class="w" x="586" y="198" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="216">재배포 시 덮어써 사라짐 (OPS-2)</text>
+    <text class="c" x="596" y="234">→ 수정: 소유 키만 갱신 (F2)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="260" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="288">조치·스레드 상태</text>
+    <text class="c" x="190" y="284">result.json 스냅샷</text>
+    <text class="c" x="190" y="302">(토론 종료 시점)</text>
+    <text class="c" x="390" y="284">결정 DB (실시간)</text>
+    <text class="c" x="390" y="302">(승인·거부·게시·닫기)</text>
+    <rect class="w" x="586" y="270" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="288">화면은 스냅샷을 표시 (DBT-5, UI-1)</text>
+    <text class="c" x="596" y="306">→ 수정: 실시간 조치 상태 (F16)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="332" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="360">호스트 키 신뢰</text>
+    <text class="c" x="190" y="356">guardian_fleet.conf 핀 고정</text>
+    <text class="c" x="190" y="374">(대시보드 등록)</text>
+    <text class="c" x="390" y="356">accept-new (최초 접속 신뢰)</text>
+    <text class="c" x="390" y="374">(setup-hub-ssh, 명령행 옵션)</text>
+    <rect class="w" x="586" y="342" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="360">경로마다 다른 신뢰 규칙 (OPS-8)</text>
+    <text class="c" x="596" y="378">→ 수정: 핀 블록엔 accept-new 금지 (F28)</text>
+  </g>
+</svg>

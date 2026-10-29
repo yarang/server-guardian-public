@@ -1,0 +1,101 @@
+# Every job runs a section of scripts/ci.sh, so CI and a local `scripts/ci.sh` check the same things.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Pushes get a group per commit: a shared group would still replace a queued run with the newest one.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  # Only superseded PR runs are cancelled; every main push keeps its own verdict.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    name: Go agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/agent/go.mod
+          # The agent has no module dependencies (no go.sum), so there is nothing to cache.
+          cache: false
+      - run: scripts/ci.sh go
+
+  python:
+    name: Python LLM agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # patch_ops tests check gofmt/go build on judge patches, so the Go toolchain is needed here too.
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/agent/go.mod
+          cache: false
+      - run: scripts/ci.sh python
+
+  web:
+    name: Design system and dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            packages/guardian-ui/package-lock.json
+            apps/web-desktop/package-lock.json
+      - run: scripts/ci.sh web
+
+  tauri:
+    name: Tauri desktop app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      # WebKitGTK and friends Tauri 2 links against on Linux.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev build-essential file
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/web-desktop/src-tauri
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            packages/guardian-ui/package-lock.json
+            apps/web-desktop/package-lock.json
+      - run: scripts/ci.sh tauri
+
+  lint:
+    name: Shell scripts and configs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # ubuntu-latest ships shellcheck; ci.sh fails in CI if it is missing.
+      - run: scripts/ci.sh shell config

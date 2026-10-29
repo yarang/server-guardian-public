@@ -1,0 +1,21 @@
+[Unit]
+Description=Server Guardian model worker (stateless; runs LLM CLIs for debate roles of the hub)
+Documentation=https://git.example.com/owner/server-guardian
+# docs/design/remote-agents.md. A systemd USER unit: the LLM CLI logins live in the account's home, and the worker
+# needs nothing else. scripts/install-worker.sh fills @PATH@ and @MAX_JOBS@ and needs `loginctl enable-linger`.
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 %h/.guardian/worker/worker.py serve
+# The directories of the installed CLIs (the worker finds them with shutil.which), chosen at install time.
+Environment=PATH=@PATH@
+Environment=GUARDIAN_WORKER_MAX_JOBS=@MAX_JOBS@
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+# The unix socket and everything the CLIs write stay private to the account. No ProtectHome: the CLIs read their
+# logins from the home directory.
+UMask=0077
+
+[Install]
+WantedBy=default.target

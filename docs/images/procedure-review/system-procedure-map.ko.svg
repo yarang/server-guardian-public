@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" width="980" height="560" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+  <title id="t">Server Guardian 절차 지도</title>
+  <desc id="d">개발용 Mac, Git 원격(Gitea, GitHub), 허브 site-a-arm1, fleet 호스트 사이를 오가는 네 도메인의 절차 흐름.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c8594"/>
+    </marker>
+    <style>
+      .box{fill:#7c8594;fill-opacity:.08;stroke:#7c8594;stroke-width:1.2;rx:10}
+      .t{fill:#7c8594;font-weight:600}
+      .s{fill:#7c8594;font-size:11.5px}
+      .dev{stroke:#3b82f6}.ops{stroke:#10b981}.dbt{stroke:#a855f7}.ui{stroke:#f59e0b}
+      .l{fill:none;stroke-width:2;marker-end:url(#a)}
+      .lab{font-size:11px;font-weight:600}
+      .devt{fill:#3b82f6}.opst{fill:#10b981}.dbtt{fill:#a855f7}.uit{fill:#f59e0b}
+    </style>
+  </defs>
+
+  <!-- Mac -->
+  <rect class="box" x="20" y="40" width="230" height="200" rx="10"/>
+  <text class="t" x="36" y="66">개발용 Mac</text>
+  <text class="s" x="36" y="90">작업 트리 (main에 직접 커밋)</text>
+  <text class="s" x="36" y="110">scripts/ci.sh</text>
+  <text class="s" x="36" y="130">configs/servers.json (사본)</text>
+  <text class="s" x="36" y="150">install-agent-service.sh</text>
+  <text class="s" x="36" y="170">pull-inventory.sh</text>
+  <text class="s" x="36" y="190">setup-hub-ssh.sh · fleet-*.sh</text>
+  <text class="s" x="36" y="210">export/import-credentials.sh</text>
+
+  <!-- Git remotes -->
+  <rect class="box" x="370" y="20" width="240" height="120" rx="10"/>
+  <text class="t" x="386" y="46">Git 원격</text>
+  <text class="s" x="386" y="70">Gitea git.example.com (Actions 꺼짐)</text>
+  <text class="s" x="386" y="90">GitHub 미러 (CI 실행)</text>
+  <text class="s" x="386" y="110">guardian/&lt;thread&gt; 게시 브랜치</text>
+
+  <!-- Hub -->
+  <rect class="box" x="330" y="200" width="330" height="330" rx="10"/>
+  <text class="t" x="346" y="226">허브 site-a-arm1</text>
+  <rect class="box" x="346" y="240" width="140" height="64" rx="8"/>
+  <text class="s" x="356" y="262">Go agent :9870</text>
+  <text class="s" x="356" y="280">대시보드 (React)</text>
+  <text class="s" x="356" y="296">/api/exec · fleet</text>
+  <rect class="box" x="504" y="240" width="140" height="64" rx="8"/>
+  <text class="s" x="514" y="262">토론 엔진 (guardian.py)</text>
+  <text class="s" x="514" y="280">jev 게이트</text>
+  <text class="s" x="514" y="296">조치 승인 · 게시</text>
+  <rect class="box" x="346" y="318" width="140" height="80" rx="8"/>
+  <text class="s" x="356" y="340">~/.guardian/data</text>
+  <text class="s" x="356" y="358">결정 DB · servers.json</text>
+  <text class="s" x="356" y="376">debate-jobs · teams</text>
+  <text class="s" x="356" y="392">agent.env</text>
+  <rect class="box" x="504" y="318" width="140" height="80" rx="8"/>
+  <text class="s" x="514" y="340">~/server-guardian</text>
+  <text class="s" x="514" y="358">(실행 체크아웃)</text>
+  <text class="s" x="514" y="376">~/guardian-workspace</text>
+  <text class="s" x="514" y="392">(판정자 작업 클론)</text>
+  <rect class="box" x="346" y="412" width="298" height="56" rx="8"/>
+  <text class="s" x="356" y="434">/etc/guardian/fleet_key → guardian-fleet-agent</text>
+  <text class="s" x="356" y="452">~/.ssh/guardian_fleet.conf (핀 고정 호스트 키)</text>
+  <text class="s" x="346" y="500">일일 DB 백업 타이머 → site-yd-arm1</text>
+
+  <!-- Fleet -->
+  <rect class="box" x="760" y="200" width="200" height="200" rx="10"/>
+  <text class="t" x="776" y="226">fleet 호스트 (~23대)</text>
+  <text class="s" x="776" y="250">agent 없음</text>
+  <text class="s" x="776" y="270">허브 키 from="100.64.0.7"</text>
+  <text class="s" x="776" y="290">sshd 하드닝 drop-in</text>
+  <text class="s" x="776" y="310">Tier-1: llm.env</text>
+
+  <!-- Operator -->
+  <rect class="box" x="760" y="440" width="200" height="90" rx="10"/>
+  <text class="t" x="776" y="466">운영자 (브라우저/Tauri)</text>
+  <text class="s" x="776" y="490">대시보드 · 승인 · 게시</text>
+  <text class="s" x="776" y="510">명령 실행 · 노드 등록</text>
+
+  <!-- flows -->
+  <path class="l dev" d="M250,80 C310,80 320,70 368,70"/>
+  <text class="lab devt" x="262" y="66">① 커밋·이중 푸시</text>
+  <path class="l dev" d="M250,150 C300,180 310,230 344,250"/>
+  <text class="lab devt" x="250" y="205">② 로컬 트리 빌드·배포</text>
+  <path class="l ops" d="M250,190 C450,140 650,160 760,240"/>
+  <text class="lab opst" x="640" y="170">③ setup-hub-ssh · fleet-*.sh</text>
+  <path class="l ops" d="M646,440 C700,440 720,330 758,320"/>
+  <text class="lab opst" x="668" y="398">④ fleet SSH 명령</text>
+  <path class="l dbt" d="M574,240 C574,190 560,170 540,142"/>
+  <text class="lab dbtt" x="580" y="190">⑤ 게시 푸시</text>
+  <path class="l ui" d="M758,486 C720,486 700,486 662,486"/>
+  <text class="lab uit" x="668" y="476">⑥ 대시보드 조작</text>
+  <path class="l ops" d="M346,360 C200,360 160,300 150,242"/>
+  <text class="lab opst" x="150" y="300">⑦ pull-inventory</text>
+</svg>

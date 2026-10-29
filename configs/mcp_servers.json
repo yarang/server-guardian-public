@@ -1,0 +1,19 @@
+{
+  "mcp_servers": {
+    "jev": {
+      "command": "~/.local/bin/uv",
+      "args": ["run", "--quiet", "--directory", "~/jev-mcp", "jev-mcp"],
+      "env": {
+        "JEV_DB_PATH": "~/.guardian/data/jev/decisions.db",
+        "JEV_TIMEOUT": "30"
+      },
+      "pass_env": ["TYPESAFE_API_KEY", "TYPESAFE_BASE_URL", "TYPESAFE_DEFAULT_MODEL"],
+      "description": "jev-mcp (https://git.example.com/owner/jev-mcp): records debate decisions as ADRs and judges them with TypeSafe jev. Installed on the hub at ~/jev-mcp."
+    },
+    "filesystem-mcp": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
+      "description": "Standard MCP Filesystem tool adapter (not used by the debate engine)"
+    }
+  }
+}

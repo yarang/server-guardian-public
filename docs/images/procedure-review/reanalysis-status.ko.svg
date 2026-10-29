@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 340" width="900" height="340" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+<title id="t">수정 후 재분석 결과</title>
+<desc id="d">1단계 발견 80건이 수정 후 해소, 부분 해소, 미해결로 나뉜 비율을 도메인별로 보여 주는 누적 막대. 회귀는 0건.</desc>
+<style>.h{fill:#7c8594;font-weight:600}.c{fill:#7c8594;font-size:12px}.w{fill:#fff;font-size:12px;font-weight:700}</style>
+<text class="h" x="20" y="34">1단계 발견 80건의 3단계 상태 (회귀 0건)</text>
+<rect x="150.0" y="48" width="10.0" height="12" rx="2" fill="#10b981" fill-opacity=".85"/><text class="c" x="168" y="58">해소</text>
+<rect x="203.3" y="48" width="10.0" height="12" rx="2" fill="#f59e0b" fill-opacity=".85"/><text class="c" x="232" y="58">부분 해소</text>
+<rect x="286.7" y="48" width="10.0" height="12" rx="2" fill="#ef4444" fill-opacity=".85"/><text class="c" x="332" y="58">미해결 (주로 설계 결정 필요)</text>
+<text class="h" x="20" y="102">개발</text>
+<rect x="150.0" y="80" width="250.0" height="34" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="275.0" y="102" text-anchor="middle">12</text>
+<rect x="400.0" y="80" width="83.3" height="34" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="441.7" y="102" text-anchor="middle">4</text>
+<rect x="483.3" y="80" width="104.2" height="34" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="535.4" y="102" text-anchor="middle">5</text>
+<text class="c" x="595.8" y="102">21건 · 해소율 57% (부분 포함 76%)</text>
+<text class="h" x="20" y="162">서버 관리</text>
+<rect x="150.0" y="140" width="166.7" height="34" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="233.3" y="162" text-anchor="middle">8</text>
+<rect x="316.7" y="140" width="104.2" height="34" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="368.8" y="162" text-anchor="middle">5</text>
+<rect x="420.8" y="140" width="229.2" height="34" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="535.4" y="162" text-anchor="middle">11</text>
+<text class="c" x="658.3" y="162">24건 · 해소율 33% (부분 포함 54%)</text>
+<text class="h" x="20" y="222">토론·조치</text>
+<rect x="150.0" y="200" width="166.7" height="34" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="233.3" y="222" text-anchor="middle">8</text>
+<rect x="316.7" y="200" width="145.8" height="34" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="389.6" y="222" text-anchor="middle">7</text>
+<rect x="462.5" y="200" width="83.3" height="34" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="504.2" y="222" text-anchor="middle">4</text>
+<text class="c" x="554.2" y="222">19건 · 해소율 42% (부분 포함 79%)</text>
+<text class="h" x="20" y="282">UI</text>
+<rect x="150.0" y="260" width="83.3" height="34" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="191.7" y="282" text-anchor="middle">4</text>
+<rect x="233.3" y="260" width="187.5" height="34" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="327.1" y="282" text-anchor="middle">9</text>
+<rect x="420.8" y="260" width="62.5" height="34" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="452.1" y="282" text-anchor="middle">3</text>
+<text class="c" x="491.7" y="282">16건 · 해소율 25% (부분 포함 81%)</text>
+<line x1="20" x2="880" y1="324" y2="324" stroke="#7c8594" stroke-opacity=".3"/>
+<text class="h" x="20" y="360">High 15건</text>
+<rect x="150.0" y="338" width="104.2" height="34" fill="#10b981" fill-opacity=".85"/>
+<text class="w" x="202.1" y="360" text-anchor="middle">5</text>
+<rect x="254.2" y="338" width="83.3" height="34" fill="#f59e0b" fill-opacity=".85"/>
+<text class="w" x="295.8" y="360" text-anchor="middle">4</text>
+<rect x="337.5" y="338" width="125.0" height="34" fill="#ef4444" fill-opacity=".85"/>
+<text class="w" x="400.0" y="360" text-anchor="middle">6</text>
+<text class="c" x="470.8" y="360">15건 · 해소율 33% (부분 포함 60%)</text>
+</svg>

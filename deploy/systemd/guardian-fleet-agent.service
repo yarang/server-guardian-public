@@ -1,0 +1,45 @@
+[Unit]
+Description=Server Guardian fleet SSH key agent (hub only)
+Documentation=https://git.example.com/owner/server-guardian
+# The fleet private key lives in /etc/guardian/fleet_key (root:root 0600). This ssh-agent holds
+# it so the dashboard agent, LLM CLIs and backups can USE the key through the socket below, but
+# no process running as ubuntu can READ or copy it. ~/.ssh/guardian_fleet.conf (included from
+# ~/.ssh/config) points the fleet hosts at the socket with IdentityAgent (scripts/setup-hub-ssh.sh).
+ConditionPathExists=/etc/guardian/fleet_key
+Before=server-guardian-agent.service server-guardian-db-backup.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+RuntimeDirectory=guardian-fleet
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/ssh-agent -D -a /run/guardian-fleet/agent.sock
+# Loaded as root (the "+" prefix): ssh-agent accepts root on its socket, and only root can read the key.
+ExecStartPost=+/bin/sh -c 'for i in $(seq 50); do [ -S /run/guardian-fleet/agent.sock ] && break; sleep 0.1; done; SSH_AUTH_SOCK=/run/guardian-fleet/agent.sock exec /usr/bin/ssh-add -q /etc/guardian/fleet_key'
+Restart=on-failure
+RestartSec=2
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+IPAddressDeny=any
+
+[Install]
+WantedBy=multi-user.target

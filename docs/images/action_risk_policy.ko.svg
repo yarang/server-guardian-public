@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="1000" height="680" role="img" lang="ko">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="500.0" y="34.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" fill="#1f2937" text-anchor="middle">조치: 위험도, 승인, 안전장치</text>
+<text x="500.0" y="58.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="400" fill="#4b5563" text-anchor="middle">위험도는 조치마다 계산한다 (docker_prune은 범위에 따라 다르다). 모든 서버 명령은 허브 API와 audit 로그를 거친다.</text>
+<text x="32" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">위험도</text>
+<text x="142" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">도구</text>
+<text x="442" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">승인</text>
+<text x="612" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">자동 실행</text>
+<text x="798" y="102.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">안전장치</text>
+<rect x="24" y="114" width="952" height="140" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+<text x="34" y="140.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="15" font-weight="700" fill="#166534" text-anchor="start">LOW</text>
+<text x="142" y="138.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:apt_clean</text>
+<text x="142" y="155.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:journal_vacuum</text>
+<text x="142" y="172.4" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:docker_prune</text>
+<text x="142" y="189.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">  (dangling 이미지, build cache)</text>
+<text x="442" y="138.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">사람이 확인란을 체크</text>
+<text x="612" y="138.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">프로젝트 policy.auto_run에</text>
+<text x="612" y="154.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">있을 때만, 실제 jev 통과</text>
+<text x="612" y="170.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">후, 하루 한도 안에서</text>
+<text x="798" y="138.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">측정한 미리보기; 바뀌면</text>
+<text x="798" y="154.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">STALE; 실행 후 검증;</text>
+<text x="798" y="170.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">호스트당 하나</text>
+<rect x="24" y="264" width="952" height="210" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="34" y="290.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="15" font-weight="700" fill="#92400e" text-anchor="start">MEDIUM</text>
+<text x="142" y="288.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:remove_paths</text>
+<text x="142" y="305.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:truncate_logs</text>
+<text x="142" y="322.4" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:remove_old_kernels</text>
+<text x="142" y="339.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:restart_service</text>
+<text x="142" y="356.8" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">ops:docker_prune</text>
+<text x="142" y="374.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">  (중지된 컨테이너, 미사용 이미지)</text>
+<text x="142" y="391.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:apply_patch</text>
+<text x="142" y="408.4" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:execute_code_action</text>
+<text x="442" y="288.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">사람이 확인란을 체크</text>
+<text x="612" y="288.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">코드 수정만: jev 통과 후</text>
+<text x="612" y="304.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">적용 (run_test 제외). ops:</text>
+<text x="612" y="320.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">안 됨</text>
+<text x="798" y="288.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">보호 경로·유닛; 판정자가</text>
+<text x="798" y="304.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">읽은 코드만 수정; 기준</text>
+<text x="798" y="320.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">커밋·워크스페이스 잠금</text>
+<rect x="24" y="484" width="952" height="110" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.5"/>
+<text x="34" y="510.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="15" font-weight="700" fill="#991b1b" text-anchor="start">HIGH</text>
+<text x="142" y="508.0" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:server_remediation</text>
+<text x="142" y="525.2" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">jev_mcp:run_tests</text>
+<text x="442" y="508.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">사람이 조치 번호를 직접</text>
+<text x="442" y="524.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">입력</text>
+<text x="612" y="508.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">안 됨</text>
+<text x="798" y="508.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">프로젝트의 대상 서버만,</text>
+<text x="798" y="524.2" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">허브는 local로만; 허용</text>
+<text x="798" y="540.4" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="12" font-weight="400" fill="#1f2937" text-anchor="start">목록의 테스트 명령만</text>
+<text x="500" y="626.0" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">모든 제안은 먼저 검증한다: 모르는 도구, 프로젝트 밖의 서버, 보호 경로는 INVALID로 기록되고 실행되지 않는다. 끄는 스위치: GUARDIAN_AUTO_APPLY=off,</text>
+<text x="500" y="640.9" font-family="system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="11" font-weight="400" fill="#4b5563" text-anchor="middle">GUARDIAN_UI_ACTIONS=off.</text>
+</svg>

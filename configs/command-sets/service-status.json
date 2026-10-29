@@ -1,0 +1,15 @@
+{
+  "id": "service-status",
+  "description": "Read-only status of one systemd unit: state, enabled flag and the last log lines.",
+  "os": ["linux"],
+  "risk": "low",
+  "reversible": true,
+  "undo": "Nothing is changed.",
+  "reviewed": "2026-10-20",
+  "timeout": 60,
+  "params": {
+    "UNIT": { "type": "unit" },
+    "LINES": { "type": "int", "min": 1, "max": 200, "default": 20 }
+  },
+  "script": "systemctl status ${UNIT} --no-pager -n ${LINES} || true\nsystemctl is-enabled ${UNIT} || true\n"
+}

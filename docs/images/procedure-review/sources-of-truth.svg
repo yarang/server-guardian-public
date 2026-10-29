@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="13">
+  <title id="t">Scattered sources of truth</title>
+  <desc id="d">Five areas where the same information lives in several places, each moved by a different procedure.</desc>
+  <style>
+    .h{fill:#7c8594;font-weight:600}
+    .c{fill:#7c8594;font-size:12px}
+    .cell{fill:#7c8594;fill-opacity:.07;stroke:#7c8594;stroke-opacity:.5}
+    .w{fill:#ef4444;fill-opacity:.12;stroke:#ef4444;stroke-opacity:.7}
+    .o{fill:#10b981;fill-opacity:.12;stroke:#10b981;stroke-opacity:.7}
+    .x{fill:#ef4444;font-size:12px;font-weight:600}
+    .ok{fill:#10b981;font-size:12px;font-weight:600}
+  </style>
+  <text class="h" x="20" y="30">Area</text>
+  <text class="h" x="190" y="30">Copy A</text>
+  <text class="h" x="390" y="30">Copy B</text>
+  <text class="h" x="590" y="30">Sync procedure</text>
+
+  <g>
+    <rect class="cell" x="14" y="44" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="72">Inventory</text>
+    <text class="c" x="190" y="68">Mac configs/servers.json</text>
+    <text class="c" x="190" y="86">(install/SSH scripts read)</text>
+    <text class="c" x="390" y="68">Hub ~/.guardian/data/servers.json</text>
+    <text class="c" x="390" y="86">(written by dashboard)</text>
+    <rect class="w" x="586" y="54" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="72">Hub → Mac one-way (pull)</text>
+    <text class="c" x="596" y="90">No path for Mac edits to hub (OPS-5)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="116" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="144">Code version</text>
+    <text class="c" x="190" y="140">Mac worktree · agent binary</text>
+    <text class="c" x="190" y="158">(built from local tree)</text>
+    <text class="c" x="390" y="140">Hub checkout · work clone</text>
+    <text class="c" x="390" y="158">(git pull --ff-only)</text>
+    <rect class="w" x="586" y="126" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="144">Warns only, not enforced (DEV-7)</text>
+    <text class="c" x="596" y="162">→ Fix: binary version stamp (F34)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="188" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="216">agent.env settings</text>
+    <text class="c" x="190" y="212">Keys written by installer</text>
+    <text class="c" x="390" y="212">Hand-added operator keys</text>
+    <text class="c" x="390" y="230">(GUARDIAN_UI_ACTIONS=off, …)</text>
+    <rect class="w" x="586" y="198" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="216">Lost when redeploy overwrites (OPS-2)</text>
+    <text class="c" x="596" y="234">→ Fix: update owned keys only (F2)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="260" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="288">Action/thread state</text>
+    <text class="c" x="190" y="284">result.json snapshot</text>
+    <text class="c" x="190" y="302">(at debate end)</text>
+    <text class="c" x="390" y="284">Decision DB (live)</text>
+    <text class="c" x="390" y="302" style="font-size:11px">(approve/reject/publish/close)</text>
+    <rect class="w" x="586" y="270" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="288">UI shows the snapshot (DBT-5, UI-1)</text>
+    <text class="c" x="596" y="306">→ Fix: live action state (F16)</text>
+  </g>
+  <g>
+    <rect class="cell" x="14" y="332" width="870" height="64" rx="6"/>
+    <text class="h" x="24" y="360">Host key trust</text>
+    <text class="c" x="190" y="356">guardian_fleet.conf pinned</text>
+    <text class="c" x="190" y="374">(dashboard registration)</text>
+    <text class="c" x="390" y="356">accept-new (first-use trust)</text>
+    <text class="c" x="390" y="374">(setup-hub-ssh, CLI options)</text>
+    <rect class="w" x="586" y="342" width="290" height="44" rx="6"/>
+    <text class="x" x="596" y="360">Different trust rule per path (OPS-8)</text>
+    <text class="c" x="596" y="378">→ Fix: no accept-new for pins (F28)</text>
+  </g>
+</svg>

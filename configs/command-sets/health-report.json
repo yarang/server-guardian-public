@@ -1,0 +1,11 @@
+{
+  "id": "health-report",
+  "description": "Read-only host summary: uptime, load, memory, disk use and failed systemd units.",
+  "os": ["linux"],
+  "risk": "low",
+  "reversible": true,
+  "undo": "Nothing is changed.",
+  "reviewed": "2026-10-20",
+  "timeout": 60,
+  "script": "uptime\nfree -m\ndf -h --output=target,pcent,avail -x tmpfs -x devtmpfs\nsystemctl --failed --no-legend --no-pager || true\n"
+}

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 580" width="960" height="580" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13">
+  <title id="t">Current navigation of the Server Guardian dashboard (commit 7783afa)</title>
+  <desc id="d">Four destinations in the sidebar and the mobile tab bar: Fleet with four tabs, Debates, Approvals, Settings with four sections and a link to Fleet Groups. Legacy hashes redirect.</desc>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8a8f98"/>
+    </marker>
+  </defs>
+
+  <text x="30" y="18" fill="#8a8f98" font-size="13" font-weight="700">Sidebar and mobile tab bar (same 4 items)</text>
+  <rect x="30" y="46" width="200" height="250" rx="10" fill="#8a8f98" fill-opacity="0.07" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="46" y="72" fill="#8a8f98" font-weight="700">Server Guardian</text>
+  <rect x="42" y="86" width="176" height="40" rx="8" fill="#4f8fd6" fill-opacity="0.18" stroke="#4f8fd6" stroke-width="2"/>
+  <text x="58" y="111" fill="#4f8fd6" font-weight="700" font-size="14">Fleet</text>
+  <rect x="150" y="97" width="60" height="20" rx="10" fill="#4f8fd6" fill-opacity="0.2" stroke="#4f8fd6" stroke-width="1.5"/>
+  <text x="180" y="111" text-anchor="middle" fill="#4f8fd6" font-size="11" font-weight="700">Running</text>
+  <rect x="42" y="134" width="176" height="40" rx="8" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="58" y="159" fill="#8a8f98" font-weight="700" font-size="14">Debates</text>
+  <rect x="42" y="182" width="176" height="40" rx="8" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="58" y="207" fill="#8a8f98" font-weight="700" font-size="14">Approvals</text>
+  <rect x="130" y="192" width="80" height="20" rx="10" fill="#d1604f" fill-opacity="0.25" stroke="#d1604f" stroke-width="1.5"/>
+  <text x="170" y="206" text-anchor="middle" fill="#d1604f" font-size="11" font-weight="700">3 · Running</text>
+  <rect x="42" y="230" width="176" height="40" rx="8" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="58" y="255" fill="#8a8f98" font-weight="700" font-size="14">Settings</text>
+  <text x="46" y="286" fill="#8a8f98" font-size="11">Footer: Hub URL</text>
+
+  <text x="270" y="32" fill="#8a8f98" font-size="13" font-weight="700">Header (every page)</text>
+  <rect x="270" y="46" width="660" height="50" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="76" fill="#8a8f98" font-weight="700">Page title</text>
+  <g font-size="12">
+    <rect x="520" y="58" width="116" height="26" rx="13" fill="#4f8fd6" fill-opacity="0.15" stroke="#4f8fd6" stroke-width="1.5"/><text x="578" y="75" text-anchor="middle" fill="#4f8fd6">Hub online</text>
+    <rect x="644" y="58" width="150" height="26" rx="7" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="719" y="75" text-anchor="middle" fill="#8a8f98">Hub connection</text>
+    <rect x="802" y="58" width="112" height="26" rx="7" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="858" y="75" text-anchor="middle" fill="#8a8f98">Refresh</text>
+  </g>
+
+  <!-- Fleet -->
+  <rect x="270" y="112" width="660" height="108" rx="10" fill="#4f8fd6" fill-opacity="0.07" stroke="#4f8fd6" stroke-width="1.5"/>
+  <text x="286" y="136" fill="#4f8fd6" font-weight="700" font-size="14">Fleet  (#/fleet/...)</text>
+  <g font-size="12" fill="#8a8f98">
+    <rect x="286" y="146" width="104" height="26" rx="13" fill="none" stroke="#4f8fd6" stroke-width="1.5"/><text x="338" y="163" text-anchor="middle" fill="#4f8fd6">Summary</text>
+    <rect x="398" y="146" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="450" y="163" text-anchor="middle">Nodes</text>
+    <rect x="510" y="146" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="562" y="163" text-anchor="middle">SSH audit</text>
+    <rect x="622" y="146" width="104" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="674" y="163" text-anchor="middle">Commands</text>
+    <rect x="734" y="146" width="96" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="782" y="163" text-anchor="middle">Groups</text>
+    <text x="286" y="192">Nodes: inventory (compact rows when narrow), node page (pin, revoke key first, remove).</text>
+    <text x="286" y="208">Summary "Fleet at a glance": audit from cache or Run audit.  Commands: run + History.</text>
+  </g>
+
+  <!-- Debates -->
+  <rect x="270" y="232" width="660" height="82" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="256" fill="#8a8f98" font-weight="700" font-size="14">Debates  (#/debates/:job)</text>
+  <text x="286" y="276" fill="#8a8f98" font-size="12">Project switcher, "New debate" form (collapsible), list on the left; Published threads cannot be continued.</text>
+  <text x="286" y="294" fill="#8a8f98" font-size="12">Detail: live monitor while running, result and Publish after (narrow: list or detail).</text>
+
+  <!-- Approvals -->
+  <rect x="270" y="326" width="660" height="52" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="350" fill="#8a8f98" font-weight="700" font-size="14">Approvals  (#/approvals/:action)</text>
+  <text x="286" y="368" fill="#8a8f98" font-size="12">Opens on Awaiting decision; Execute, Reject, Mark as failed, jev recheck.</text>
+
+  <!-- Settings -->
+  <rect x="270" y="390" width="660" height="82" rx="10" fill="none" stroke="#8a8f98" stroke-width="1.5"/>
+  <text x="286" y="414" fill="#8a8f98" font-weight="700" font-size="14">Settings  (#/settings/:section)</text>
+  <g font-size="12" fill="#8a8f98">
+    <rect x="286" y="424" width="116" height="26" rx="13" fill="none" stroke="#4f8fd6" stroke-width="1.5"/><text x="344" y="441" text-anchor="middle" fill="#4f8fd6">Hub connection</text>
+    <rect x="410" y="424" width="84" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="452" y="441" text-anchor="middle">Projects</text>
+    <rect x="502" y="424" width="84" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="544" y="441" text-anchor="middle">Personas</text>
+    <rect x="594" y="424" width="70" height="26" rx="13" fill="none" stroke="#8a8f98" stroke-width="1.5"/><text x="629" y="441" text-anchor="middle">Teams</text>
+    <text x="286" y="466">Node groups are not here: a link opens Fleet · Groups.</text>
+  </g>
+
+  <path d="M230 106 H250 V166 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M230 154 H244 V273 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M230 202 H240 V352 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M230 250 H236 V431 H268" fill="none" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="30" y="486" width="900" height="76" rx="10" fill="#8a8f98" fill-opacity="0.07" stroke="#8a8f98" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="46" y="506" fill="#8a8f98" font-weight="700" font-size="12">Legacy hashes still work</text>
+  <text x="46" y="523" fill="#8a8f98" font-size="12">#/overview, #/nodes, #/security, #/ssh, #/run, #/terminal, #/batch  to  Fleet tabs;  #/more  to  Fleet.</text>
+  <text x="46" y="539" fill="#8a8f98" font-size="12">#/debate, #/agents?run=ID  to  Debates;  #/settings/groups (?edit kept)  to  Fleet · Groups.</text>
+  <text x="46" y="555" fill="#8a8f98" font-size="11">Node groups are defined and used in Fleet; Settings keeps a link.</text>
+</svg>
