@@ -11,8 +11,10 @@ vi.mock('../src/api', async (importOriginal) => {
 import * as api from '../src/api';
 import { App } from '../src/App';
 import { ko } from '../src/i18n/ko';
+import type { CommandSet, CommandSetList } from '../src/types';
 
 const mocked = vi.mocked(api);
+const C = ko.debate.commandSet;
 const renderApp = () =>
   render(
     <GuardianRoot>
@@ -22,6 +24,14 @@ const renderApp = () =>
 
 const tab = (name: string) => screen.getByRole('button', { name });
 const pressed = (name: string) => tab(name).getAttribute('aria-pressed');
+
+/** One builtin command set, as `/api/command-sets` returns it. */
+const builtinSet: CommandSet = {
+  id: 'refresh-index', description: 'Refresh the package index', source: 'builtin', os: ['linux'], needs_sudo: true,
+  params: {}, check: 'ls /var/lib/apt/lists', script: 'apt-get update -q', reversible: true, undo: 'nothing', risk: 'low',
+  timeout: 600, reviewed: '2026-10-01',
+};
+const commandSets: CommandSetList = { ok: true, max_age_days: 180, stale: [], sets: [builtinSet] };
 
 beforeEach(() => {
   mocked.checkAgentHealth.mockResolvedValue({ state: 'online', reasons: [] });
@@ -35,21 +45,24 @@ beforeEach(() => {
   mocked.fetchTeams.mockResolvedValue(teamList);
   mocked.fetchDebates.mockResolvedValue([]);
   mocked.listActions.mockResolvedValue([]);
+  mocked.fetchCommandSets.mockResolvedValue(commandSets);
 });
 
 describe('Fleet tabs', () => {
-  it('lists Summary, Nodes, SSH audit, Commands and Groups as a tab group', () => {
-    window.location.hash = '#/fleet';
+  it('lists Nodes, Groups, SSH audit, Commands and Command sets as a tab group', () => {
+    window.location.hash = '#/fleet/nodes';
     renderApp();
     const group = screen.getByRole('group', { name: ko.fleet.nodes.fleetSections });
-    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([ko.shell.nav.fleetTabs.summary, ko.shell.nav.fleetTabs.nodes, ko.shell.nav.fleetTabs.ssh, ko.shell.nav.fleetTabs.commands, ko.shell.nav.fleetTabs.groups]);
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([ko.shell.nav.fleetTabs.nodes, ko.shell.nav.fleetTabs.groups, ko.shell.nav.fleetTabs.ssh, ko.shell.nav.fleetTabs.commands, ko.shell.nav.fleetTabs.commandSets]);
   });
 
-  it('shows the summary at #/fleet', async () => {
-    window.location.hash = '#/fleet';
+  it.each(['#/fleet', '#/fleet/summary'])('opens the Overview page instead of the old summary at %s', async (hash) => {
+    window.location.hash = hash;
     renderApp();
-    expect(pressed(ko.shell.nav.fleetTabs.summary)).toBe('true');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(ko.shell.nav.routes.overview.title);
     expect(await screen.findByRole('region', { name: ko.ops.overview.reachability.title })).toBeTruthy();
+    // The Overview page has no Fleet tab group of its own.
+    expect(screen.queryByRole('group', { name: ko.fleet.nodes.fleetSections })).toBeNull();
     expect(screen.queryByText(ko.fleet.nodes.inventoryPanel(2))).toBeNull();
   });
 
@@ -58,7 +71,7 @@ describe('Fleet tabs', () => {
     renderApp();
     expect(await screen.findByText(ko.fleet.nodes.inventoryPanel(2))).toBeTruthy();
     expect(pressed(ko.shell.nav.fleetTabs.nodes)).toBe('true');
-    expect(pressed(ko.shell.nav.fleetTabs.summary)).toBe('false');
+    expect(pressed(ko.shell.nav.fleetTabs.groups)).toBe('false');
 
     window.location.hash = '#/fleet/nodes/a1';
     expect(await screen.findByRole('region', { name: 'site-a-arm1' })).toBeTruthy();
@@ -84,14 +97,20 @@ describe('Fleet tabs', () => {
     await waitFor(() => expect((screen.getByLabelText(ko.ops.run.target) as HTMLSelectElement).value).toBe('b2'));
   });
 
-  it('writes the selected tab into the URL', async () => {
-    window.location.hash = '#/fleet';
+  it('shows the command set editor at #/fleet/commandSets', async () => {
+    window.location.hash = '#/fleet/commandSets';
     renderApp();
-    await screen.findByRole('region', { name: ko.ops.overview.reachability.title });
+    expect(await screen.findByText(C.sectionCount(1))).toBeTruthy();
+    expect(screen.getByText('refresh-index')).toBeTruthy();
+    expect(screen.getByText(C.builtinChip)).toBeTruthy();
+    expect(pressed(ko.shell.nav.fleetTabs.commandSets)).toBe('true');
+    expect(screen.queryByText(ko.fleet.nodes.inventoryPanel(2))).toBeNull();
+  });
 
-    fireEvent.click(tab(ko.shell.nav.fleetTabs.nodes));
-    expect(window.location.hash).toBe('#/fleet/nodes');
-    expect(await screen.findByText(ko.fleet.nodes.inventoryPanel(2))).toBeTruthy();
+  it('writes the selected tab into the URL', async () => {
+    window.location.hash = '#/fleet/nodes';
+    renderApp();
+    await screen.findByText(ko.fleet.nodes.inventoryPanel(2));
 
     fireEvent.click(tab(ko.shell.nav.fleetTabs.ssh));
     expect(window.location.hash).toBe('#/fleet/ssh');
@@ -102,16 +121,20 @@ describe('Fleet tabs', () => {
     expect(window.location.hash).toBe('#/fleet/commands');
     expect(await screen.findByRole('option', { name: ko.ops.run.targetHub })).toBeTruthy();
 
-    fireEvent.click(tab(ko.shell.nav.fleetTabs.summary));
-    expect(window.location.hash).toBe('#/fleet');
-    expect(await screen.findByRole('region', { name: ko.ops.overview.reachability.title })).toBeTruthy();
+    fireEvent.click(tab(ko.shell.nav.fleetTabs.commandSets));
+    expect(window.location.hash).toBe('#/fleet/commandSets');
+    expect(await screen.findByText(C.sectionCount(1))).toBeTruthy();
+
+    fireEvent.click(tab(ko.shell.nav.fleetTabs.nodes));
+    expect(window.location.hash).toBe('#/fleet/nodes');
+    expect(await screen.findByText(ko.fleet.nodes.inventoryPanel(2))).toBeTruthy();
   });
 
-  it('shows the summary for an unknown tab', async () => {
+  it('shows the node list for an unknown tab', async () => {
     window.location.hash = '#/fleet/bogus';
     renderApp();
-    expect(await screen.findByRole('region', { name: ko.ops.overview.reachability.title })).toBeTruthy();
-    expect(pressed(ko.shell.nav.fleetTabs.summary)).toBe('true');
+    expect(await screen.findByText(ko.fleet.nodes.inventoryPanel(2))).toBeTruthy();
+    expect(pressed(ko.shell.nav.fleetTabs.nodes)).toBe('true');
   });
 });
 
@@ -142,10 +165,19 @@ describe('Links from the old routes still work', () => {
     expect(pressed(ko.shell.nav.fleetTabs.ssh)).toBe('true');
   });
 
-  it.each(['#/overview', '#/assistant', '#/more'])('opens the Fleet summary from %s', async (hash) => {
+  it.each(['#/settings/commandSets', '#/fleet/commandSets'])('opens the command set editor from %s', async (hash) => {
     window.location.hash = hash;
     renderApp();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(ko.shell.nav.routes.fleet.title);
+    expect(await screen.findByText(C.sectionCount(1))).toBeTruthy();
+    expect(pressed(ko.shell.nav.fleetTabs.commandSets)).toBe('true');
+  });
+
+  it.each(['#/overview', '#/assistant', '#/more'])('opens the Overview page from %s', async (hash) => {
+    window.location.hash = hash;
+    renderApp();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(ko.shell.nav.routes.overview.title);
     expect(await screen.findByRole('region', { name: ko.ops.overview.reachability.title })).toBeTruthy();
-    expect(pressed(ko.shell.nav.fleetTabs.summary)).toBe('true');
+    expect(screen.queryByRole('group', { name: ko.fleet.nodes.fleetSections })).toBeNull();
   });
 });

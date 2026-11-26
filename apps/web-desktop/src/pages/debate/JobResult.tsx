@@ -7,6 +7,7 @@ import { Row, Stack, mono } from '../../components/layout';
 import { useNow } from '../../hooks/useNow';
 import { elapsedText, jobStatusTone } from '../../lib/debate';
 import type { DebateJobDetail } from '../../types';
+import { FlowRunView } from '../flows/FlowRunView';
 import { ArtifactsLink } from './ArtifactsLink';
 import { ReportButton } from './ReportButton';
 import { ResultView } from './ResultView';
@@ -74,7 +75,7 @@ export function JobResult({
               {`${tr.debate.job.elapsed} `}
               <span data-testid="job-elapsed">{elapsedText(job, now)}</span>
             </span>
-            <span style={{ color: 'var(--sg-text-secondary)', fontSize: 13 }}>{tr.debate.job.team(job.team || tr.debate.lib.defaultTeam)}</span>
+            <span style={{ color: 'var(--sg-text-secondary)', fontSize: 13 }}>{job.flow ? tr.flows.view.jobFlow(job.flow) : tr.debate.job.team(job.team || tr.debate.lib.defaultTeam)}</span>
             {job.thread_id ? <span style={{ ...mono, color: 'var(--sg-text-secondary)', fontSize: 13, overflowWrap: 'anywhere' }}>{job.thread_id}</span> : null}
             {job.thread_id && !running ? <ReportButton thread={job.thread_id} /> : null}
             {job.thread_id && !running ? <ArtifactsLink thread={job.thread_id} project={job.project} /> : null}
@@ -109,6 +110,7 @@ export function JobResult({
         <Caption>{running ? tr.debate.job.progressLogLive : tr.debate.job.progressLog}</Caption>
         <LogView key={job.id} text={job.log || (running ? tr.debate.job.waitingOutput : tr.debate.job.noLog)} />
       </Stack>
+      {job.flow || (job.result && typeof job.result.team === 'object' && job.result.team?.flow_graph) ? <FlowRunView job={job} /> : null}
       {job.result ? (
         <ResultView
           result={job.result}

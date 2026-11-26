@@ -13,7 +13,7 @@
 | 한국어 | English | 뜻 | 쓰지 않는 말 |
 |---|---|---|---|
 | 노드 | node | 플릿 인벤토리에 있는 모든 머신. 허브도 포함한다. Guardian이 점검하고 조작하는 대상이다. API는 `/api/nodes`, `node_start`, `total_nodes`, 타입 `FleetNode`. | 서버, server, 머신, 장비 |
-| 플릿 | fleet | 인벤토리의 모든 노드. | |
+| 플릿 | fleet | 인벤토리의 모든 노드. 대시보드의 목적지 이름은 노드, 플릿 요약은 현황이다. | |
 | 인벤토리 | inventory | 노드와 메타데이터의 목록(`servers.json`). | |
 | 노드 그룹 | node group | 사용자가 정의한 노드 묶음(`docs/design/node-groups.ko.md`). | |
 | 허브 | hub | 허브 에이전트, 대시보드, 데이터가 있는 단 하나의 노드. `guardian_role`은 `hub`. | |
@@ -39,6 +39,16 @@
 | 팀 | team | 페르소나와 흐름을 가진 토론 에이전트의 구성. | |
 | 프로젝트 | project | 토론의 대상. `code`, `ops`, `design` 중 하나. | |
 | 스레드 | thread | 한 과제에 대한 라운드의 연속. | 대화 |
+| 흐름 | flow | 자리, 동시 묶음, 마감, 연결로 그린 일하는 방식(`docs/design/flow-graph.ko.md`). 팀과 템플릿도 흐름으로 보인다. | 워크플로, 플로우 |
+| 자리 | seat | 흐름에서 캐릭터 하나가 맡은 일 하나를 하는 곳. | 노드(머신과 겹침) |
+| 맡은 일 | job | 자리가 하는 일: 작성, 비평, 다시 쓰기, 반론, 정리. | |
+| 동시 묶음 | bundle | 병렬로 도는 자리들. | 그룹(노드 그룹과 겹침) |
+| 마감 | close | 흐름마다 하나 있는 공통 마감: 판정자, jev 게이트, 조치 검사. | 게이트(검사 이름과 겹침) |
+| 연결 | link | 한 자리가 다른 자리의 결과를 읽는다는 표시. 이전 라운드를 읽으면 되돌아보기 연결. | 엣지 |
+| 받는 방식 | input mode | 자리가 앞 결과를 받는 방식: 원문, 요약, 핵심만, 최신만. | |
+| 정리자 | summariser | 받는 자리에 맞게 앞 결과를 줄이는 자리. | |
+| 빠른 리뷰 | quick review | 리뷰어 하나가 읽기 전용 도구로 변경(`base..head` 또는 patch)을 검사한다. 라벨 `REVIEW`, 판정자 없음, 판정이 아니다(`docs/design/verification-layer.ko.md`). | 퀵 리뷰, quick check |
+| 검증 계층 | verification layer | 코드 작업에서 Guardian의 역할: 작업을 만들지 않고 다른 곳에서 만든 작업을 검증한다. | ADE, 개발 환경 |
 
 ## 변경
 
@@ -50,3 +60,18 @@
 
 한국어 문장에서는 명사 "조치" 대신 무슨 일이 일어나는지를 풀어 쓴다("서비스를 재시작해요", "패키지를 삭제해요").
 객체의 이름은 "액션"이다.
+
+## 내비게이션
+
+대시보드의 다섯 목적지(2026-10-29 결정, `docs/design/ui-flow-redesign.ko.md`). 라우트 id는 새 `overview`를 빼고 그대로다.
+
+| 한국어 | English | 뜻 | 라우트 |
+|---|---|---|---|
+| 현황 | Overview | 지금 주의가 필요한 것(예전 Fleet 요약). | `#/overview` |
+| 노드 | Nodes | 인벤토리, 그룹, SSH 감사, 명령, 명령 세트. | `#/fleet` |
+| 업무 흐름 | Workflows | 토론(팀의 한 번 실행)을 시작하고 읽는 곳. 한 번의 실행은 여전히 토론이다. | `#/debates` |
+| 승인 | Approvals | 사람을 기다리는 액션. | `#/approvals` |
+| 설정 | Settings | 허브 연결, 흐름 구성, 실행 환경, 화면. | `#/settings` |
+| 흐름 구성 | flow setup | 프로젝트, 팀, 페르소나를 담은 설정 묶음. | `#/settings/flowConfig` |
+| 실행 환경 | execution environments | 토론 에이전트를 돌리는 워커의 설정 묶음. | `#/settings/workers` |
+

@@ -5,6 +5,15 @@ English | [한국어](README.ko.md)
 Every document is in English (`name.md`, the main version) and Korean (`name.ko.md`). The project overview is
 the repository [README](../README.md); the detailed system specification is [agent.md](../agent.md).
 
+## User guide
+
+- [User guide index and quick start](guide/README.md)
+- [Setup and deployment (hub release, fleet SSH key, LLM credentials, Guardian skills, workers, CI)](guide/setup-and-deployment.md)
+- [Dashboard guide (Overview, Nodes, Workflows, Approvals, Settings, Office export)](guide/dashboard.md)
+- [Fleet management and ops projects (inventory, groups, SSH audit, cleanup catalog, ops watch, provisioning, batch)](guide/fleet-and-ops.md)
+- [Debates, flows, and projects (code/ops/design projects, Quick ask, Code Wiki, repo audit, jev gate, Publish)](guide/debates-and-projects.md)
+- [Resident agents and operator sessions (Tier-1 residents, mailbox & tasks, workstation link daemon, Claude/Antigravity MCP & hooks)](guide/residents-and-sessions.md)
+
 ## Terms
 
 - [Glossary: one word for one thing (node, execution host, critic, action, ...)](glossary.md)
@@ -22,6 +31,16 @@ the repository [README](../README.md); the detailed system specification is [age
 - [Judge actions: the partial edit tool (design)](design/debate-patch-tool.md)
 - [Debate team UI contract (Python CLI ↔ Go hub API ↔ dashboard)](design/debate-teams-api.md)
 - [Debate teams (lineups) design](design/debate-teams.md)
+- [Flow templates: stored, parameterised work flows (proposed, nothing built)](design/flow-templates.md)
+- [Flow graphs: characters seated and linked on a diagram, input mode per seat, task-independent summariser; replaces teams and templates (decided, nothing built)](design/flow-graph.md)
+- [jev verdict: the close decides with jev, an LLM writes the decision; shadow mode first (proposed, nothing built)](design/jev-verdict.md)
+- [Verdict sources: pluggable judges in the close (jev, MCP tools, project tests; decide, alarm, gate roles; proposed)](design/verdict-sources.md)
+- [Solo agent: one role, no Judge, read-only (proposed 2026-10-30; S1-S3 deployed)](design/solo-agent.md)
+- [Verification layer: Guardian checks work produced elsewhere (quick review, entry points for outside branches and resident patches, candidate comparison; positioning against agent development environments; proposed 2026-11-23; DP1, DP2, DP5 approved the same day, V0 done)](design/verification-layer.md)
+- [Flows from operator sessions: session MCP tools to list flows, draft one as a kind plus characters in seats, check it, keep drafts for promotion in the dashboard, and start runs stamped with the workstation (proposed 2026-11-25; SD1-SD3 decided the same day, SD4-SD6 on 2026-11-26)](design/session-flows.md)
+- [Dashboard review for the verification layer: remove the team editor and the duplicate persona dialog, move flows and characters into Settings, add the quick review tab (proposed 2026-11-23; UD1, UD2, UD4-UD6 approved, UD3 open)](design/ui-verification-review.md)
+- [Agent characters: reusable characters, the persona as their definition, form guide (proposed 2026-10-30; "Suggest with AI" and C0 lint built)](design/agent-characters.md)
+- [Agent seats and API key assignment: set by the user, keys held by the hub, write-only (proposed, nothing built)](design/agent-seats-keys.md)
 - [Per-node SSH security audit (fleet SSH audit)](design/fleet-ssh-audit.md)
 - [User-defined node groups (Python CLI ↔ Go hub API ↔ dashboard)](design/node-groups.md)
 - [Node registration through the hub's SSH config](design/node-registration.md)
@@ -30,14 +49,25 @@ the repository [README](../README.md); the detailed system specification is [age
 - [Multi-perspective debates: independent proposals and blind critique (decisions made, nothing implemented)](design/multi-perspective.md)
 - [Design, document and image artifact project (`kind: "design"`, review; P1 implemented)](design/design-project.md)
 - [Project results tab (reports and artifacts of every project kind; deployed)](design/project-results.md)
-- [Desktop export folder (save reports and artifacts into a chosen folder, manual and automatic; approved, nothing built)](design/desktop-export.md)
+- [Desktop export folder (save reports and artifacts into a chosen folder, manual and automatic; built later, removed 2026-11-24 by UD3)](design/desktop-export.md)
 - [Office export: DOCX and PPTX from reports, diagrams for every project (D2 DOCX deployed 2026-10-28; D3 PPTX and report "Save .mmd" deployed 2026-10-28 as `b50af88`; D1 rendering deployed; report snapshot "Keep as document" built 2026-10-28, deployed as `f6497bd`)](design/office-export.md)
 - [Install tracks: developer and operator (design agreed)](design/install-tracks.md)
 - [Mesh join (approve and remove tailnet nodes from the dashboard)](design/mesh-join.md)
 - [Node operations project (ops project without a repository, node inspection MCP, cleanup action catalog)](design/server-ops-project.md)
 - [Fleet provisioning (planned package install and removal: host facts, package tools, protection, plans)](design/fleet-provisioning.md)
 - [Batch execution (proposed: command sets and scripts on many hosts, critics vote, a person decides only on opposition)](design/batch-execution.md)
+- [Remote LLM hosts: agent turns on Tier-1 hosts to spread the hub's load (R0 verdict `not-needed`, nothing more built)](design/remote-llm-hosts.md)
+- [EXAONE API provider: K-EXAONE through the official API as a stateless HTTP provider in the fallback chain (proposed and built 2026-11-09, deployed 2026-11-10)](design/exaone-provider.md)
+- [EXAONE through opencode: K-EXAONE via `@opencode/cli` 2.2.7 as the `opencode` provider, replacing `exaone` in the default chain (proposed 2026-11-11)](design/opencode-exaone.md)
+- [Resident agents and mailboxes: claude, codex and agy as persistent tmux instances on Tier-1 nodes that exchange mail and hand tasks through the hub (proposed 2026-11-14; M0 probe done, claude and agy headless, codex not resident)](design/resident-agents.md)
+- [Resident agents with open tools: built-in tools, writes and shell included, inside a per-agent Unix user and systemd sandbox; results leave as patches for manual approval on the hub (proposed 2026-11-15, OD1-OD6 decided, nothing built)](design/resident-open-tools.md)
+- [Resident Codex, artifact export, and package/update policy revision (proposed and decided 2026-11-22: PD1, PD2, PD3-a, PD4; codex under `tools: "open"`, persistent `$HOME/out/` and hub `artifact_publish`, hub-brokered `ops:system_update` and package proposals)](design/resident-codex-and-policy.md)
+- [Direct querying of active resident agent sessions: hub-project-scoped `in_place` queries over the worker protocol 3 relay, capturing assistant output inside the existing slot and sandbox (proposed and decided 2026-11-22: QD1–QD5; nothing built yet)](design/resident-session-query.md)
+- [Resident agent monitor: a read-only Workflows tab that shows resident agents, their turns, mail, tasks and store events from a read-only snapshot of the mail store (approved 2026-11-21, RM1-RM4 built and deployed as `8e2179d`)](design/resident-monitor.md)
+- [Operator sessions: interactive sessions on workstations join the hub mail network under a name; remote messages, presence and opt-in remote approval without the vendor relay (proposed 2026-11-17, SD1-SD8 decided 2026-11-20, SD1/SD2 revised the same day: the workstation opens the link to the hub, SD9 `from=` on each link key, SD10 Guardian-owned `authorized_keys2`, SD11 per-session remote approval, SD12 hub address: tailnet IPv4, then a DNS name; S0 parts 1-4 done, nothing built)](design/operator-sessions.md)
+- [Agent prompt layers: how a turn's prompt is assembled from selection, persona, role card, task, rules, protocols, context and delivery (reference, 2026-11-10)](design/agent-prompt-layers.md)
 - [Web dashboard UI flow redesign](design/ui-flow-redesign.md)
+- [Design reconciliation and operational hardening specification (design)](design/design-reconciliation.md)
 
 ## Operations
 
@@ -75,3 +105,10 @@ the repository [README](../README.md); the detailed system specification is [age
 - [Audit mode A4, first validation run (2026-10-19)](analysis/2026-10-19-audit-a4/results.md)
 - [Audit mode A4, second validation run: large scope (2026-10-19)](analysis/2026-10-19-audit-a4b/results.md)
 - [Multi-draft evaluation results (2026-10-19)](analysis/2026-10-19-multi-draft-eval/results.md)
+- [Flow graph evaluation results: summariser and structured close (2026-11-01)](analysis/2026-11-01-flow-graph-eval/results.md)
+- [jev verdict on earlier debates: two question sets (2026-11-01)](analysis/2026-11-01-jev-verdict-replay/results.md)
+- [R0: hub load from LLM CLI turns, verdict not-needed (2026-11-08)](analysis/2026-11-08-r0-llm-load/results.md)
+- [M0: resident CLI probe, claude and agy headless, codex not resident (2026-11-14)](analysis/2026-11-14-m0-resident-probe/results.md)
+- [M2: resident agents sandbox trial, real claude and agy, one driver defect fixed (2026-11-15)](analysis/2026-11-15-m2-resident-trial/results.md)
+- [Reference notes: Claude Code Remote Control and cross-session messaging, with links (2026-11-17)](analysis/2026-11-17-remote-control-reference/notes.md)
+- [S0 parts 1-4: operator session probe, hub dial, hub-side link entry and bypass mode on one Mac, hooks, wake guards and the restricted key pass, bypass mode still fires remote approval, eleven design corrections (2026-11-20)](analysis/2026-11-20-s0-session-probe/results.md)

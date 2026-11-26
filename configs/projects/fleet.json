@@ -12,6 +12,7 @@
       "ops:docker_prune",
       "ops:journal_vacuum",
       "ops:apt_clean",
+      "ops:system_update",
       "ops:remove_paths",
       "ops:truncate_logs",
       "ops:remove_old_kernels",

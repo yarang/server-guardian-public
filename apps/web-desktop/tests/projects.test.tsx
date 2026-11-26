@@ -13,8 +13,8 @@ import { SettingsPage } from '../src/pages/SettingsPage';
 import { AppStores } from '../src/state/AppStores';
 import { PROJECT_STORAGE_KEY, hasNoRepository, opsProjectFor } from '../src/lib/project';
 import { setDebatePrefill } from '../src/state/debatePrefill';
-import { formatTestCommands, parseTestCommands } from '../src/pages/debate/ProjectDialog';
-import type { ProjectEntry, ProjectList } from '../src/types';
+import { defaultFlowChoices, formatTestCommands, parseTestCommands } from '../src/pages/debate/ProjectDialog';
+import type { FlowEntry, ProjectEntry, ProjectList } from '../src/types';
 import { ko } from '../src/i18n/ko';
 
 const D = ko.debate;
@@ -265,6 +265,39 @@ describe('Ops projects', () => {
     expect(mocked.saveProject.mock.calls[0][0]).toMatchObject({ id: 'arm-ops', kind: 'ops', targets: { groups: ['arm', 'gone'], exclude: ['n2'] } });
   });
 
+  it('keeps the default flow of a saved project, and changes it from the list (D7 of flow-graph.md)', async () => {
+    const base = withOps.projects.find((p) => p.id === 'arm-ops')!;
+    mocked.fetchProjects.mockResolvedValue({
+      ...withOps,
+      projects: withOps.projects.map((p) => (p.id === 'arm-ops' ? { ...base, data: { ...base.data, team: 'fleet-ops' } } : p)),
+    });
+    const flows = { flows: [flowEntry('ops-review', ['ops']), flowEntry('code-review', ['code'])], catalog: {} as never };
+    mocked.fetchFlows.mockResolvedValue(flows);
+    mocked.saveProject.mockResolvedValue({ id: 'arm-ops', warnings: [] });
+    mount();
+    const open = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: D.project.editAria('arm-ops') }));
+      const dialog = await screen.findByRole('dialog');
+      const select = within(dialog).getByLabelText(D.project.flow) as HTMLSelectElement;
+      await waitFor(() => expect(within(select).queryByRole('option', { name: /ops-review/ })).not.toBeNull());
+      return { dialog, select };
+    };
+    // Saved unchanged: the key is kept even though fleet-ops is not in the flow list (it stays as an unlisted option).
+    let { dialog, select } = await open();
+    expect(select.value).toBe('fleet-ops');
+    expect(within(select).queryByRole('option', { name: /code-review/ })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: ko.common.save }));
+    await waitFor(() => expect(mocked.saveProject).toHaveBeenCalledTimes(1));
+    expect(mocked.saveProject.mock.calls[0][0].team).toBe('fleet-ops');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    ({ dialog, select } = await open());
+    fireEvent.change(select, { target: { value: 'ops-review' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: ko.common.save }));
+    await waitFor(() => expect(mocked.saveProject).toHaveBeenCalledTimes(2));
+    expect(mocked.saveProject.mock.calls[1][0].team).toBe('ops-review');
+    mocked.fetchFlows.mockResolvedValue({ ...flows, flows: [] });
+  });
+
   it('keeps policy.batch and policy.watch of a saved project, and edits the batch settings', async () => {
     const batch = { auto: true, max_plans_per_day: 2, max_steps: 5, max_parallel_hosts: 3 };
     const watch = { disk: true };
@@ -363,6 +396,27 @@ describe('Ops projects', () => {
     const req = mocked.startDebate.mock.calls[0][0];
     expect(req).toEqual(expect.objectContaining({ project: 'arm-ops', task: 'Free disk space on the ARM nodes' }));
     expect(req.context_paths).toBeUndefined();
+  });
+});
+
+function flowEntry(id: string, projects: Array<'code' | 'ops' | 'design'>, extra: Partial<FlowEntry['data']> = {}): FlowEntry {
+  return {
+    id, name: id, source: 'custom', hash: 'h', calls: 3, runnable: true, run_error: null, errors: [], warnings: [],
+    data: { id, name: id, projects, seats: [], close: { character: 'judge' }, links: [], ...extra },
+  };
+}
+
+describe('default flow choices', () => {
+  it('offers runnable flows of the kind without a task text of their own', () => {
+    const flows = [
+      flowEntry('any', []),
+      flowEntry('ops-only', ['ops']),
+      flowEntry('code-only', ['code']),
+      flowEntry('own-task', ['ops'], { task: 'Check {x}' }),
+      { ...flowEntry('broken', ['ops']), runnable: false },
+    ];
+    expect(defaultFlowChoices(flows, 'ops').map((f) => f.id)).toEqual(['any', 'ops-only']);
+    expect(defaultFlowChoices(flows, 'code').map((f) => f.id)).toEqual(['any', 'code-only']);
   });
 });
 

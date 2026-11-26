@@ -14,7 +14,10 @@ something cleaned, finish the report and then use the `guardian-host-cleanup` sk
 
 ## Checks
 
-Run what the question needs; for "how is this node" run 1-4 and 8.
+Run what the question needs; for "how is this node" run 1-4 and 8. The commands are for Debian and Ubuntu (GNU tools,
+dpkg): look at `uname -s` and `/etc/os-release` first, and on another system (macOS, a dnf or zypper distribution)
+use its own equivalent of a read-only check or say that the check does not apply. Never change anything to make a
+check work.
 
 1. Disk and inodes of the real filesystems:
    `df -PT -x tmpfs -x devtmpfs -x squashfs -x overlay; df -Pi -x tmpfs -x devtmpfs -x squashfs -x overlay`

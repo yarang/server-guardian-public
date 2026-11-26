@@ -336,3 +336,33 @@ class RecheckCommandTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FallbackConstraintTests(unittest.TestCase):
+    """2026-10-30: a graded critique gives only its [차단] lines; the last-resort constraint fits every project kind."""
+
+    def test_a_graded_critique_gives_only_blocking_lines(self) -> None:
+        from jev_gate import critique_points
+        critique = ("- [차단] n2의 /var/log를 통째로 지우면 감사 기록이 사라진다 [#2 journal_usage n2]\n"
+                    "- [권고] 실행 시점을 한가한 시간으로 옮기면 더 좋다 [#1 uptime_load n2]\n"
+                    "- 제안의 범위 설정은 타당하고 점검 결과와 맞는다\n"
+                    "[차단] sudo가 없는 n3에서는 조치가 실패한다 [#4 host_facts n3]\n")
+        points = critique_points(critique)
+        self.assertEqual(len(points), 2)
+        self.assertIn("감사 기록", points[0])
+        self.assertIn("sudo가 없는 n3", points[1])
+        self.assertFalse(any("한가한 시간" in p or "타당" in p for p in points))
+
+    def test_advice_alone_falls_back_to_the_neutral_constraint(self) -> None:
+        request = build_decision("fleet", "t1", "task", "proposal", "- [권고] 실행 뒤 df를 다시 확인하면 좋다\n",
+                                 "ok\nVERDICT: APPROVED")
+        self.assertEqual(len(request["constraints"]), 1)
+        self.assertIn("blocking concerns it accepted", request["constraints"][0])
+        self.assertNotIn("red-team", request["constraints"][0])
+        self.assertIn("constraints:fallback", request["tags"])
+        self.assertIn("Critique:\n", request["context"])
+        self.assertNotIn("Red-team", request["context"])
+
+    def test_an_ungraded_critique_keeps_its_bullets(self) -> None:
+        from jev_gate import critique_points
+        self.assertEqual(len(critique_points("- the lock is released twice in error paths\n- tests do not cover it\n")), 2)

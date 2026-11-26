@@ -1,0 +1,13 @@
+flowchart LR
+    TEAM["team file<br/>(teams/*.json)"] -->|"team_to_flow"| FLOW
+    TPL["flow template<br/>(flow_templates.py)"] -->|"template_to_flow"| FLOW
+    FLOW["flow graph<br/>(flow_graph.py)<br/>seats, bundles, one close,<br/>input mode per seat"]
+    SWAP["--seat SEAT=CHARACTER"] --> FLOW
+    FLOW -->|"compile_flow"| LU["lineup + steps"]
+    LU -->|"_flow_steps"| TURN["turn of one seat<br/>(debate, panel, verify,<br/>pipeline, versus)"]
+    PROJ["project kind<br/>code / ops / design"] -->|"prompt_kind"| TURN
+    TURN --> RP["RolePrompt"]
+    SOLO["solo_agent.py<br/>SOLO_RULES or GENERAL_RULES"] --> RP
+    WIKI["wiki_build.py<br/>WRITER_SYSTEM"] -->|"engine._system_prompt"| RUN["engine turn"]
+    AUD["audit_run.py<br/>AUDIT_SYSTEM, RECHECK_SYSTEM"] -->|"engine._system_prompt"| RUN
+    RP --> RUN

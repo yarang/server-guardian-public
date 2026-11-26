@@ -11,10 +11,16 @@ cli/llm-agent/evidence.py
 cli/llm-agent/go_facts.py
 cli/llm-agent/go_ops.py
 cli/llm-agent/llm_runner.py
+cli/llm-agent/mailbox_mcp.py
 cli/llm-agent/mcp_stdio.py
 cli/llm-agent/remote_agents.py
 cli/llm-agent/repo_map.py
 cli/llm-agent/repo_mcp.py
 cli/llm-agent/repo_snapshot.py
 cli/llm-agent/repo_tools.py
+cli/llm-agent/resident_driver.py
+cli/llm-agent/resident_node.py
+cli/llm-agent/resident_open.py
+cli/llm-agent/resident_repo_mcp.py
+cli/llm-agent/resident_tasks.py
 cli/llm-agent/worker.py

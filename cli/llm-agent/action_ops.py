@@ -275,6 +275,16 @@ def stale_reason(action: Dict[str, Any], mcp: MCPClient) -> Optional[str]:
 
 FILE_TOOLS = ("jev_mcp:apply_patch", "jev_mcp:execute_code_action")
 
+# Actions of resident task patches (resident-open-tools.md rule 5 / OD4): their thread is a task, not
+# a debate, so no jev gate passed and no `auto:engine` path may ever run them, whatever
+# GUARDIAN_AUTO_APPLY says. A person approves or rejects them like any other action.
+TASK_THREAD_PREFIX = "thread_task_"
+
+
+def is_task_patch_action(action: Dict[str, Any]) -> bool:
+    """Whether the action is a resident task's patch (thread thread_task_<task id>)."""
+    return str(action.get("thread_id") or "").startswith(TASK_THREAD_PREFIX)
+
 # decided_by of an action the engine ran itself; ACTOR_PATTERN accepts it, humans show up under their own name.
 AUTO_ACTOR = "auto:engine"
 _OFF_VALUES = ("off", "0", "false", "no")
@@ -299,10 +309,13 @@ def is_auto_approvable(action: Dict[str, Any]) -> bool:
     """Whether an action may skip the approval tab: a file change that only writes into the workspace clone.
 
     Everything else stays with a person: run_tests and server_remediation (they execute code), and an
-    execute_code_action asking for run_test, which would run the workspace's tests as a side effect. Changes
+    execute_code_action asking for run_test, which would run the workspace's tests as a side effect. A
+    resident task patch never skips it either (rule 5 / OD4: a task has no debate verdict). Changes
     are not published; the publish step stays the human gate.
     """
     if action.get("tool") not in FILE_TOOLS:
+        return False
+    if is_task_patch_action(action):
         return False
     return not (action["tool"] == "jev_mcp:execute_code_action" and (action.get("arguments") or {}).get("run_test"))
 
@@ -355,6 +368,8 @@ def auto_run_actions(db: DecisionDBManager, mcp: Any, action_ids: List[int],
         action = db.get_action(action_id)
         if action is None or action["status"] != "PROPOSED" or action.get("plan_id"):
             continue  # a plan step only runs with its plan, approved by a person
+        if is_task_patch_action(action):
+            continue  # a resident task patch never runs itself (rule 5 / OD4), whatever this switch says
         try:
             client = _client(mcp, action)
         except ValueError:
@@ -674,7 +689,7 @@ def show_action_json(db: DecisionDBManager, mcp: MCPClient, action_id: int) -> R
 
 def run_action_json(db: DecisionDBManager, mcp: MCPClient, action_id: int, actor: str) -> Result:
     """Runs an approved action. The caller has already shown it to a person who confirmed it."""
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return _error(INVALID_INPUT, "actor: use 1-64 letters, digits or @:._-")
     try:
         result = run_action(db, mcp, action_id, confirm=lambda _action: True, actor=actor)
@@ -687,7 +702,7 @@ def run_action_json(db: DecisionDBManager, mcp: MCPClient, action_id: int, actor
 
 
 def reject_action_json(db: DecisionDBManager, mcp: MCPClient, action_id: int, actor: str) -> Result:
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return _error(INVALID_INPUT, "actor: use 1-64 letters, digits or @:._-")
     action = db.get_action(action_id)
     if action is None:
@@ -698,7 +713,7 @@ def reject_action_json(db: DecisionDBManager, mcp: MCPClient, action_id: int, ac
 
 
 def fail_stale_action_json(db: DecisionDBManager, mcp: Any, action_id: int, actor: str) -> Result:
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return _error(INVALID_INPUT, "actor: use 1-64 letters, digits or @:._-")
     action = db.get_action(action_id)
     if action is None:

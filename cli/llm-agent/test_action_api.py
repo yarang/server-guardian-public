@@ -113,6 +113,12 @@ class ActionJsonTests(unittest.TestCase):
         self.assertEqual(code, action_ops.CONFLICT)
         self.assertEqual(self.db.get_action(bad)["status"], "INVALID")
 
+    def test_an_actor_with_a_trailing_newline_is_refused(self) -> None:
+        # "$" also matches just before a trailing newline, so only fullmatch refuses "dashboard\n".
+        for call in (action_ops.run_action_json, action_ops.reject_action_json, action_ops.fail_stale_action_json):
+            with self.subTest(call=call.__name__):
+                self.assertEqual(call(self.db, self.mcp, self.proposed, "dashboard\n")[0], action_ops.INVALID_INPUT)
+
     def test_reject(self) -> None:
         code, out = action_ops.reject_action_json(self.db, self.mcp, self.held, "dashboard@x")
         self.assertEqual((code, out["action"]["status"], out["action"]["decided_by"]), (0, "REJECTED", "dashboard@x"))

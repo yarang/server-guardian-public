@@ -1,0 +1,8 @@
+flowchart LR
+  E[debate engine / solo runner] -->|run_session_prompt| R[llm_runner]
+  R -->|claude, codex, agy, zai| CLI[CLI subprocess with session]
+  R -->|exaone| H[urllib POST /v1/chat/completions]
+  H -->|content| R
+  R -->|LLMResult exaone-api, no session id| E
+  E -->|repo block in answer| X[engine runs retrieval, replays the turn with results]
+  X --> R

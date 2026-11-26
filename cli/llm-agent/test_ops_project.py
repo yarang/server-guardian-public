@@ -159,7 +159,8 @@ class OpsClientTests(unittest.TestCase):
         client = MCPClient(project=parse_project(OPS))
         self.assertIsNone(client.workspace)
         server = ["jev_mcp:server_remediation", "ops:docker_prune", "ops:journal_vacuum", "ops:apt_clean",
-                  "ops:remove_paths", "ops:truncate_logs", "ops:remove_old_kernels", "ops:restart_service"]
+                  "ops:system_update", "ops:remove_paths", "ops:truncate_logs", "ops:remove_old_kernels",
+                  "ops:restart_service"]
         # the catalog lists what the kind offers; the policy (package and batch tools are opt-in) narrows what a judge may propose
         self.assertEqual([t["name"] for t in client.list_tools()],
                          server + ["ops:package_install", "ops:package_remove", "ops:run_command_set", "ops:run_script"])
@@ -360,6 +361,24 @@ class OpsDebateTests(unittest.TestCase):
         checks = [e.get("data", e) for e in events if e.get("type") == "citation_check"]
         self.assertEqual([(c["unverified"], c["asked"]) for c in checks], [(["[#7 disk_usage n1]"], True), ([], True)])
 
+    def test_an_ops_citation_reask_answered_by_a_bare_request_keeps_the_first_answer(self) -> None:
+        agent = MagicMock()
+        agent.execute_remote_ssh.return_value = {"exit_code": 0, "stdout": "/dev/sda1 96% /", "stderr": ""}
+        ask = '```ops\n{"requests": [{"op": "disk_usage", "host": "n1"}]}\n```'
+        bare = '{"requests": [{"op": "disk_usage", "host": "n1"}]}'  # unfenced: the loop serves nothing
+        runner = FakeRunner({"expert": [ask, "n1 is full [#7 disk_usage n1]", bare],
+                             "critic": ["critique"], "judge": ["Needs work.\nVERDICT: REJECTED"]})
+        with patch("ops_checks.OpsChecks._agent", return_value=agent):
+            result = self.run_debate(runner)
+        expert = next(t for t in result["transcript"] if t["role"] == EXPERT_ROLE)
+        self.assertEqual(expert["content"], "n1 is full [#7 disk_usage n1]")
+        self.assertEqual(expert["unverified_citations"], ["[#7 disk_usage n1]"])
+        events = [json.loads(line) for line in self.events_path.read_text().splitlines()]
+        self.assertEqual(len([e for e in events if e.get("type") == "citation_check"]), 1)
+        failed = [e.get("data", e) for e in events if e.get("type") == "reask_failed"]
+        self.assertEqual(failed, [{"kind": "ops_citation", "kept": True, "provider": "claude-cli",
+                                   "reason": "no_answer"}])
+
     def started(self) -> Dict[str, Any]:
         event = next(json.loads(line) for line in self.events_path.read_text().splitlines()
                      if json.loads(line).get("type") == "debate_started")
@@ -390,6 +409,46 @@ class OpsDebateTests(unittest.TestCase):
         started = self.started()
         self.assertEqual(started["team"], "default")
         self.assertTrue(any("no-such-team" in w for w in started["warnings"]))
+
+    def _save_flow(self, **fields: Any) -> None:
+        """A stored flow converted from the builtin fleet-ops team, under this test's data dir."""
+        from flow_graph import FlowStore, team_to_flow
+        from team_manager import TeamManager
+
+        flow = {**team_to_flow(TeamManager().get_team("fleet-ops")), **fields}
+        FlowStore().save(flow)
+
+    def test_a_project_team_key_may_name_a_stored_flow(self) -> None:
+        # D7 of docs/design/flow-graph.md: the project's team key names a flow; it starts like --flow.
+        with patch.dict(os.environ, {"GUARDIAN_DATA_DIR": str(self.root)}):
+            self._save_flow(id="ops-review", name="Ops review")
+            (self.manager.directory / "ops1.json").write_text(json.dumps({**OPS, "team": "ops-review"}))
+            runner = FakeRunner({"expert": ["plan"], "critic": ["critique"], "judge": ["Needs work.\nVERDICT: REJECTED"]})
+            self.run_debate(runner)
+        started = self.started()
+        self.assertEqual(started["team"], "ops-review")
+        self.assertEqual([m["agent_name"] for m in started["members"]],
+                         ["Fleet Operations Engineer (SRE)", "Operations Safety Reviewer", "Capacity & Recurrence Reviewer",
+                          "Fleet Operations Judge"])
+        self.assertFalse(started.get("warnings"))
+
+    def test_a_project_flow_that_cannot_start_falls_back_with_a_warning(self) -> None:
+        with patch.dict(os.environ, {"GUARDIAN_DATA_DIR": str(self.root)}):
+            self._save_flow(id="code-only", name="Code only", projects=["code"])
+            (self.manager.directory / "ops1.json").write_text(json.dumps({**OPS, "team": "code-only"}))
+            runner = FakeRunner({"expert": ["plan"], "critic": ["critique"], "judge": ["Needs work.\nVERDICT: REJECTED"]})
+            self.run_debate(runner)
+        started = self.started()
+        self.assertEqual(started["team"], "default")
+        self.assertTrue(any("project's flow 'code-only'" in w for w in started["warnings"]), started["warnings"])
+
+    def test_a_named_team_or_a_thread_lineup_wins_over_the_project_flow(self) -> None:
+        with patch.dict(os.environ, {"GUARDIAN_DATA_DIR": str(self.root)}):
+            self._save_flow(id="ops-review", name="Ops review")
+            (self.manager.directory / "ops1.json").write_text(json.dumps({**OPS, "team": "ops-review"}))
+            runner = FakeRunner({"expert": ["plan"], "critic": ["critique"], "judge": ["Needs work.\nVERDICT: REJECTED"]})
+            self.run_debate(runner, team="default")
+        self.assertEqual(self.started()["team"], "default")
 
     def test_code_tools_of_a_team_are_ignored_with_a_warning(self) -> None:
         from team_manager import TeamManager

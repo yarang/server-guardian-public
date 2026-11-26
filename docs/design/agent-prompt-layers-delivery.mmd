@@ -1,0 +1,15 @@
+flowchart TB
+    RP["RolePrompt<br/>persona | task | rules | lead"]
+    RP --> Q{"claude or zai<br/>among the candidates?"}
+    Q -->|"yes"| ST["_standing: SessionInstructions"]
+    ST --> STA["static<br/>persona, retrieval protocol,<br/>ops protocol, lead, rules + language rule"]
+    ST --> DYN["dynamic<br/>commit, repository map or file list,<br/>wiki list, MCP tool section"]
+    STA --> SYS["--append-system-prompt (default)<br/>or --system-prompt with a cache boundary<br/>between static and dynamic"]
+    DYN --> SYS
+    RP --> CC["_compose_claude: user message<br/>code context, protocol only when resent,<br/>earlier rounds (new session), task"]
+    SYS --> CL["claude CLI / zai (claude CLI on z.ai)"]
+    CC --> CL
+    RP --> PL["plain(): persona + task + rules"]
+    PL --> CO["_compose: one message, outermost first<br/>1 code context pack<br/>2 ops protocol<br/>3 MCP tool section<br/>4 retrieval protocol and state<br/>5 earlier rounds (new session)<br/>6 plain prompt"]
+    CO --> OT["codex, agy, exaone<br/>(and the fallback chain)"]
+    Q -->|"no"| PL

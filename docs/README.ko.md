@@ -5,6 +5,15 @@
 모든 문서는 영어(`name.md`, 기본본)와 한국어(`name.ko.md`)로 있다. 프로젝트 개요는 저장소의
 [README](../README.ko.md)이고, 자세한 시스템 명세는 [agent.md](../agent.ko.md)이다.
 
+## 사용 가이드
+
+- [사용 가이드 목차와 빠른 시작](guide/README.ko.md)
+- [설치와 배포 (허브 릴리스, 플릿 SSH 키, LLM 자격증명, Guardian 스킬, 워커, CI)](guide/setup-and-deployment.ko.md)
+- [대시보드 사용법 (현황, 노드, 업무 흐름, 승인, 설정, 오피스 내보내기)](guide/dashboard.ko.md)
+- [플릿 관리와 운영 프로젝트 (인벤토리, 그룹, SSH 감사, 정리 카탈로그, 야간 감시, 프로비저닝, 일괄 실행)](guide/fleet-and-ops.ko.md)
+- [토론, 흐름, 프로젝트 (code/ops/design 프로젝트, 빠른 질문, 코드 위키, 저장소 감사, jev 게이트, 게시)](guide/debates-and-projects.ko.md)
+- [상주 에이전트와 운영자 세션 (Tier-1 상주 에이전트, 메일함·작업, 워크스테이션 링크 데몬, Claude/Antigravity MCP와 훅)](guide/residents-and-sessions.ko.md)
+
 ## 용어
 
 - [용어집: 한 가지 대상에는 한 가지 낱말 (노드, 실행 호스트, 비평가, 액션 ...)](glossary.ko.md)
@@ -22,6 +31,16 @@
 - [판정자 액션: 부분 수정 도구 (설계)](design/debate-patch-tool.ko.md)
 - [토론 팀 UI 연동 계약 (Python CLI ↔ Go hub API ↔ 대시보드)](design/debate-teams-api.ko.md)
 - [토론 팀(라인업) 설계](design/debate-teams.ko.md)
+- [흐름 템플릿: 저장해 두고 매개변수로 시작하는 업무 흐름 (제안, 구현 없음)](design/flow-templates.ko.md)
+- [흐름 그래프: 다이어그램에 캐릭터를 앉히고 연결, 자리별 받는 방식, 업무와 무관한 정리자, 팀과 템플릿 대체 (결정, 구현 없음)](design/flow-graph.ko.md)
+- [jev 판정: 마감은 jev로 판정하고 LLM은 결정문을 씀, 그림자 모드 먼저 (제안, 구현 없음)](design/jev-verdict.ko.md)
+- [판정기: 마감에 꽂는 판정 부품 (jev, MCP 도구, 프로젝트 테스트, 판정·경보·관문 역할, 제안)](design/verdict-sources.ko.md)
+- [단독 에이전트: 역할 하나, 판정자 없음, 읽기 전용 (2026-10-30 제안, S1-S3 배포)](design/solo-agent.ko.md)
+- [검증 계층: 다른 곳에서 만든 작업을 Guardian이 검증 (빠른 리뷰, 외부 브랜치와 상주 patch 입구, 후보 비교, 에이전트 개발 환경 대비 포지셔닝; 2026-11-23 제안, 같은 날 DP1·DP2·DP5 승인, V0 완료)](design/verification-layer.ko.md)
+- [운영자 세션에서 만드는 흐름: 흐름 목록, kind와 자리의 캐릭터로 쓰는 초안, 검사, 대시보드 승격을 기다리는 초안, 워크스테이션이 기록되는 실행을 위한 세션 MCP 도구 (2026-11-25 제안, 같은 날 SD1-SD3 결정, 2026-11-26 SD4-SD6 결정)](design/session-flows.ko.md)
+- [검증 계층에 맞춘 대시보드 검토: 팀 편집기와 중복 페르소나 대화상자 삭제, 흐름과 캐릭터를 설정으로 이동, 빠른 리뷰 탭 추가 (2026-11-23 제안, UD1·UD2·UD4-UD6 승인, UD3 미정)](design/ui-verification-review.ko.md)
+- [에이전트 캐릭터: 다시 쓰는 캐릭터와 그 정의인 페르소나, 정형화 가이드 (2026-10-30 제안, "AI로 제안"과 C0 린트 구현)](design/agent-characters.ko.md)
+- [에이전트 자리와 API 키 지정: 사용자가 정하고, 키는 허브가 쓰기 전용으로 보관 (제안, 구현 없음)](design/agent-seats-keys.ko.md)
 - [노드별 SSH 보안 감사 (fleet SSH audit)](design/fleet-ssh-audit.ko.md)
 - [사용자 정의 노드 그룹 (Python CLI ↔ Go hub API ↔ 대시보드)](design/node-groups.ko.md)
 - [허브 SSH 설정을 통한 노드 등록](design/node-registration.ko.md)
@@ -30,14 +49,25 @@
 - [다각도 토론: 독립 제안과 블라인드 비판 (결정 확정, 구현 없음)](design/multi-perspective.ko.md)
 - [설계·문서·이미지 산출물 프로젝트 (`kind: "design"`, 검토, P1 구현됨)](design/design-project.ko.md)
 - [프로젝트 결과물 탭 (모든 종류 프로젝트의 결과 문서와 산출물, 구현됨·배포됨)](design/project-results.ko.md)
-- [데스크톱 내보내기 폴더 (보고서와 산출물을 고른 폴더에 저장, 수동·자동, 승인됨·구현 없음)](design/desktop-export.ko.md)
+- [데스크톱 내보내기 폴더 (보고서와 산출물을 고른 폴더에 저장, 수동·자동, 이후 구현, 2026-11-24 UD3로 삭제)](design/desktop-export.ko.md)
 - [오피스 내보내기: 보고서의 DOCX·PPTX, 모든 프로젝트의 다이어그램 (D2 DOCX 2026-10-28 배포; D3 PPTX와 보고서 ".mmd로 저장" 2026-10-28 `b50af88`로 배포; D1 렌더 배포됨; 보고서 스냅샷 "문서로 보관" 2026-10-28 구현, `f6497bd`로 배포)](design/office-export.ko.md)
 - [설치 트랙: 개발자와 운영자 (설계 합의)](design/install-tracks.ko.md)
 - [메시 가입 (대시보드에서 tailnet 노드 승인과 등록 해제)](design/mesh-join.ko.md)
 - [노드 운영 프로젝트 (저장소 없는 ops 프로젝트, 노드 조회 MCP, 정리 액션 카탈로그)](design/server-ops-project.ko.md)
 - [Fleet 프로비저닝 (계획에 따른 패키지 설치와 삭제: 노드 사실, 패키지 도구, 보호, 계획)](design/fleet-provisioning.ko.md)
 - [일괄 실행: 여러 노드에 명령 세트를 동시에, 비평가가 표결하고 반대할 때만 사람이 결정](design/batch-execution.ko.md)
+- [원격 LLM 호스트: 허브 부하 분산을 위해 Tier-1 노드에서 에이전트 턴 실행 (R0 판정 `not-needed`, 더 만들지 않음)](design/remote-llm-hosts.ko.md)
+- [EXAONE API 공급자: 공식 API의 K-EXAONE을 대체 사슬 안의 상태 없는 HTTP 공급자로 (2026-11-09 제안·구현, 2026-11-10 배포)](design/exaone-provider.ko.md)
+- [opencode를 통한 EXAONE: `@opencode/cli` 2.2.7로 K-EXAONE을 쓰는 `opencode` 공급자, 기본 사슬에서 `exaone`을 대신함 (2026-11-11 제안)](design/opencode-exaone.ko.md)
+- [상주 에이전트와 메일함: Tier-1 노드의 tmux 상주 인스턴스 claude, codex, agy가 허브를 거쳐 메일과 작업을 주고받음 (2026-11-14 제안; M0 점검 완료, claude와 agy는 headless, codex는 상주 불가)](design/resident-agents.ko.md)
+- [열린 도구를 쓰는 상주 에이전트: 쓰기와 셸을 포함한 내장 도구를 에이전트별 유닉스 사용자와 systemd sandbox 안에서 쓰고, 결과는 허브에서 사람 승인을 받는 patch로 나감 (2026-11-15 제안, OD1-OD6 결정, 만든 것 없음)](design/resident-open-tools.ko.md)
+- [상주 Codex, 산출물 반출, 패키지·업데이트 정책 개정 (2026-11-22 제안·결정: PD1, PD2, PD3-a, PD4; `tools: "open"`의 codex, 지속 `$HOME/out/` 및 허브 `artifact_publish`, 허브 중개 `ops:system_update`와 패키지 제안)](design/resident-codex-and-policy.ko.md)
+- [상주 에이전트 활성 세션 직접 질의: 허브 프로젝트 범위의 `in_place` 직통 질의를 워커 프로토콜 3 릴레이로 전달해 기존 상주 슬롯과 샌드박스 안에서 응답 반환 (2026-11-22 제안·결정: QD1–QD5; 구현 없음)](design/resident-session-query.ko.md)
+- [상주 에이전트 모니터: 메일 저장소의 읽기 전용 스냅숏으로 상주 에이전트, 턴, 메일, 작업, 저장소 이벤트를 보이는 워크플로 탭 (2026-11-21 승인, RM1-RM4 구현, `8e2179d`로 배포)](design/resident-monitor.ko.md)
+- [운영자 세션: 워크스테이션의 대화형 세션이 이름을 갖고 허브 메일망에 들어옴; 벤더 중계 없이 원격 메시지, 접속 상태, 선택적 원격 승인 (2026-11-17 제안, SD1-SD8 2026-11-20 결정, 같은 날 SD1/SD2 고침: 워크스테이션이 허브로 연결을 연다, SD9 연결 키마다 `from=`, SD10 Guardian이 맡는 `authorized_keys2`, SD11 세션별 원격 승인, SD12 허브 주소: tailnet IPv4 다음 DNS 이름; S0 1-4부 끝, 만든 것 없음)](design/operator-sessions.ko.md)
+- [에이전트 프롬프트 계층: 선택, 페르소나, 역할 카드, 과제, 규칙, 프로토콜, 맥락, 전달로 한 차례의 프롬프트를 조립하는 방식 (참고 문서, 2026-11-10)](design/agent-prompt-layers.ko.md)
 - [웹 대시보드 UI 흐름 재설계](design/ui-flow-redesign.ko.md)
+- [설계 정합성 확보 및 보안·운영 결함 해소 명세 (설계)](design/design-reconciliation.ko.md)
 
 ## 운영
 
@@ -75,3 +105,10 @@
 - [감사 모드 A4 1차 검증 (2026-10-19)](analysis/2026-10-19-audit-a4/results.ko.md)
 - [감사 모드 A4 2차 검증: 넓은 범위 (2026-10-19)](analysis/2026-10-19-audit-a4b/results.ko.md)
 - [다중 초안 평가 결과 (2026-10-19)](analysis/2026-10-19-multi-draft-eval/results.ko.md)
+- [흐름 그래프 평가 결과: 정리자와 핵심만 마감 (2026-11-01)](analysis/2026-11-01-flow-graph-eval/results.ko.md)
+- [과거 토론에 대한 jev 판정: 질문 두 판 (2026-11-01)](analysis/2026-11-01-jev-verdict-replay/results.ko.md)
+- [R0: LLM CLI 턴의 허브 부하, 판정 not-needed (2026-11-08)](analysis/2026-11-08-r0-llm-load/results.ko.md)
+- [M0: 상주 CLI 점검, claude와 agy는 headless, codex는 상주 불가 (2026-11-14)](analysis/2026-11-14-m0-resident-probe/results.ko.md)
+- [M2: 상주 에이전트 sandbox 시험, 실제 claude와 agy, 드라이버 결함 하나 수정 (2026-11-15)](analysis/2026-11-15-m2-resident-trial/results.ko.md)
+- [참고 노트: Claude Code Remote Control과 세션 간 메시징, 링크 포함 (2026-11-17)](analysis/2026-11-17-remote-control-reference/notes.ko.md)
+- [S0 1-4부: Mac 한 대에서 운영자 세션 프로브, 허브 접속, 허브 쪽 연결 입구, bypass 모드, 훅, 깨우기 조건, 제한 키 통과, bypass에서도 원격 승인이 불림, 설계 정정 열한 가지 (2026-11-20)](analysis/2026-11-20-s0-session-probe/results.ko.md)

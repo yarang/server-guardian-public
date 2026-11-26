@@ -408,7 +408,7 @@ class MCPClient:
 
     @staticmethod
     def _check_branch(branch: str) -> None:
-        if not BRANCH_PATTERN.match(branch) or ".." in branch or branch.endswith((".lock", "/")):
+        if not BRANCH_PATTERN.fullmatch(branch) or ".." in branch or branch.endswith((".lock", "/")):
             raise ActionValidationError(f"invalid branch name: {branch}")
         if branch in PROTECTED_BRANCHES:
             raise ActionValidationError(f"refusing to commit to protected branch '{branch}'")

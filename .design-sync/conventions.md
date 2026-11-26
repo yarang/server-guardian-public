@@ -3,7 +3,7 @@
 Dark graphite ops console for Server Guardian (fleet monitoring, SSH audits, AI debates whose proposed actions need human approval). Components live on `window.GuardianUI`.
 
 ## Setup: always wrap in GuardianRoot
-`GuardianRoot` sets the dark ground (`--sg-bg`), text color and the IBM Plex Sans KR font. Without it, components render on a white page in a fallback font and look broken. Wrap the whole screen once:
+`GuardianRoot` sets the warm paper ground (`--sg-bg`), text color and the IBM Plex Sans KR font. Without it, components render on a white page in a fallback font and look broken. Wrap the whole screen once:
 
 ```jsx
 const { GuardianRoot, Panel, NodeTable, StatusChip, Button } = window.GuardianUI;

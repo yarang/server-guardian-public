@@ -105,6 +105,13 @@ class CastVoteTests(unittest.TestCase):
                 self.assertEqual((out["vote"], out["counted"], out["cites"]), ("oppose", False, []))
                 self.assertIn("advice", out["note"])
 
+    def test_in_a_free_script_plan_an_uncited_objection_counts(self) -> None:
+        out = batch_votes.cast_vote("c1", block(vote="oppose"), HASH, lambda _c: False, free=True)
+        self.assertEqual((out["vote"], out["counted"]), ("oppose", True))
+        self.assertNotIn("note", out)
+        approve = batch_votes.cast_vote("c1", block(), HASH, lambda _c: False, free=True)
+        self.assertEqual((approve["vote"], approve["counted"]), ("approve", False))
+
     def test_only_the_verified_citations_are_kept(self) -> None:
         out = batch_votes.cast_vote(
             "c1", block(vote="oppose", cites=["[#1 disk_usage n1]", "[#9 disk_usage n1]"]), HASH,
@@ -160,12 +167,15 @@ class VoteTaskTests(unittest.TestCase):
         self.assertIn("NOT undoable", text)
         self.assertIn("echo hi", text)
         self.assertIn("```vote", text)
+        self.assertIn("[차단] is an oppose", text)
+        self.assertNotIn("do not approve by default", text)  # only a plan with a free script says so
 
     def test_a_long_script_is_cut(self) -> None:
         steps = [{"step": "s1", "tool": "ops:run_script", "arguments": {"target_host": "n1", "script": "x" * 9000},
                   "risk": "high", "status": "PROPOSED"}]
         text = batch_votes.vote_task("t", "g", HASH, steps)
-        self.assertLess(len(text), 9000)
+        self.assertNotIn("x" * (batch_votes.MAX_SCRIPT_SHOWN + 1), text)  # the script is not shown whole
+        self.assertIn("x" * batch_votes.MAX_SCRIPT_SHOWN, text)
         self.assertIn("(cut)", text)
 
 

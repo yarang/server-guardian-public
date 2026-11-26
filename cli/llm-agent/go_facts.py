@@ -498,8 +498,11 @@ class GoFactsProvider:
     def summary(self) -> Dict[str, Any]:
         """The `index.go` entry of the thread snapshot."""
         facts = self._facts
+        # The facts are published before the worktree cleanup, which runs before `state` leaves "pending": a reader
+        # that comes in between has facts and must not report a run that is still extracting.
+        status = "built" if facts is not None and self.state == "pending" else self.state
         return {"version": GOINDEX_VERSION, "go": facts.go if facts else self.result.get("go", ""),
-                "status": self.state, "packages": facts.package_count if facts else 0}
+                "status": status, "packages": facts.package_count if facts else 0}
 
     # --- extraction ------------------------------------------------------------------------------------
 

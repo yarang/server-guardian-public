@@ -6,6 +6,10 @@ export interface Column<R> {
   render: (row: R) => ReactNode;
   mono?: boolean;
   align?: 'left' | 'right';
+  /** Keep short values (times, kinds, states, addresses) on one line; the table scrolls instead. */
+  nowrap?: boolean;
+  /** Floor for a free-text column, so a narrow screen scrolls the table instead of breaking every letter. */
+  minWidth?: number;
 }
 
 const cell: CSSProperties = {
@@ -63,7 +67,8 @@ export function DataTable<R>({
                     ...cell,
                     textAlign: c.align ?? 'left',
                     fontFamily: c.mono ? 'var(--sg-font-mono)' : undefined,
-                    overflowWrap: 'anywhere',
+                    minWidth: c.minWidth,
+                    ...(c.nowrap ? { whiteSpace: 'nowrap' } : { overflowWrap: 'anywhere' }),
                   }}
                 >
                   {c.render(r)}

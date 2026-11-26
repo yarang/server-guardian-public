@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph STORE["Persona store (persona_manager.py)"]
+        F2["format 2 character<br/>persona block: identity, expertise,<br/>stance, checks, boundaries"]
+        F1["format 1 legacy persona<br/>free system_prompt text"]
+        P["profile: tagline, look, portrait<br/>(shown to people only)"]
+    end
+    F2 -->|"render_persona<br/>fixed Korean template,<br/>700 char limit"| BT["character.body_text"]
+    F1 -->|"system_prompt as is"| BT
+    RC{"role_card set?<br/>(home seat)"}
+    BT --> PT["role_cards.persona_text"]
+    RC -->|"yes"| CARD["CARDS[seat, kind]<br/>kind: code or ops<br/>(role_card_kind)"]
+    RC -->|"no"| NONE["no card"]
+    CARD --> PT
+    NONE --> PT
+    PT --> RP["RolePrompt.persona"]
+    P -.->|"never reaches a prompt"| X["dashboard only"]
+    LINT["persona_lint.py<br/>warns: seat rules in the body"] -.-> F1
+    LINT -.-> F2

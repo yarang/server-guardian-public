@@ -10,9 +10,9 @@ let mermaidSeq = 0;
 
 const noAssets = (name: string): Promise<string> => Promise.reject(new Error(`no asset source for ${name}`));
 
-/** The app only ships the dark graphite theme; honour an explicit light colour scheme should one appear. */
-function mermaidTheme(): 'dark' | 'default' {
-  return document.documentElement.style.colorScheme === 'light' ? 'default' : 'dark';
+/** The dashboard ships the light theme; Mermaid follows the page's computed `color-scheme`. */
+export function mermaidTheme(): 'dark' | 'default' {
+  return getComputedStyle(document.documentElement).colorScheme === 'dark' ? 'dark' : 'default';
 }
 
 const SCOPED_CSS = `

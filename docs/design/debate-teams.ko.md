@@ -103,7 +103,7 @@ configs/teams/<id>.json ──TeamManager.load──▶ Lineup ──▶ DebateE
 | `expert`, `judge` | O | `{"persona", "providers"}` 또는 페르소나 id 문자열 |
 | `critic` | O | 멤버 하나 또는 1~4개 목록 |
 | `proposers` | | 추가 초안 작성자 0~2명 목록(선택, 2026-10-18 추가, [multi-perspective.ko.md](multi-perspective.ko.md)). 실행의 첫 라운드에 전문가와 서로 보지 않고 초안을 쓴다. ops·design 프로젝트에서는 경고와 함께 무시된다. 페르소나는 전문가·다른 제안자와 달라야 한다 |
-| `providers` | | 시도 순서. 비우면 실행 호스트 기본 순서. `claude, codex, agy, opencode, ollama, llm` |
+| `providers` | | 시도 순서. 비우면 실행 호스트 기본 순서(`claude, codex, agy, zai, opencode, ollama, llm`). 고를 수 있는 이름은 여기에 `exaone`을 더한 것 |
 | `code_tools` | | 멤버별 선택 필드(2026-10-18 추가). `"mcp"`이면 claude·codex 멤버가 읽기 전용 저장소 도구(`repo_mcp.py`)를 쓴다. 실행 호스트에 `GUARDIAN_REPO_MCP=1`이 필요하다. 선택 사용(opt-in): 팀 편집 화면의 "저장소 도구 추가" 체크박스(기본 꺼짐, 꺼져 있으면 필드를 저장하지 않는다). code 프로젝트에서만 쓰이고, ops·design 프로젝트는 무시하며 토론 시작 때 경고한다(2026-10-19) |
 | `max_rounds` | | 1~10 |
 | `allowed_tools` | | 판정자 도구 상한. 생략 시 페르소나 설정 |
@@ -126,6 +126,16 @@ python3 cli/llm-agent/guardian.py --teams                        # 목록 + 검�
 python3 cli/llm-agent/guardian.py --debate "작업" --team cross-review
 python3 cli/llm-agent/guardian.py --debate "후속 지시" --thread <ID>  # 저장된 라인업 재사용
 ```
+
+## 모델에 전달되는 퍼소나 필드 (2026-10-30)
+
+에이전트에게 전달되는 것은 `system_prompt`뿐이고, `mcp_capabilities`는 판정자의 도구를 좁힌다. 선택 필드 `profile`(`tagline`, `look`. 2026-10-30 "AI로 제안" 카드와 함께 추가, `agent-characters.md` 2.6절)은 보여 주기만 하고 보내지 않는다. `domain`, `focus_areas`, `critique_focus`는
+저장되고 표시될 뿐 전달되지 않으며, 에이전트를 이끌어야 할 관점은 `system_prompt`에 적는다. `temperature`는 2026-10-23에 없앴다(LLM CLI는
+온도를 받지 않는다. 예전 파일도 읽히고, 검증에서 이 필드를 버린다). 프롬프트 `p21`(GitHub 미러의 번호, 로컬 이력과 합친 뒤 `p23`)에서 일반 퍼소나를 새 퍼소나의 규칙에 맞춰 다시 썼다. `domain_architect`는 읽은
+코드에서 가장 작은 변경을 제안하고 `파일:줄`로 인용한다. `critic_redteam`은 인용하고, 구체적인 시나리오와 함께 높음/중간/낮음으로 등급을
+매기고, 문제가 없으면 없다고 쓴다. `devops_specialist`(`cross-review`의 비평가, `proposer_eval`의 제안자)는 두 역할의 규칙을 다 가진다.
+`server_guardian`(CLI 채팅)은 정해진 수의 노드를 스스로 관리한다고 말하지 않고, 사람이 승인할 액션을 제안한다. 2026-10-19의
+`proposer_eval` 구성은 예전 문구를 썼다.
 
 ## 다음 단계
 

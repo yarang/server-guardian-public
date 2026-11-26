@@ -3,6 +3,9 @@
 
   worker.py serve   the resident daemon (systemd user unit): a 0600 unix socket, a job table, timeouts, cancellation
   worker.py client  what the hub runs over ssh: one JSON line on stdin -> the socket -> one JSON line on stdout
+  worker.py relay   what the hub's mail relay runs over ssh (docs/design/resident-agents.md, protocol 3): one relay
+                    line to the socket, then a raw byte pipe stdin -> socket and socket -> stdout until either side
+                    closes; the resident duties on the node are in resident_node.py
   worker.py exec    one job in its own process group (the daemon starts it, so a cancel can kill the whole tree)
   worker.py put-snapshot KEY
                     what the hub runs over ssh to upload a repository snapshot (repo_snapshot.py): the compressed
@@ -29,7 +32,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from remote_agents import MAX_CALLS_BYTES, MAX_MESSAGE_BYTES, PROTOCOL, code_version
+from remote_agents import COMPATIBLE_PROTOCOLS, MAX_CALLS_BYTES, MAX_MESSAGE_BYTES, PROTOCOL, code_version
 from repo_snapshot import SnapshotError, import_stream, is_key, prune_snapshots, snapshot_commit
 
 # The version of the code this process loaded, taken once at start. A ping must not re-read the files: after an
@@ -65,6 +68,17 @@ def snapshot_policy() -> Dict[str, float]:
     """How long unused snapshots stay and how many are kept (GUARDIAN_WORKER_SNAPSHOT_TTL seconds / _KEEP)."""
     return {"ttl_seconds": _env_number("GUARDIAN_WORKER_SNAPSHOT_TTL", 24 * 3600.0),
             "keep": int(_env_number("GUARDIAN_WORKER_SNAPSHOT_KEEP", 8))}
+
+
+def pinned_snapshot_keys() -> frozenset:
+    """Snapshot keys an owned resident task pins (M2e): every key in every agents/*/tasks.json, read
+    from disk so the separate put-snapshot process sees them too. An import or read error pins
+    nothing; the W2 prune path never breaks over the resident layer."""
+    try:
+        from resident_tasks import pinned_keys
+        return pinned_keys(worker_dir() / "agents")
+    except Exception:  # noqa: BLE001 - a worker without the resident layer prunes exactly as before
+        return frozenset()
 
 
 def socket_path() -> Path:
@@ -113,13 +127,20 @@ class Worker:
             "GUARDIAN_WORKER_QUEUE_SECONDS", DEFAULT_QUEUE_SECONDS)
         self._slots = threading.Condition()
         self._jobs: Dict[str, Job] = {}
+        # The dedicated resident slot of D5 (docs/design/resident-agents.md): one per node, on top of
+        # the job slots, held by the address of the agent whose turn is running.
+        self._resident_slot: Optional[str] = None
+        # Lazily a resident_node.ResidentManager on the first `relay` op, so a daemon that never sees
+        # a relay creates nothing (imported lazily: resident_node imports this module's worker_dir).
+        self.resident: Optional[Any] = None
 
     # -- requests ----------------------------------------------------------------------------
 
     def handle(self, request: Any, conn: Optional[socket.socket] = None) -> Dict[str, Any]:
         if not isinstance(request, dict):
             return {"ok": False, "error": "request must be a JSON object"}
-        if request.get("protocol") != PROTOCOL:
+        if request.get("protocol") not in COMPATIBLE_PROTOCOLS:
+            # An old hub still speaks 2 (COMPATIBLE_PROTOCOLS); the answer always names the worker's own protocol.
             return {"ok": False, "error": f"protocol mismatch: worker speaks {PROTOCOL}", "protocol": PROTOCOL}
         op = request.get("op")
         if op == "ping":
@@ -139,10 +160,25 @@ class Worker:
         runner = LLMRunner()
         with self._slots:
             free = max(0, self.max_jobs - len(self._jobs))
+            resident_free = self._resident_slot is None
         return {"ok": True, "protocol": PROTOCOL, "version": STARTED_VERSION, "free_slots": free,
                 "max_jobs": self.max_jobs, "queue_seconds": self.queue_seconds,
                 "provider_timeout": runner.timeout, "providers": runner.installed_providers,
-                "git": shutil.which("git") is not None}
+                "git": shutil.which("git") is not None, "resident_slot_free": resident_free}
+
+    def take_resident_slot(self, owner: str) -> bool:
+        """The one resident slot (D5), non-blocking; False when another agent's turn holds it."""
+        with self._slots:
+            if self._resident_slot is not None:
+                return False
+            self._resident_slot = owner
+            return True
+
+    def release_resident_slot(self, owner: str) -> None:
+        """Gives the resident slot back; only the agent that holds it can free it."""
+        with self._slots:
+            if self._resident_slot == owner:
+                self._resident_slot = None
 
     def _cancel(self, job_id: Any) -> Dict[str, Any]:
         with self._slots:
@@ -186,11 +222,11 @@ class Worker:
 
     @staticmethod
     def _invalid(request: Dict[str, Any]) -> Optional[str]:
-        from llm_runner import DEFAULT_PROVIDER_ORDER
+        from llm_runner import KNOWN_PROVIDERS
         if not isinstance(request.get("prompt"), str):
             return "run needs a prompt"
         providers = request.get("providers") or []
-        if not isinstance(providers, list) or any(p not in DEFAULT_PROVIDER_ORDER for p in providers):
+        if not isinstance(providers, list) or any(p not in KNOWN_PROVIDERS for p in providers):
             return "providers must be known provider names"
         instructions = request.get("instructions")
         if instructions is not None and not (isinstance(instructions, dict) and isinstance(instructions.get("static"), str)):
@@ -373,12 +409,35 @@ class _Handler(socketserver.StreamRequestHandler):
         except (ValueError, OSError):
             reply: Dict[str, Any] = {"ok": False, "error": "unreadable request"}
         else:
+            if isinstance(request, dict) and request.get("op") == "relay":
+                return self._relay(worker, request)
             reply = worker.handle(request, self.request)
         try:
             self.wfile.write((json.dumps(reply, ensure_ascii=False) + "\n").encode("utf-8"))
             self.wfile.flush()
         except OSError:
             pass  # the client is gone; a job it started was already stopped
+
+    def _relay(self, worker: Worker, request: Dict[str, Any]) -> None:
+        """The hub's resident stream (protocol 3; resident_node.py owns the frames). This connection
+        writes no ordinary reply: the daemon's `hello` is the first line on it. The relay op line above
+        is the only line read through the buffered reader: the peer sends nothing after it until
+        `hello` is answered, so nothing of the stream can sit in that reader's buffer."""
+        if request.get("protocol") != 3:
+            reply = {"ok": False, "error": "protocol mismatch: relay speaks 3", "protocol": 3}
+            try:
+                self.wfile.write((json.dumps(reply, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+            except OSError:
+                pass
+            return
+        if worker.resident is None:
+            from resident_driver import HeadlessDriver
+            from resident_node import ResidentManager
+            driver = HeadlessDriver()
+            worker.resident = ResidentManager(worker, driver=driver)
+            driver.attach(worker.resident)
+        worker.resident.attach(self.rfile, self.wfile)
 
 
 class _Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
@@ -423,12 +482,14 @@ def serve() -> int:
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     shutil.rmtree(jobs_root(), ignore_errors=True)  # the logs of jobs a restart cut off
-    prune_snapshots(snapshot_root(), **snapshot_policy())
+    prune_snapshots(snapshot_root(), pinned=pinned_snapshot_keys(), **snapshot_policy())
     print(f"worker {code_version()} protocol {PROTOCOL} listening on {socket_path()} (max {worker.max_jobs} jobs)",
           flush=True)
     try:
         server.serve_forever()
     finally:
+        if worker.resident is not None:
+            worker.resident.shutdown()
         worker.shutdown()
         server.server_close()
         try:
@@ -485,6 +546,45 @@ def run_job() -> int:
     return 0
 
 
+def relay_client() -> int:
+    """What the hub's mail relay runs over ssh (docs/design/resident-agents.md): one relay line to the
+    daemon, then a raw byte pipe until either side closes. Holds no state; the frames on the stream
+    belong to the daemon (resident_node.py) and the hub."""
+    conn = socket.socket(socket.AF_UNIX)
+    try:
+        conn.connect(str(socket_path()))
+    except OSError:
+        print(json.dumps({"t": "error", "error": "worker daemon not running"}))
+        return 1
+    try:
+        conn.sendall(b'{"op": "relay", "protocol": 3}\n')
+        _copy_until_closed(conn)
+    except OSError:
+        pass  # one side is gone; the stream is over either way
+    finally:
+        conn.close()
+    return 0
+
+
+def _copy_until_closed(conn: socket.socket) -> None:
+    """stdin -> socket and socket -> stdout, binary, flushed per chunk, until either side closes."""
+    stdin_fd = sys.stdin.buffer.fileno()
+    stdout = sys.stdout.buffer
+    while True:
+        readable, _w, _e = select.select([stdin_fd, conn], [], [])
+        if stdin_fd in readable:
+            chunk = os.read(stdin_fd, 65536)
+            if not chunk:
+                return  # the hub closed its side (the ssh session ended)
+            conn.sendall(chunk)
+        if conn in readable:
+            chunk = conn.recv(65536)
+            if not chunk:
+                return  # the daemon closed the stream
+            stdout.write(chunk)
+            stdout.flush()
+
+
 def put_snapshot(key: str) -> int:
     """Imports the compressed snapshot stream on stdin as snapshot `key`; prints one JSON line like the client does."""
     if not is_key(key):
@@ -492,7 +592,7 @@ def put_snapshot(key: str) -> int:
         return 0
     try:
         commit = import_stream(snapshot_root(), key, sys.stdin.buffer)
-        prune_snapshots(snapshot_root(), **snapshot_policy())
+        prune_snapshots(snapshot_root(), pinned=pinned_snapshot_keys(), **snapshot_policy())
     except (SnapshotError, OSError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)[:300]}))
         return 0
@@ -502,11 +602,11 @@ def put_snapshot(key: str) -> int:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    modes = {"serve": serve, "client": client, "exec": run_job}
+    modes = {"serve": serve, "client": client, "relay": relay_client, "exec": run_job}
     if len(args) == 2 and args[0] == "put-snapshot":
         return put_snapshot(args[1])
     if len(args) != 1 or args[0] not in modes:
-        print("usage: worker.py serve|client|exec|put-snapshot KEY", file=sys.stderr)
+        print("usage: worker.py serve|client|relay|exec|put-snapshot KEY", file=sys.stderr)
         return 2
     return modes[args[0]]()
 

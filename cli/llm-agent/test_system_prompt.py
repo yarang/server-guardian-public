@@ -459,8 +459,16 @@ class EngineSplitTests(SplitHarness):
         self.assertIsNotNone(replay["instructions"])
 
     def test_prompt_version_was_bumped(self) -> None:
-        self.assertEqual(RETRIEVAL_PROMPT_VERSION, "2026-10-23.p20")
-        self.assertEqual(wiki_build.WIKI_PROMPT_VERSION, "2026-10-16.wiki6")
+        self.assertEqual(RETRIEVAL_PROMPT_VERSION, "2026-11-11.p29")
+        self.assertEqual(wiki_build.WIKI_PROMPT_VERSION, "2026-10-30.wiki7")
+        # the debate's language rule is unchanged; other runs get the plain tail
+        from debate_engine import ANSWER_LANGUAGE_RULE, answer_language_rule
+        self.assertIn("decision, rationale, constraints", answer_language_rule("Korean"))
+        self.assertEqual(answer_language_rule(None), ANSWER_LANGUAGE_RULE)
+        plain = answer_language_rule("Korean", debate=False)
+        self.assertNotIn("decision", plain)
+        self.assertIn("Write your whole reply in Korean", plain)
+        self.assertNotIn("decision", answer_language_rule(None, debate=False))
 
     def test_role_prompt_plain_matches_the_old_concatenation(self) -> None:
         self.assertEqual(RolePrompt(task="T", persona="P", rules="R").plain(), "P\n\nTR")

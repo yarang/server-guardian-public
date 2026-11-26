@@ -368,3 +368,14 @@ fake fleet: fake `ssh`, `systemctl --user`, `loginctl`; the real worker as the d
   the result flowing back into the shared Judge close. What it does not show: a fallback path on a real node (covered
   only by the fake-fleet tests), a worker that is busy (`max_jobs` 2 was never reached) and any quality difference
   between hub and worker runs (one debate).
+
+### Snapshot path check (2026-10-30)
+
+`import_stream` relied on `git fast-import` to refuse a tree path that leaves the tree. git 2.43.0 (the default of
+Ubuntu 24.04) stores `../escape.txt` as it is, so `test_remote_repo.HostileUploadTests` failed there, and a worker with
+that git had no such check; the probe asks for git but not for a version. The worker now lists the imported tree
+(`git ls-tree -r -z --name-only`) and refuses the upload, leaving nothing behind, when a path has an empty, `.` or `..`
+component or a `.git` component in any case (`repo_snapshot.unsafe_path`). Nothing escaped before either: the snapshot
+is a bare repository that is never checked out, and `RepoTools` reads git objects and refuses `..` in a requested path.
+A hub-built snapshot never holds such a path. Workers get the check only when they are installed again
+(`install-worker.sh`); the stream format and `SNAPSHOT_FORMAT` are unchanged.

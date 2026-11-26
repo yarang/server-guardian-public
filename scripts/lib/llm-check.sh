@@ -29,6 +29,13 @@ check agy timeout 150 agy --print-timeout 120s --disable-slash-commands "--print
 if [ -n "${ZAI_API_KEY:-}" ]; then
     bin=claude check zai env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN="${ZAI_API_KEY}" ANTHROPIC_BASE_URL="${ZAI_BASE_URL:-https://api.z.ai/api/anthropic}" CLAUDE_CONFIG_DIR="${work}/zai-config" sh -c "echo '${prompt}' | timeout 120 claude --print --tools '' --no-session-persistence"
 fi
+# exaone is a plain HTTP call to the EXAONE API (no CLI binary); skipped on hosts without EXAONE_API_KEY. The key
+# reaches curl on stdin (-H @-), never in an argument that ps would show; llm.env exported it (set -a).
+if [ -n "${EXAONE_API_KEY:-}" ]; then
+    exaone_body='{"model":"'"${EXAONE_MODEL:-k-exaone_v2.5}"'","messages":[{"role":"user","content":"'"${prompt}"'"}],"reasoning_effort":"low","max_tokens":2048}'
+    exaone_url="${EXAONE_BASE_URL:-https://api.exaone.ai/v1}/chat/completions"
+    bin=curl check exaone env EXAONE_BODY="${exaone_body}" EXAONE_URL="${exaone_url}" sh -c 'printf "Authorization: Bearer %s\n" "${EXAONE_API_KEY}" | curl -sS --max-time 120 -H @- -H "Content-Type: application/json" -d "${EXAONE_BODY}" "${EXAONE_URL}"'
+fi
 [ "${found}" -eq 1 ] || echo "  ⚠️  설치된 LLM CLI 없음"
 cd /; rm -rf "${work}"
 EOF

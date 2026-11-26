@@ -3,7 +3,7 @@ import { isOnline } from '../lib/reachability';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button, Panel, StatCard, StatusChip } from '@server-guardian/ui';
-import { fetchFleetSSHAudit, fetchMetrics } from '../api';
+import { fetchFleetSSHAudit, fetchMetrics, fetchReviewList } from '../api';
 import { Ago } from '../components/Ago';
 import { DataGate, ErrorNotice, LoadingNote } from '../components/DataGate';
 import { Grid, Row, Stack, mono, muted } from '../components/layout';
@@ -19,6 +19,8 @@ import { scoreTone, usageTone } from '../lib/tones';
 import { fleetHref, hrefFor, navigate } from '../router';
 import { useApprovalsStore } from '../state/approvalsStore';
 import { isWikiJob } from '../lib/wiki';
+import { hasNoRepository } from '../lib/project';
+import { reviewParams } from '../lib/review';
 import { setDebatePrefill } from '../state/debatePrefill';
 import { useDebateStore } from '../state/debateStore';
 import { useProjectStore } from '../state/projectStore';
@@ -235,12 +237,63 @@ function ApprovalsCard() {
   );
 }
 
-/** Recent debates of the selected project, from the shared debate store; rows open `#/debates/:id`. */
+const REVIEW_LIMIT = 3;
+
+/**
+ * The selected code project's latest quick reviews (docs/design/verification-layer.md, V1c): change, state and
+ * findings by severity; rows open `#/debates/review/:id`. Nothing is shown while the project has none.
+ */
+function RecentReviews({ project }: { project: string }) {
+  const reviews = useHubData(() => fetchReviewList(project));
+  const D = tr.ops.overview.debates;
+  const rows = (reviews.data ?? []).slice(0, REVIEW_LIMIT);
+  if (reviews.error || !rows.length) return null;
+  return (
+    <section aria-label={D.reviewsHeading} style={{ display: 'grid', gap: 'var(--sg-s-3)' }}>
+      <div style={{ ...muted, fontSize: 12, fontWeight: 600 }}>{D.reviewsHeading}</div>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--sg-s-4)' }}>
+        {rows.map((r) => {
+          const when = r.created ? parseTime(r.created) : null;
+          const name = r.range ?? (r.patch ? tr.review.patchOn((r.head ?? '').slice(0, 12)) : r.id);
+          return (
+            <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sg-s-4)', minWidth: 0, fontSize: 13 }}>
+              <StatusChip tone={r.counts?.high ? 'crit' : jobStatusTone(r.status)} title={r.status}>
+                {r.label}
+              </StatusChip>
+              <a href={hrefFor('debates', reviewParams({ id: r.id }))} style={{ ...mono, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>
+                {name}
+              </a>
+              {r.counts && r.state === 'done' ? (
+                <span style={{ ...muted, fontSize: 12, whiteSpace: 'nowrap' }}>{tr.review.counts(r.counts.high, r.counts.medium, r.counts.low)}</span>
+              ) : null}
+              {when !== null ? (
+                <span style={{ ...mono, ...muted, fontSize: 12, whiteSpace: 'nowrap' }}>
+                  <Ago at={when} />
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <div style={{ fontSize: 13 }}>
+        <a href={hrefFor('debates', reviewParams({}))}>{D.openReviews}</a>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Recent checks of the selected project: its quick reviews (code projects) and its debates, from the shared debate
+ * store; rows open the review or `#/debates/:id`.
+ */
 function DebatesCard() {
   const { recent } = useDebateStore();
+  const { selected, projects } = useProjectStore();
+  const code = !hasNoRepository(projects.data?.projects.find((p) => p.id === selected));
   return (
     <Panel title={tr.ops.overview.debates.title}>
       <ProjectNote />
+      {code ? <RecentReviews key={selected} project={selected} /> : null}
       <DataGate state={recent} what={tr.ops.overview.debates.what}>
         {(jobs) => {
           const recent = visibleJobs(jobs.filter((j) => !isWikiJob(j)), false).sort((a, b) => (parseTime(b.started_at) ?? 0) - (parseTime(a.started_at) ?? 0)).slice(0, RECENT_LIMIT);
@@ -287,7 +340,7 @@ function DebatesCard() {
 }
 
 /**
- * Fleet summary (the first Fleet tab): what needs attention now. Every card shows measured facts only (the shared fleet
+ * Overview (the landing destination): what needs attention now. Every card shows measured facts only (the shared fleet
  * diagnosis, hub metrics, the fleet SSH audit, pending approvals, recent debates) and one next step.
  * It generates no opinion itself; "Debate this" hands a task scoped to the card to the Debates page.
  */
@@ -296,7 +349,7 @@ export function OverviewPage() {
   const fetched = useHubAction(fetchFleetSSHAudit);
   const refreshToken = useRefreshToken();
   const run = fetched.run;
-  // The fleet audit SSHes into every node, so the Summary never starts one by itself: it shows the audit from the
+  // The fleet audit SSHes into every node, so the Overview never starts one by itself: it shows the audit from the
   // last 5 minutes (run here or on the SSH audit tab) and otherwise offers "Run audit".
   const [cachedReport, setCachedReport] = useState(() => freshAudit());
   useEffect(() => setCachedReport(freshAudit()), [refreshToken]);

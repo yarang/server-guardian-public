@@ -10,7 +10,12 @@ See docs/design/debate-teams-api.md for the contract.
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from llm_runner import DEFAULT_PROVIDER_ORDER
+import character
+import flow_drafts
+import flow_graph
+import flow_templates
+import persona_lint
+from llm_runner import KNOWN_PROVIDERS
 from mcp_client import TOOLS
 from persona_manager import PersonaManager, PersonaValidationError
 from remote_agents import LABELS, worker_choices
@@ -49,6 +54,11 @@ def _parse_input(text: str) -> Tuple[Optional[Any], Optional[str]]:
 
 def personas_report(manager: PersonaManager) -> Result:
     personas = sorted(manager.list_personas(), key=lambda p: p.get("id", ""))
+    # A character's text as the engine sends it, for display only: never stored. save_persona drops it (and the
+    # list's "source") when a client sends a listed persona back.
+    for persona in personas:
+        if character.is_character(persona):
+            persona["rendered"] = character.body_text(persona)
     return 0, {"personas": personas, "custom_dir": str(manager.custom_dir)}
 
 
@@ -60,7 +70,9 @@ def save_persona(manager: PersonaManager, text: str) -> Result:
         path = manager.save_persona(data)
     except PersonaValidationError as exc:
         return _invalid(str(exc))
-    return 0, {"ok": True, "id": path.stem, "warnings": []}
+    # The form guide's warn findings (docs/design/agent-characters.md, section 3): shown, never blocking. For a
+    # character (format 2) they come from the rendered block; a format 1 persona keeps its system_prompt messages.
+    return 0, {"ok": True, "id": path.stem, "warnings": persona_lint.persona_warnings(data)}
 
 
 def _not_deleted(kind: str, item_id: str, exists: bool) -> Result:
@@ -108,7 +120,7 @@ def teams_report(manager: TeamManager, installed: List[str], workers: Optional[L
     teams = [_team_entry(data, manager, installed) for data in manager.list_teams()]
     teams.sort(key=lambda t: str(t["id"]))
     catalog = {
-        "providers": list(DEFAULT_PROVIDER_ORDER),
+        "providers": list(KNOWN_PROVIDERS),
         "installed": list(installed),
         "tools": [{"name": t["name"], "risk": t["risk"], "description": t["description"]} for t in TOOLS],
         "max_critics": MAX_CRITICS,
@@ -302,3 +314,140 @@ def delete_group(manager: Any, group_id: str) -> Result:
     except GroupNotFoundError as exc:
         return NOT_FOUND, {"ok": False, "error": str(exc)}
     return 0, {"ok": True, "id": group_id}
+
+
+def _template_entry(data: Dict[str, Any], teams: TeamManager) -> Dict[str, Any]:
+    raw = {k: v for k, v in data.items() if k != "source"}
+    entry: Dict[str, Any] = {
+        "id": data.get("id"),
+        "name": data.get("name", ""),
+        "source": data.get("source", "custom"),
+        "data": raw,
+        "resolved": None,
+        "errors": [],
+        "warnings": [],
+    }
+    try:
+        entry["warnings"] = flow_templates.validate_template(raw)
+        kind = flow_templates.template_kind(raw)
+        entry["resolved"] = {"kind": kind, "hash": flow_templates.content_hash(raw), "team": raw.get("team")}
+        team = raw.get("team")
+        if team:
+            team_data = teams.get_team(team)
+            if team_data is None:
+                entry["warnings"].append(f"team {team!r} does not exist here; choose another at start")
+            else:
+                try:
+                    team_kind = parse_lineup(team_data).flow_kind
+                except TeamValidationError:
+                    team_kind = None
+                if kind == flow_templates.CUSTOM_KIND:
+                    try:
+                        flow_templates.check_team(raw["steps"], parse_lineup(team_data))
+                    except (flow_templates.TemplateValidationError, TeamValidationError) as exc:
+                        entry["warnings"].append(f"team {team!r}: {exc}")
+                elif team_kind is not None and team_kind != kind:
+                    entry["warnings"].append(f"team {team!r} runs the {team_kind} flow, not {kind}")
+    except flow_templates.TemplateValidationError as exc:
+        entry["errors"].append(str(exc))
+    return entry
+
+
+def flow_templates_report(store: flow_templates.FlowTemplateStore, teams: TeamManager) -> Result:
+    templates = [_template_entry(data, teams) for data in store.list_templates()]
+    templates.sort(key=lambda t: str(t["id"]))
+    return 0, {"custom_dir": str(store.directory), "templates": templates, "catalog": flow_templates.catalog()}
+
+
+def save_flow_template(store: flow_templates.FlowTemplateStore, text: str) -> Result:
+    data, error = _parse_input(text)
+    if error:
+        return _invalid(error)
+    try:
+        warnings = store.save(data)
+    except flow_templates.TemplateValidationError as exc:
+        return _invalid(str(exc))
+    return 0, {"ok": True, "id": data["id"], "warnings": warnings}
+
+
+def delete_flow_template(store: flow_templates.FlowTemplateStore, template_id: str) -> Result:
+    if not store.delete(template_id):
+        return _not_deleted("flow template", template_id, store.get(template_id) is not None)
+    return 0, {"ok": True, "id": template_id}
+
+
+def flows_report(store: flow_graph.FlowStore, teams: TeamManager,
+                 templates: flow_templates.FlowTemplateStore) -> Result:
+    return 0, flow_graph.report(store, teams, templates)
+
+
+def save_flow(store: flow_graph.FlowStore, text: str) -> Result:
+    data, error = _parse_input(text)
+    if error:
+        return _invalid(error)
+    try:
+        warnings = store.save(data)
+    except flow_graph.FlowValidationError as exc:
+        return _invalid(str(exc))
+    return 0, {"ok": True, "id": data["id"], "warnings": warnings}
+
+
+def delete_flow(store: flow_graph.FlowStore, flow_id: str) -> Result:
+    if not store.delete(flow_id):
+        return _not_deleted("flow", flow_id, store.get(flow_id) is not None)
+    return 0, {"ok": True, "id": flow_id}
+
+
+# --- session flow drafts (docs/design/session-flows.md, SF1) --------------------------------------------------------
+
+
+def check_flow_draft(text: str, persona_mgr: PersonaManager) -> Result:
+    """Converts and validates a draft without storing it; an invalid draft is INVALID with its error."""
+    data, error = _parse_input(text)
+    if error:
+        return _invalid(error)
+    result = flow_drafts.check(data, persona_mgr)
+    if not result.get("ok"):
+        return _invalid(result.get("error", "invalid draft"))
+    return 0, result
+
+
+def save_flow_draft(text: str, ws: str, persona_mgr: PersonaManager) -> Result:
+    data, error = _parse_input(text)
+    if error:
+        return _invalid(error)
+    try:
+        record = flow_drafts.save_draft(ws, data, persona_mgr)
+    except flow_drafts.DraftError as exc:
+        return _invalid(str(exc))
+    return 0, {"ok": True, "id": record["draft"]["id"], "workstation": ws, "warnings": record["warnings"],
+               "runnable": record["runnable"]}
+
+
+def list_flow_drafts(ws: Optional[str] = None) -> Result:
+    try:
+        drafts = flow_drafts.list_drafts(ws)
+    except flow_drafts.DraftError as exc:
+        return _invalid(str(exc))
+    return 0, {"drafts": drafts, "drafts_dir": str(flow_drafts.drafts_dir())}
+
+
+def promote_flow_draft(ws: str, draft_id: str, store: flow_graph.FlowStore, persona_mgr: PersonaManager,
+                       as_id: Optional[str] = None, overwrite: bool = False) -> Result:
+    try:
+        if flow_drafts.get_draft(ws, draft_id) is None:
+            return NOT_FOUND, {"ok": False, "error": f"no draft {draft_id!r} for workstation {ws!r}"}
+        payload = flow_drafts.promote(ws, draft_id, store, persona_mgr, as_id=as_id, overwrite=overwrite)
+    except flow_drafts.DraftError as exc:
+        return _invalid(str(exc))
+    return 0, payload
+
+
+def delete_flow_draft(ws: str, draft_id: str) -> Result:
+    try:
+        removed = flow_drafts.delete_draft(ws, draft_id)
+    except flow_drafts.DraftError as exc:
+        return _invalid(str(exc))
+    if not removed:
+        return NOT_FOUND, {"ok": False, "error": f"no draft {draft_id!r} for workstation {ws!r}"}
+    return 0, {"ok": True, "id": draft_id, "workstation": ws}

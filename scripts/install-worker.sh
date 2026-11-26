@@ -185,7 +185,7 @@ if [ "${ok}" -ne 1 ]; then
 fi
 echo "   ${detail}"
 
-info="$(python3 -c 'import json,sys,time; print(json.dumps({"rev": sys.argv[1], "installed": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "max_jobs": int(sys.argv[2]), "version": sys.argv[3]}))' \
-    "${COMMIT:0:12}" "${MAX_JOBS}" "${LOCAL_VERSION}")"
+info="$(python3 -c 'import json,sys,time; print(json.dumps({"rev": sys.argv[1], "installed": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "max_jobs": int(sys.argv[2]), "version": sys.argv[3], "protocol": int(sys.argv[4])}))' \
+    "${COMMIT:0:12}" "${MAX_JOBS}" "${LOCAL_VERSION}" "${PROTO}")"
 worker_hub_python "${HUB}" set-worker "${HOST}" on "$(worker_b64 "${info}")"
 echo "✅ ${HOST}: 워커 설치 완료 (worker: true)"

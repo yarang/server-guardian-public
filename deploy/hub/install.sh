@@ -31,7 +31,8 @@ KEEP_RELEASES=3
 UNIT_DIR=/etc/systemd/system
 DROPIN_DIR="${UNIT_DIR}/server-guardian-agent.service.d"
 UNITS=(guardian-fleet-agent.service server-guardian-agent.service server-guardian-db-backup.service
-       server-guardian-db-backup.timer server-guardian-ops-watch.service server-guardian-ops-watch.timer)
+       server-guardian-db-backup.timer server-guardian-ops-watch.service server-guardian-ops-watch.timer
+       guardian-mail-relay.service)
 
 NAME=""
 LISTEN=""
@@ -320,6 +321,15 @@ echo "  백업 사본 보관 노드: ${REPLICA:-없음}"
 sudo -n systemctl enable --now server-guardian-db-backup.timer server-guardian-ops-watch.timer >/dev/null 2>&1 \
     || fail "백업·야간 점검 타이머를 켜지 못했습니다"
 systemctl list-timers server-guardian-db-backup.timer server-guardian-ops-watch.timer --no-pager | sed -n '2,3p'
+
+echo "📬 상주 에이전트 메일 relay (docs/design/resident-agents.md)"
+# Restarted on every install so it runs the new release; with no agent declared it stays idle (no stream, no store).
+if sudo -n systemctl enable guardian-mail-relay.service >/dev/null 2>&1 \
+    && sudo -n systemctl restart guardian-mail-relay.service; then
+    echo "  relay: $(systemctl is-active guardian-mail-relay.service 2>/dev/null || true)"
+else
+    fail "메일 relay를 시작하지 못했습니다"
+fi
 
 echo "🧱 agent 격리 확인 (허브 sudo: ${HUB_SUDO})"
 iso="$(HUB_SUDO="${HUB_SUDO}" bash "${REL}/deploy/hub/isolation-check.sh" 2>&1 || true)"

@@ -1,0 +1,61 @@
+sequenceDiagram
+    autonumber
+    participant A as codex@node-2 (CLI)
+    participant MA as mailbox MCP (node-2)
+    participant DA as worker daemon (node-2)
+    participant H as hub relay + mail store
+    participant DB as worker daemon (node-1)
+    participant MB as mailbox MCP (node-1)
+    participant B as claude@node-1 (CLI in tmux)
+
+    A->>MA: mail_send(to, subject, body, task)
+    MA->>DA: call with operation id (agent socket)
+    DA->>DA: stamp sender and current turn
+    DA->>H: forward on the SSH stream
+    H->>H: check identity, peers, kind, hop, thread, size
+    alt refused
+        H-->>DA: refusal with reason (event recorded)
+        DA-->>MA: refusal
+        MA-->>A: tool error with reason
+    else accepted
+        H->>H: store message, from_kind = agent, hop from turn inputs
+        H-->>DA: message id (repeat of the op id returns the same id)
+        DA-->>MA: message id
+        MA-->>A: tool result with id
+        alt node-1 stream up
+            H->>DB: deliver frame
+        else node-1 stream down
+            H->>H: keep message queued (until expires)
+            Note over H,DB: stream opens again (reconnect, daemon or relay restart)
+            DB->>H: sync: spool ids, tombstones, pending acks
+            H->>H: record pending acks, reconcile queued and delivered, expire old mail
+            H->>DB: deliver frame only for ids neither in spool nor tombstoned, oldest first
+        end
+        DB->>DB: append to spool of claude (drop if tombstoned)
+        DB->>H: turn_begin for claude
+        alt admission refused (switch, budget, no slot)
+            H-->>DB: refused, mail stays unread
+        else admitted
+            H-->>DB: turn id
+            alt agent in a turn
+                B->>DB: Stop hook asks for a continuation
+                DB-->>B: block the stop once: call mail_inbox
+            else agent idle, no question, operator not attached
+                DB->>B: tmux send-keys -l fixed wake line, Enter
+                DB->>DB: wait 8 s for turn start or mail_inbox, retry at most 2
+            else question open or state unknown
+                DB->>DB: no wake, sweep every 30 s
+            end
+            B->>MB: mail_inbox()
+            MB->>DB: read spool
+            DB-->>MB: unread envelopes, marked retrieved in this turn
+            MB-->>B: envelopes (from another agent)
+            alt turn ends normally
+                B->>DB: turn end signal
+                DB->>H: turn end with retrieved ids (acked)
+                DB->>DB: delete envelopes, keep tombstone ids
+            else turn lost or CLI exited
+                DB->>DB: keep envelopes, offer again as redelivered
+            end
+        end
+    end

@@ -4,7 +4,7 @@ import type { Messages } from '../types';
 const countSuffix = (n: number | undefined): string => (n === undefined ? '' : ` (${n})`);
 
 const nodes = {
-  fleetSections: 'Fleet sections',
+  fleetSections: 'Node sections',
   statusOptions: { all: 'All statuses', online: 'Online', offline: 'Offline' },
   statusEmpty: { online: 'online', offline: 'offline' },
   reach: {

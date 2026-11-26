@@ -203,6 +203,22 @@ class HostileUploadTests(SnapshotCase):
         self.refuse(zlib.compress(stream))
         self.assertFalse((self.root / "escape.txt").exists())
 
+    def test_a_git_directory_or_a_dot_component_is_rejected(self) -> None:
+        # checked after the import, so the result does not depend on what the worker's git version checks itself
+        for name in (b".git/config", b"a/.GIT/hooks/x", b"a/./b"):
+            with self.subTest(name=name):
+                stream = (b"commit refs/heads/snapshot\ncommitter G <g@l> 0 +0000\ndata 1\nx\n"
+                          b"M 100644 inline " + name + b"\ndata 1\nx\n\ndone\n")
+                message = self.refuse(zlib.compress(stream))
+                self.assertTrue("unsafe path" in message or "fast-import" in message, message)
+
+    def test_unsafe_path_rules(self) -> None:
+        from repo_snapshot import unsafe_path
+        for good in ("a.py", "dir/sub/file.go", ".github/workflows/ci.yml", "x..y", ".gitignore", "back\\slash.txt"):
+            self.assertIsNone(unsafe_path(good), good)
+        for bad in ("../x", "a/../b", "./a", "a//b", "/abs", "a/", ".git", "a/.Git/x"):
+            self.assertIsNotNone(unsafe_path(bad), bad)
+
     def test_a_stream_without_the_snapshot_ref(self) -> None:
         stream = (b"commit refs/heads/other\ncommitter G <g@l> 0 +0000\ndata 1\nx\nM 100644 inline a\ndata 1\nx\n\ndone\n")
         self.refuse(zlib.compress(stream))
@@ -239,6 +255,26 @@ class PruneTests(unittest.TestCase):
             self.make(root, key, 100_000, 1_000_000.0)
             self.assertIsNotNone(snapshot_commit(root, key, touch=True))
             self.assertEqual(prune_snapshots(root, ttl_seconds=3600, keep=8), [])
+
+    def test_a_pinned_snapshot_is_never_removed_and_never_counts_against_keep(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            now = 1_000_000.0
+            pinned = hashlib.sha256(b"pinned").hexdigest()
+            fresh = [hashlib.sha256(str(i).encode()).hexdigest() for i in range(3)]
+            self.make(root, pinned, 100_000, now)  # long past the ttl
+            for index, key in enumerate(fresh):
+                self.make(root, key, 10 + index, now)
+            removed = prune_snapshots(root, ttl_seconds=3600, keep=1, now=now, pinned=frozenset({pinned}))
+            # the pinned snapshot stays despite its age and does not take the one keep slot
+            self.assertNotIn(pinned, removed)
+            self.assertTrue((root / pinned / COMMIT_FILE).exists())
+            self.assertEqual(sorted(removed), sorted(fresh[1:]))  # only the freshest unpinned survives
+            self.assertEqual(prune_snapshots(root, ttl_seconds=3600, keep=8, now=now,
+                                             pinned=frozenset({pinned})), [])
+            # the pin gone: the ttl removes the aged snapshot as before
+            self.assertEqual(prune_snapshots(root, ttl_seconds=3600, keep=8, now=now), [pinned])
+            self.assertFalse((root / pinned).exists())
 
 
 class ToolListTests(unittest.TestCase):
@@ -611,9 +647,9 @@ class SeededDefectTests(EngineHarness):
     def test_the_remote_prompt_lists_five_tools_and_no_symbol_index(self) -> None:
         _, _, sent = self.remote(self.READ, "FINAL x")
         wire = json.dumps(sent[0])
-        self.assertIn("mcp__repo__repo_map", wire)
+        self.assertIn("repo_list, repo_grep, repo_read, repo_outline and repo_map are available", wire)
         self.assertIn("There are no symbol, reference or call-graph tools", wire)
-        self.assertNotIn("mcp__repo__repo_defs", wire)
+        self.assertNotIn("repo_defs", wire)
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ describe('saving a diagram of a report', () => {
     invoke.mockResolvedValue('/Users/me/Downloads/thread_ab12-diagram-1.mmd');
     render(
       <GuardianRoot>
-        <ReportView thread={T} exportable={false} />
+        <ReportView thread={T} />
       </GuardianRoot>
     );
     fireEvent.click(await screen.findByRole('button', { name: ko.debate.report.saveDiagram }));
@@ -52,7 +52,7 @@ describe('saving a diagram of a report', () => {
     invoke.mockRejectedValue(new Error('disk full'));
     render(
       <GuardianRoot>
-        <ReportView thread={T} exportable={false} />
+        <ReportView thread={T} />
       </GuardianRoot>
     );
     fireEvent.click(await screen.findByRole('button', { name: ko.debate.report.saveDiagram }));

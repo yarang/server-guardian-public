@@ -142,7 +142,7 @@ def _release(db: DecisionDBManager, project_id: str, threads: List[str], actor: 
 
 
 def _check_input(project_id: str) -> Result:
-    if not isinstance(project_id, str) or not PROJECT_ID_PATTERN.match(project_id):
+    if not isinstance(project_id, str) or not PROJECT_ID_PATTERN.fullmatch(project_id):
         return _error(INVALID_INPUT, "project: use 1-64 lowercase letters, digits, - or _")
     return 0, {}
 
@@ -183,7 +183,7 @@ def reset_apply_json(db: DecisionDBManager, workspaces: Any, project_id: str, ac
     code, payload = _check_input(project_id)
     if code:
         return code, payload
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return _error(INVALID_INPUT, "actor: use 1-64 letters, digits or @:._-")
     if (isinstance(release, (str, bytes)) or not all(isinstance(t, str) and t for t in release)
             or len(set(release)) > MAX_RELEASE):
@@ -225,7 +225,7 @@ PUBLICATION_FIELDS = ("id", "branch", "commit_sha", "remote", "status", "error",
 
 def publications_json(db: DecisionDBManager, thread_id: str) -> Result:
     """Exit 0 {"publications": [...]} newest first; 3 for an unknown thread."""
-    if not isinstance(thread_id, str) or not THREAD_ID_PATTERN.match(thread_id):
+    if not isinstance(thread_id, str) or not THREAD_ID_PATTERN.fullmatch(thread_id):
         return _error(INVALID_INPUT, "thread: invalid id")
     if db.get_thread_status(thread_id) is None:
         return _error(NOT_FOUND, f"thread {thread_id} not found")

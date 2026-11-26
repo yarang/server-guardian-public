@@ -117,6 +117,7 @@ When the budget is used up, the engine sends "retrieval budget exhausted, answer
 | `round_started` | – |
 | `agent_started` | `resumed` (whether the session was resumed), `prompt_bytes` (bytes of the whole first turn: the single message a provider without a system prompt receives, which is also the prompt that is saved; its meaning did not change), `system_bytes` (added in 2026-10-16.p5: bytes of the standing instructions claude receives as its system prompt; 0 when claude is not a candidate. The text is arranged a little differently from the same content in `prompt_bytes`, so it is not an exact subset), `prompt_saved` (whether the turn prompt was saved to `<job dir>/prompts/<seq>.txt`; written before the event line), `prompt_truncated` (over 2MiB, only the beginning was saved). Past 64MiB of saved prompts per job, `prompt_saved: false` |
 | `provider_failed` | `provider`, `error` (300 characters) |
+| `provider_usage` | (2026-11-19) Timing of one successful exaone or opencode turn run on the hub, emitted after any `provider_failed` of the same turn; worker turns and other providers emit none. `provider` (label), `elapsed_s` (whole call, pacing and retries included, what the total deadline measures), `timeout_s`, `timeout_source` (`EXAONE_TIMEOUT`/`turn timeout` for exaone, `OPENCODE_TIMEOUT`/`default` for opencode). exaone (one event per request, so one per read step) also: `effort`, `stream`, `retries` (429/503 retries taken), `prompt_bytes` (UTF-8 bytes of the prompt), `finish_reason`, `first_byte_s` (streamed only: from the start of the attempt that succeeded, pacing wait included, to the first `data:` line), and `prompt_tokens`, `completion_tokens`, `reasoning_tokens` when the server sent `usage`. opencode (one event per whole run, which may hold several model requests and MCP calls) has no token counts |
 | `retrieval_requested` | `step`, `requests: [{op, target}]`, `via` (`block`/`mcp`/`ops`) |
 | `retrieval_served` | `step`, `results: [{op, target, ok, bytes, truncated, error[, resolved]}]`, `turn_bytes`, `via` (`block`/`mcp`/`ops`). `resolved` (P2.6) is present only on successful `refs`/`defs`/`callers`/`callees` entries and is `"types"` (answered from Go type-checked facts) or `"name"` (name-based) |
 | `retrieval_exhausted` | `steps`, `turn_bytes` |
@@ -128,6 +129,7 @@ When the budget is used up, the engine sends "retrieval budget exhausted, answer
 | `wiki_page_skipped` | The page was not written. `page`, `reason`: `llm_fallback: …` (built-in fallback answer, no provider answered), `no_answer: …`, `bad_format: …` (no sections), `body_too_large: …`, `scope_missing: …`, `human-written page kept (state: …); use force to overwrite it`, `human-written page kept (it was saved during the build)`, `error: …`. The existing page stays as it is |
 | `wiki_build_finished` | `written`, `skipped`, `failed` (number skipped because of LLM or format failures) |
 | `evidence_check` | Agent event (P2.5). Only when the final answer has a ```` ```findings ```` block, each time the answer is checked (once more when it is checked again after a follow-up question). `checked` (items checked, at most 50), `mismatched` (number of mismatches), `items: [{path, line, ok, reason}]` (at most 50; `reason` is `verified` or the reason for the mismatch) |
+| `reask_failed` | Agent event. A re-ask (citation, ops citation, judge format or action repair) or a retrieval follow-up after it came back from the builtin fallback. `kind` (`citation`, `ops_citation`, `format`, `repair`), `kept` (the answer that was sent back, with its provider, is the turn's answer; false only for a judge answer that lacks its verdict or json, which stays builtin so the round reads UNVERIFIED), `provider` (that answer's provider). Also emitted for a citation or ops citation re-ask whose reply holds no answer (whitespace, a bare `{"requests": ...}` request, also cut off, an engine placeholder), with `kept` true and `reason: "no_answer"`: the first answer and its first citation check stay, no second check runs (since `03d2f9c`); `reason` is absent on the fallback path. Comes before `agent_finished` (since 2026-11-14, `4b79b52`) |
 | `agent_finished` | `provider`, `duration_ms`, `steps`, `output_bytes`, `excerpt` (first 600 characters), `fallback` (whether builtin) |
 | `verdict` | `approved`, `unverified` |
 | `jev_gate` | `gate`, `reasons` |
@@ -443,3 +445,36 @@ The approval tab waited for a person's decision on every file change and blocked
 - **What stays**: changes are written only into the workspace clone and not pushed. Publish, which puts them into the repository, is still a person's last gate. With `GUARDIAN_JEV_GATE=off` the gate is always PASSED, so files change on the judge's approval alone.
 - **Tests**: existing tests that check the engine flow as `PROPOSED -> approval -> EXECUTED` turn it off with `testenv.set_auto_apply(self, "off")`. Auto-apply is tested by `test_auto_apply.py` and `test_patch_ops.EndToEndTests`.
 - (2026-10-18: `GUARDIAN_AUTO_APPLY` accepts `off`, `0`, `false` and `no` as off. In an ops project the same `auto_run_actions` runs the low-risk catalog cleanup actions listed in the project policy's `auto_run`, up to `max_auto_runs_per_day` a day, with `decided_by` `auto:<project>`. This path needs a real jev PASSED, so with `GUARDIAN_JEV_GATE=off` ops actions are not run automatically. Details in `docs/design/server-ops-project.md`.)
+- (2026-10-30, prompt `p18` (the GitHub mirror's number; `p21` after the merge with the local history): the judge prompt used to say "Actions are NOT executed automatically: a person reviews and approves each one" while the engine applied the file changes itself. `judge_actions_note` now says which actions run without a person: in a code project the file changes above, once the decision passes jev (with the jev gate off, once the judge approves), and in an ops project the `auto_run` actions the judge holds, with the daily cap. With `GUARDIAN_AUTO_APPLY=off`, in design projects and in ops projects without `auto_run` the old sentence stays. In the same version a plan judge in a project with `policy.batch.auto` is told that the batch gate may start a plan (`judge_plan_rules`), and ops and design experts and critics get their own turn text (`EXPERT_ASK`, `CRITIC_ASK`) instead of "architectural proposal" and "security flaws, and performance risks".)
+
+### Implementation notes (judge reasons and turn texts, prompt `p20`, the GitHub mirror's number; `p22` after the merge with the local history, 2026-10-30)
+
+- **Rejections reach the expert.** The next round's expert used to get only the critics' text, so it answered points the
+  judge had already set aside and never saw what the judge wanted. `DebateEngine._judge_reasons` hands the last
+  rejecting judge answer (without the verdict line and the findings block, at most 12,000 characters) to the next
+  round's expert, also when a thread is continued. The critics do not get it: they judge each proposal on their own
+  (operator's decision). The judge is asked, when it rejects, to list what must change and to leave out points it did
+  not accept (`JUDGE_REJECTION_RULE`).
+- **Turn texts.** A code critic stays within the focus of its persona; "edge cases, security flaws, and performance
+  risks" is the default for a persona that names none (the `guardian-dev` QA and release critics were sent after
+  security and performance). The mermaid hint is for code judges only. A first-round expert no longer gets an empty
+  "Previous Critique" line. The citation re-ask of an MCP session names the repo tools next to the repo block.
+- **Merged into the flow steps (`p22`).** The local engine runs rounds through flow steps, so the reasons travel as
+  `FlowRun.reasons_in` and `_carried_in` writes them, after the critique, into the lead's draft, consolidate and
+  rewrite turns and into every pipeline stage, wherever the critique already went. Panel members and versus sides do not get them, as they get no
+  critique either (a panel round starts fresh, versus is one round). The round loop recomputes them after each judge
+  turn, so a later run of the same round count sees the newest rejection.
+
+### Implementation notes (jev fallback constraints and the CLI chat, 2026-10-30)
+
+- **Fallback constraints.** When the judge writes no constraints, `jev_gate.critique_points` turns the critique's
+  bullets into constraints for jev. That made every point a constraint, also advice and points the judge set aside, so
+  jev could dispute a decision over a `[권고]`. A critique that grades its objections now gives only its `[차단]` lines;
+  with none, the single fallback constraint is used. Ungraded critiques (the code teams) keep their bullets.
+- **Neutral wording.** The fallback constraint reads "The decision answers the critics' blocking concerns it accepted,
+  and the evidence it cites supports it." (was: the red-team's security, edge-case and performance concerns), and the
+  context jev reads labels the critique "Critique:" instead of "Red-team critique:". jev has no version constant; the
+  debate prompts are unchanged.
+- **CLI chat.** `run_supervisor_chat` sends the persona's `system_prompt` as the role line (`run_prompt(system=...)`),
+  without the default "Linux System & SSH Security Engineer" header and without the persona JSON, so `temperature` and
+  the focus lists no longer reach a model on any path (`debate-teams.md`).

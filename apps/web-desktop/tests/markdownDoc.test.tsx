@@ -10,7 +10,7 @@ vi.mock('mermaid', () => {
   m.loaded += 1;
   return { default: { initialize: m.initialize, render: m.render } };
 });
-import { MarkdownDoc } from '../src/components/MarkdownDoc';
+import { MarkdownDoc, mermaidTheme } from '../src/components/MarkdownDoc';
 import { ko } from '../src/i18n/ko';
 
 const T = 'thread_ab12';
@@ -54,7 +54,7 @@ describe('MarkdownDoc', () => {
     m.render.mockResolvedValue({ svg: `${okSvg.replace('</svg>', '')}<script>alert(1)</script></svg>` });
     const { container } = render(<MarkdownDoc markdown={'```mermaid\nsequenceDiagram\n  A->>B: hi\n```'} thread={T} loadAsset={vi.fn()} />);
     await waitFor(() => expect(container.querySelector('[data-mermaid] svg rect')).toBeTruthy());
-    expect(m.initialize).toHaveBeenCalledWith(expect.objectContaining({ startOnLoad: false, securityLevel: 'strict', theme: 'dark' }));
+    expect(m.initialize).toHaveBeenCalledWith(expect.objectContaining({ startOnLoad: false, securityLevel: 'strict', theme: 'default' }));
     expect(m.render).toHaveBeenCalledWith(expect.stringMatching(/^sg-mermaid-/), expect.stringContaining('A->>B: hi'));
     expect(container.querySelector('script')).toBeNull();
   });
@@ -84,5 +84,17 @@ describe('MarkdownDoc', () => {
     expect(save).toHaveBeenCalledWith('not a diagram', 2);
     fireEvent.click(buttons[0]);
     expect(save).toHaveBeenLastCalledWith('graph TD\n  A-->B', 1);
+  });
+});
+
+describe('mermaidTheme', () => {
+  it('follows the computed color scheme, dark only when it is exactly dark', () => {
+    // jsdom computes no color-scheme, so the light-theme default wins.
+    expect(mermaidTheme()).toBe('default');
+    const computed = vi.spyOn(window, 'getComputedStyle');
+    computed.mockReturnValue({ colorScheme: 'dark' } as CSSStyleDeclaration);
+    expect(mermaidTheme()).toBe('dark');
+    computed.mockReturnValue({ colorScheme: 'light dark' } as CSSStyleDeclaration);
+    expect(mermaidTheme()).toBe('default');
   });
 });

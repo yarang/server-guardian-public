@@ -707,3 +707,24 @@ tailnet처럼 다른 종류의 노드 문제는 실패 양상이 달라서, `fle
     것이 없으므로 `DISPUTED`는 겉보기일 뿐이다. 소음이 되면 그 문구를 제약이 아닌 보고 본문으로 쓰게 한다. 바꾸지
     않았다.
   - 다루지 못한 것: 반복 없음, 사람 채점 없음, 같은 노드에서 `fleet-ops`와의 비교 없음.
+
+### fleet-ops 보정 (2026-10-30, 프롬프트 `p19` (GitHub 미러의 번호, 로컬 이력과 합친 뒤 `p21`))
+
+운영자가 watch 팀에도 전문 팀의 보정을 주기로 했다. `ops_safety_critic`과 `ops_capacity_critic`은 지적마다 `[차단]`(인용된 해악)이나
+`[권고]`(조언)를 붙이고, 주문이나 점검 결과에 없는 전제를 요구하지 않으며, `[#번호 조회 노드]`로 인용하고, 서로의 몫은 다른 검토자에게
+맡긴다. `ops_judge`는 `[차단]`만 액션을 바꾸게 하고, 금지 조건을 지어내지 않으며, 도구로 할 수 없는 일을 그렇다고 쓴다. 용량 검토자는
+예전에 journald·logrotate 설정을 "점검 결과로" 확인하라고 들었지만 그런 점검은 없다. 이제 크기와 누적을 보여 주는 점검 이름을 들고, 설정은
+도구 밖이라고 적는다. 팀의 구성원, 도구, watch는 그대로다. 측정하지 않음: 새 프롬프트로 돌린 토론은 아직 없다.
+
+### LLM CLI 스킬 맞춤 (2026-10-30)
+
+- `guardian-host-cleanup`은 이제 Guardian 자신의 조치가 통째 삭제를 거부하는 디렉터리(`ops_paths.SYSTEM_DIRS`: `/var/log`, `/opt`,
+  `/srv`, `/tmp`, ...)를 모두 "그 자체는 지우거나 비우지 않는다"로 든다. 예전 규칙은 스킬이 설치된 어느 호스트에서든
+  `rm -rf --one-file-system -- /var/log`를 허용했다. 보호 이름에 `guardian-workspaces`가 더해졌다. `test_llm_skills.py`는 `ops_paths`에
+  스킬이 들지 않은 트리, 시스템 디렉터리, 이름이 생기면, 스킬이 없는 `guardian.py` 옵션을 쓰면, 플릿 스킬이 운영 팀을 빠뜨리면 실패한다.
+- `guardian-fleet-ops`는 주문에 따라 팀을 고르고(`fleet-ops`, `fleet-services`, `fleet-mesh`, `fleet-provision`), 계획 절(`--plans`,
+  `--plan-show`, `--plan-run --yes`, `--plan-reject`, 그 plan id에 운영자가 예라고 한 뒤에만 실행)을 가진다. 예전에는 패키지 주문이 패키지
+  도구가 없는 `fleet-ops`로 갔다.
+- `guardian-host-check`와 `guardian-host-cleanup`은 먼저 `uname -s`와 `/etc/os-release`를 본다. 명령이 Debian과 Ubuntu용이기 때문이다.
+  읽기 전용 점검은 그 시스템의 같은 점검을 써도 되고, 정리는 다른 시스템에서는 아무것도 실행하지 않는다.
+- 호스트는 `scripts/deploy-llm-skills.sh`를 실행해야 새 문구를 받는다.

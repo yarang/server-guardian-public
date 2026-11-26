@@ -117,6 +117,7 @@
 | `round_started` | – |
 | `agent_started` | `resumed`(세션 재개 여부), `prompt_bytes`(첫 턴 전체의 바이트: 시스템 프롬프트가 없는 제공자가 받는 하나의 메시지이며 저장되는 프롬프트도 이것이다. 의미는 바뀌지 않았다), `system_bytes`(2026-10-16.p5 추가: claude가 시스템 프롬프트로 받는 상시 지침의 바이트. claude가 후보가 아니면 0. `prompt_bytes`에 든 같은 내용과 글 구성이 조금 달라 정확한 부분집합은 아니다), `prompt_saved`(턴 프롬프트를 `<작업 디렉터리>/prompts/<seq>.txt`에 저장했는지; 이벤트 줄보다 먼저 쓴다), `prompt_truncated`(2MiB를 넘어 앞부분만 저장). 작업당 저장 합계가 64MiB를 넘으면 `prompt_saved: false` |
 | `provider_failed` | `provider`, `error`(300자) |
+| `provider_usage` | (2026-11-19) 허브에서 실행해 성공한 exaone 또는 opencode 차례 하나의 시간. 같은 차례의 `provider_failed` 뒤에 낸다. 워커 차례와 다른 제공자는 내지 않는다. `provider`(라벨), `elapsed_s`(호출 전체, 속도 조절 대기와 재시도 포함, 전체 기한이 재는 것), `timeout_s`, `timeout_source`(exaone은 `EXAONE_TIMEOUT`/`turn timeout`, opencode는 `OPENCODE_TIMEOUT`/`default`). exaone(요청마다 하나, 곧 읽기 단계마다 하나)은 더해서 `effort`, `stream`, `retries`(받은 429/503 재시도 수), `prompt_bytes`(프롬프트의 UTF-8 바이트), `finish_reason`, `first_byte_s`(스트리밍만: 성공한 시도의 시작부터, 속도 조절 대기 포함, 첫 `data:` 줄까지), 서버가 `usage`를 보냈으면 `prompt_tokens`, `completion_tokens`, `reasoning_tokens`. opencode(실행 전체에 하나, 그 안에 모델 요청과 MCP 호출이 여럿일 수 있다)는 토큰 수가 없다 |
 | `retrieval_requested` | `step`, `requests: [{op, target}]`, `via`(`block`/`mcp`/`ops`) |
 | `retrieval_served` | `step`, `results: [{op, target, ok, bytes, truncated, error[, resolved]}]`, `turn_bytes`, `via`(`block`/`mcp`/`ops`). `resolved`(P2.6)는 `refs`/`defs`/`callers`/`callees`의 성공한 항목에만 있고 `"types"`(Go 타입 검사 사실로 답함) 또는 `"name"`(이름 기반)이다 |
 | `retrieval_exhausted` | `steps`, `turn_bytes` |
@@ -128,6 +129,7 @@
 | `wiki_page_skipped` | 페이지를 쓰지 않았다. `page`, `reason`: `llm_fallback: …`(내장 대체 응답, 아무 제공자도 답하지 않음), `no_answer: …`, `bad_format: …`(섹션 없음), `body_too_large: …`, `scope_missing: …`, `human-written page kept (state: …); use force to overwrite it`, `human-written page kept (it was saved during the build)`, `error: …`. 기존 페이지는 그대로다 |
 | `wiki_build_finished` | `written`, `skipped`, `failed`(LLM·형식 실패로 건너뛴 수) |
 | `evidence_check` | 에이전트 이벤트(P2.5). 최종 답에 ```` ```findings ```` 블록이 있을 때만, 답을 검사할 때마다(되묻기 뒤 다시 검사하면 한 번 더) 낸다. `checked`(검사한 항목 수, 최대 50), `mismatched`(불일치 수), `items: [{path, line, ok, reason}]`(최대 50, `reason`은 `verified` 또는 불일치 이유) |
+| `reask_failed` | 에이전트 이벤트. 재질문(인용, ops 인용, 판정자 형식, 조치 수리)이나 그 뒤의 조회 후속 호출이 내장 대체로 돌아왔다. `kind`(`citation`, `ops_citation`, `format`, `repair`), `kept`(되돌려 보냈던 답이 그 공급자와 함께 이 차례의 답이 됨. verdict나 json이 없는 판정자 답만 false이며, 그때는 내장 대체로 남아 라운드가 UNVERIFIED로 읽힌다), `provider`(그 답의 공급자). 인용이나 ops 인용 재질문의 응답에 답이 없을 때(공백, 잘린 것을 포함한 맨 `{"requests": ...}` 요청, 엔진 자리표시 문구)도 `kept` true, `reason: "no_answer"`로 나온다. 그때는 첫 답과 첫 인용 검사가 남고 두 번째 검사는 돌지 않는다(`03d2f9c`부터). 대체 경로에는 `reason`이 없다. `agent_finished` 앞에 온다(2026-11-14, `4b79b52`부터) |
 | `agent_finished` | `provider`, `duration_ms`, `steps`, `output_bytes`, `excerpt`(앞 600자), `fallback`(builtin 여부) |
 | `verdict` | `approved`, `unverified` |
 | `jev_gate` | `gate`, `reasons` |
@@ -443,3 +445,30 @@ Judge 입력 규약(문자열만 쓰던 기존 형식도 그대로 유효하다)
 - **그대로인 것**: 변경은 작업 공간 클론에만 쓰고 push하지 않는다. 저장소로 올리는 Publish가 여전히 사람의 마지막 관문이다. `GUARDIAN_JEV_GATE=off`이면 게이트가 항상 PASSED라서 판정자의 승인만으로 파일이 바뀐다.
 - **테스트**: 엔진 흐름을 `PROPOSED -> 승인 -> EXECUTED`로 검사하는 기존 테스트는 `testenv.set_auto_apply(self, "off")`로 끈다. 자동 적용은 `test_auto_apply.py`와 `test_patch_ops.EndToEndTests`가 검사한다.
 - (2026-10-18: `GUARDIAN_AUTO_APPLY`는 `off`, `0`, `false`, `no`를 모두 끄기로 받는다. 같은 `auto_run_actions`가 운영(ops) 프로젝트에서는 프로젝트 정책 `auto_run`에 든 위험도 low의 카탈로그 정리 액션을 하루 `max_auto_runs_per_day`까지 `decided_by` `auto:<project>`로 실행한다. 이 경로는 실제 jev PASSED가 필요해 `GUARDIAN_JEV_GATE=off`이면 운영(ops) 액션은 자동 실행하지 않는다. 자세한 것은 `docs/design/server-ops-project.md`.)
+- (2026-10-30, 프롬프트 `p18` (GitHub 미러의 번호, 로컬 이력과 합친 뒤 `p21`): 판정자 프롬프트는 "Actions are NOT executed automatically: a person reviews and approves each one"이라고 말했지만 엔진은 파일 변경을 스스로 적용했다. 이제 `judge_actions_note`가 사람 없이 실행되는 액션을 말한다. 코드 프로젝트에서는 위의 파일 변경이 jev를 통과하면(jev 게이트가 꺼져 있으면 판정자가 승인하면), 운영 프로젝트에서는 판정자가 가진 `auto_run` 액션가 하루 상한과 함께. `GUARDIAN_AUTO_APPLY=off`, 디자인 프로젝트, `auto_run`이 없는 운영 프로젝트에는 예전 문장이 그대로 간다. 같은 버전에서 `policy.batch.auto`를 켠 프로젝트의 계획 판정자는 배치 관문이 계획을 시작할 수 있다고 듣고(`judge_plan_rules`), 운영·디자인 프로젝트의 전문가와 비평가는 "architectural proposal"과 "security flaws, and performance risks" 대신 자기 차례 문구(`EXPERT_ASK`, `CRITIC_ASK`)를 받는다.)
+
+### 구현 메모 (판정자의 거절 이유와 차례 문구, 프롬프트 `p20`(GitHub 미러의 번호, 로컬 이력과 합친 뒤 `p22`), 2026-10-30)
+
+- **거절 이유가 전문가에게 간다.** 다음 라운드 전문가는 비평가의 글만 받았기 때문에, 판정자가 이미 받아들이지 않은 지적에 답하고 판정자가
+  원한 것은 보지 못했다. `DebateEngine._judge_reasons`는 마지막으로 거절한 판정자의 답(판정 줄과 findings 블록을 뺀 것, 최대 12,000자)을
+  다음 라운드 전문가에게 넘긴다. 스레드를 이어 갈 때도 같다. 비평가는 받지 않는다. 비평가는 제안마다 독립적으로 본다(운영자 결정). 판정자는
+  거절할 때 무엇이 바뀌어야 하는지 적고, 받아들이지 않은 지적은 빼라는 요청을 받는다(`JUDGE_REJECTION_RULE`).
+- **차례 문구.** 코드 프로젝트의 비평가는 퍼소나의 범위 안에서 본다. "edge cases, security flaws, and performance risks"는 범위를 정하지 않은
+  퍼소나의 기본값이다(`guardian-dev`의 QA·릴리스 비평가도 보안·성능을 보라는 지시를 받았다). mermaid 안내는 코드 판정자에게만 간다. 1라운드
+  전문가는 더 이상 빈 "Previous Critique" 줄을 받지 않는다. MCP 세션의 인용 재질문은 repo 블록과 함께 repo 도구를 안내한다.
+- **흐름 단계에 합침(`p22`).** 로컬 엔진은 라운드를 흐름 단계로 돌리므로, 거절 이유는 `FlowRun.reasons_in`으로 전달되고
+  `_carried_in`이 비평 다음에 써 넣는다. 받는 곳은 비평이 이미 가던 곳, 곧 리드의 초안·통합·재작성 차례와 파이프라인의 모든 단계다. 패널 구성원과 versus 양측은
+  받지 않는다. 비평도 받지 않기 때문이다(패널 라운드는 새로 시작하고, versus는 한 라운드다). 라운드 루프는 판정자 차례마다 이유를
+  다시 계산하므로 다음 라운드는 가장 최근의 거절을 본다.
+
+### 구현 메모 (jev 대체 조건과 CLI 채팅, 2026-10-30)
+
+- **대체 조건.** 판정자가 constraints를 쓰지 않으면 `jev_gate.critique_points`가 비판의 글머리 항목을 jev가 확인할 조건으로 바꾼다. 그래서
+  조언과 판정자가 받아들이지 않은 지적까지 모두 조건이 되어, jev가 `[권고]` 하나로 결정을 DISPUTED로 볼 수 있었다. 이제 지적에 등급을 매긴
+  비판은 `[차단]` 줄만 내고, `[차단]`이 없으면 대체 조건 하나를 쓴다. 등급이 없는 비판(코드 팀)은 그대로 글머리 항목을 쓴다.
+- **중립 문구.** 대체 조건은 "The decision answers the critics' blocking concerns it accepted, and the evidence it cites supports it."이다
+  (예전: red-team의 보안, 엣지 케이스, 성능 우려). jev가 읽는 맥락의 표제도 "Red-team critique:" 대신 "Critique:"이다. jev에는 버전 상수가
+  없고, 토론 프롬프트는 그대로다.
+- **CLI 채팅.** `run_supervisor_chat`은 퍼소나의 `system_prompt`를 역할 줄로 보낸다(`run_prompt(system=...)`). 기본 머리말 "Linux System &
+  SSH Security Engineer"와 퍼소나 JSON은 더 이상 들어가지 않으므로, `temperature`와 관점 목록은 어느 경로에서도 모델에 가지 않는다
+  (`debate-teams.md`).

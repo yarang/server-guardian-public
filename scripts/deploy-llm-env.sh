@@ -6,7 +6,8 @@
 # to ~/.guardian/llm.env (mode 600) on each host. TYPESAFE_* keys (jev-mcp) go only to
 # the hub (guardian_role "hub" in the hub inventory); other hosts get the file without
 # them. ZAI_API_KEY (z.ai Coding Plan, the zai provider) travels like the other keys and is
-# used only by the zai provider. Then runs a one-line PONG test with every installed LLM CLI. Token values are sent
+# used only by the zai provider, and so does EXAONE_API_KEY (the EXAONE API, the exaone provider: plain HTTP, no
+# CLI). Then runs a one-line PONG test with every installed LLM CLI. Token values are sent
 # over ssh stdin only and are never printed.
 #
 # Usage:

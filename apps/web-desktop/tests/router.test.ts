@@ -7,26 +7,31 @@ describe('parseHash', () => {
     expect(parseHash('#debates/job%2F7/extra')).toEqual({ route: 'debates', params: ['job/7', 'extra'], query: {} });
     expect(parseHash('#/fleet/commands?target=a1')).toEqual({ route: 'fleet', params: ['commands'], query: { target: 'a1' } });
     expect(parseHash('#/approvals/9')).toEqual({ route: 'approvals', params: ['9'], query: {} });
-    // Node groups moved from Settings to the Fleet Groups tab; the old deep link keeps working.
+    expect(parseHash('#/overview')).toEqual({ route: 'overview', params: [], query: {} });
+    // Node groups and command sets moved from Settings to Fleet tabs; the old deep links keep working.
     expect(parseHash('#/settings/groups?edit=lab')).toEqual({ route: 'fleet', params: ['groups'], query: { edit: 'lab' } });
+    expect(parseHash('#/settings/commandSets')).toEqual({ route: 'fleet', params: ['commandSets'], query: {} });
     expect(parseHash('#/fleet/groups')).toEqual({ route: 'fleet', params: ['groups'], query: {} });
+    expect(parseHash('#/fleet/commandSets')).toEqual({ route: 'fleet', params: ['commandSets'], query: {} });
     expect(parseHash('#/settings/teams?edit=x')).toEqual({ route: 'settings', params: ['teams'], query: { edit: 'x' } });
   });
 
-  it('defaults to the Fleet summary for empty and unknown hashes', () => {
-    expect(parseHash('')).toEqual({ route: 'fleet', params: [], query: {} });
-    expect(parseHash('#/')).toMatchObject({ route: 'fleet' });
-    expect(parseHash('#/nope/x?y=1')).toEqual({ route: 'fleet', params: [], query: {} });
+  it('defaults to Overview for empty and unknown hashes', () => {
+    expect(parseHash('')).toEqual({ route: 'overview', params: [], query: {} });
+    expect(parseHash('#/')).toMatchObject({ route: 'overview' });
+    expect(parseHash('#/nope/x?y=1')).toEqual({ route: 'overview', params: [], query: {} });
   });
 
-  it('has exactly four destinations', () => {
-    expect(ROUTES.map((r) => r.id)).toEqual(['fleet', 'debates', 'approvals', 'settings']);
+  it('has exactly five destinations', () => {
+    expect(ROUTES.map((r) => r.id)).toEqual(['overview', 'fleet', 'debates', 'approvals', 'settings']);
   });
 
   it.each([
-    ['#/overview', 'fleet', []],
-    ['#/assistant', 'fleet', []],
-    ['#/more', 'fleet', []],
+    ['#/fleet', 'overview', []],
+    ['#/fleet/summary', 'overview', []],
+    ['#/overview', 'overview', []],
+    ['#/assistant', 'overview', []],
+    ['#/more', 'overview', []],
     ['#/nodes', 'fleet', ['nodes']],
     ['#/nodes/a1', 'fleet', ['nodes', 'a1']],
     ['#/nodes/new', 'fleet', ['nodes', 'new']],
@@ -35,6 +40,7 @@ describe('parseHash', () => {
     ['#/run', 'fleet', ['commands']],
     ['#/batch', 'fleet', ['commands']],
     ['#/terminal', 'fleet', ['commands']],
+    ['#/settings/commandSets', 'fleet', ['commandSets']],
     ['#/agents', 'debates', []],
     ['#/agents/j1', 'debates', ['j1']],
     ['#/debate', 'debates', []],
@@ -51,6 +57,11 @@ describe('parseHash', () => {
         query: { target: 'a1', group: 'g' },
       });
     }
+    // The old summary hashes keep their query when they land on Overview.
+    for (const legacy of ['fleet', 'fleet/summary']) {
+      expect(parseHash(`#/${legacy}?x=1`)).toEqual({ route: 'overview', params: [], query: { x: '1' } });
+    }
+    expect(parseHash('#/settings/commandSets?edit=x')).toEqual({ route: 'fleet', params: ['commandSets'], query: { edit: 'x' } });
     expect(parseHash('#/nodes?status=offline&group=arm')).toEqual({
       route: 'fleet',
       params: ['nodes'],
@@ -75,25 +86,29 @@ describe('parseHash', () => {
 
 describe('hrefFor', () => {
   it('builds hashes with params and query', () => {
+    expect(hrefFor('overview')).toBe('#/overview');
     expect(hrefFor('fleet')).toBe('#/fleet');
     expect(hrefFor('fleet', ['nodes', 'a 1'])).toBe('#/fleet/nodes/a%201');
     expect(hrefFor('fleet', ['commands'], { target: 'a1' })).toBe('#/fleet/commands?target=a1');
     expect(parseHash(hrefFor('debates', ['j/1'], { q: 'a b' }))).toEqual({ route: 'debates', params: ['j/1'], query: { q: 'a b' } });
   });
 
-  it('builds Fleet tab hashes; the summary is the bare #/fleet', () => {
-    expect(fleetHref('summary')).toBe('#/fleet');
+  it('builds Fleet tab hashes; every tab has its own path segment', () => {
     expect(fleetHref('nodes')).toBe('#/fleet/nodes');
     expect(fleetHref('nodes', ['a1'])).toBe('#/fleet/nodes/a1');
+    expect(fleetHref('groups')).toBe('#/fleet/groups');
     expect(fleetHref('ssh')).toBe('#/fleet/ssh');
     expect(fleetHref('commands', [], { target: 'group:lab' })).toBe('#/fleet/commands?target=group%3Alab');
+    expect(fleetHref('commandSets')).toBe('#/fleet/commandSets');
   });
 
-  it('reads the Fleet tab from the first param; unknown values show the summary', () => {
-    expect(fleetTab(undefined)).toBe('summary');
+  it('reads the Fleet tab from the first param; unknown values show the node list', () => {
+    expect(fleetTab(undefined)).toBe('nodes');
     expect(fleetTab('nodes')).toBe('nodes');
+    expect(fleetTab('groups')).toBe('groups');
     expect(fleetTab('ssh')).toBe('ssh');
     expect(fleetTab('commands')).toBe('commands');
-    expect(fleetTab('bogus')).toBe('summary');
+    expect(fleetTab('commandSets')).toBe('commandSets');
+    expect(fleetTab('bogus')).toBe('nodes');
   });
 });

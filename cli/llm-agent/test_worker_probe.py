@@ -48,7 +48,8 @@ class Requirements(unittest.TestCase):
     def test_rejects_bad_values(self):
         good = json.loads(read(REQUIREMENTS))
         for key, bad in (("min_total_memory_mib", 0), ("default_max_jobs", True), ("python_min", "three"),
-                         ("min_working_cli", "1"), ("free_memory_mib_per_job", -5)):
+                         ("min_working_cli", "1"), ("free_memory_mib_per_job", -5),
+                         ("resident_memory_mib", 0), ("resident_turn_memory_mib", True)):
             data = dict(good, **{key: bad})
             self.assertTrue(wp.validate_requirements(data), key)
 
@@ -58,6 +59,13 @@ class Requirements(unittest.TestCase):
         del good["python_min"]
         self.assertTrue(any("missing" in p for p in wp.validate_requirements(good)))
         self.assertTrue(wp.validate_requirements([]))
+
+    def test_the_resident_budget_figures_are_part_of_the_requirements(self):
+        # Install step 2 (resident-agents.md): the figures registration checks live here now, not in the M0 table.
+        data = json.loads(read(REQUIREMENTS))
+        self.assertEqual((data["resident_memory_mib"], data["resident_turn_memory_mib"]), (512, 512))
+        del data["resident_turn_memory_mib"]
+        self.assertTrue(any("missing" in p for p in wp.validate_requirements(data)))
 
 
 class Facts(unittest.TestCase):
@@ -111,6 +119,16 @@ class Verdict(unittest.TestCase):
 
     def test_python_minor_compares_numerically(self):
         self.assertTrue(verdict(GOOD_FACTS.replace("3.11.2", "3.10.0"))["passed"])  # 3.10 > 3.9, not a string compare
+
+    def test_free_memory_is_reported_but_is_no_condition(self):
+        # M2a: the verdict carries MemAvailable for the inventory (the resident budget reads it); no condition
+        # names it, so the verdict for a debate worker does not change with the resident figures.
+        v = verdict()
+        self.assertEqual(v["memory_free_mib"], 8789)  # 9000000 KiB available
+        self.assertFalse(any("resident" in c["name"] for c in v["conditions"]))
+        without = verdict(GOOD_FACTS.replace("mem_available_kib=9000000\n", ""))
+        self.assertFalse(without["passed"])  # the memory_free condition still fails on an unknown figure
+        self.assertNotIn("memory_free_mib", without)
 
     def test_garbage_numbers_fail(self):
         v = verdict(GOOD_FACTS.replace("mem_total_kib=12000000", "mem_total_kib=lots"))
@@ -198,6 +216,21 @@ class InventoryEdits(unittest.TestCase):
         self.assertIs(entry["worker"], False)
         self.assertNotIn("worker_install", entry)
 
+    def test_record_stores_the_free_memory_figure(self):
+        wp.record_probe(self.path, "node-1", dict(self.passed(), memory_free_mib=8789), self.lock)
+        self.assertEqual(self.load()[1]["worker_capable"]["memory_free_mib"], 8789)
+        # A verdict without the figure (an older probe record) stores no key, not a null.
+        wp.record_probe(self.path, "node-1", self.passed(), self.lock)
+        self.assertNotIn("memory_free_mib", self.load()[1]["worker_capable"])
+
+    def test_set_worker_stores_the_install_info_with_the_protocol(self):
+        # scripts/install-worker.sh stages this shape; worker_install.protocol is what registration checks.
+        wp.record_probe(self.path, "node-1", self.passed(), self.lock)
+        info = {"rev": "abc123def456", "installed": "2026-11-15T00:00:00Z", "max_jobs": 2,
+                "version": "v0v0v0v0v0v0", "protocol": 3}
+        wp.set_worker(self.path, "node-1", True, info, self.lock)
+        self.assertEqual(self.load()[1]["worker_install"], info)
+
     def test_the_hub_and_unknown_hosts_are_refused(self):
         for host in ("hub-1", "ghost"):
             with self.assertRaises(SystemExit):
@@ -212,6 +245,20 @@ class InventoryEdits(unittest.TestCase):
         with self.assertRaises(ValueError):
             wp.record_probe(self.path, "node-1", self.passed(), self.lock)
         self.assertEqual(read(self.path), "{not json")
+
+    def test_record_sandbox_stores_resident_sandbox_and_keeps_worker_install(self):
+        # O1 (resident-open-tools.md): the sandbox verdict is its own top-level key; install-worker.sh
+        # replaces the whole worker_install object, so the two must never share a home.
+        wp.record_probe(self.path, "node-1", self.passed(), self.lock)
+        wp.set_worker(self.path, "node-1", True, {"rev": "abc"}, self.lock)
+        verdict = {"version": "abc123def456", "passed": True, "checked": "2026-11-18", "stress": "ran",
+                   "memory_peak_mib": 512, "failures": [], "warnings": []}
+        entry = wp.record_sandbox(self.path, "node-1", verdict, self.lock)
+        self.assertEqual(entry["resident_sandbox"], verdict)
+        stored = self.load()[1]
+        self.assertEqual(stored["resident_sandbox"], verdict)
+        self.assertEqual(stored["worker_install"], {"rev": "abc"})
+        self.assertTrue(stored["worker_capable"]["passed"])
 
     def test_cli_round_trip_as_the_script_pipes_it_to_the_hub(self):
         arg = base64.b64encode(json.dumps(self.passed()).encode()).decode()

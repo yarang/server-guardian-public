@@ -1,0 +1,40 @@
+flowchart TB
+    op["operator<br/>dashboard over the tailnet<br/>(AGENT_TOKEN)"]
+    subgraph hub["hub site-a-arm1"]
+        api["Go API"]
+        cli["guardian.py --session-*"]
+        store[("mail.db<br/>agents + sessions<br/>session and workstation registry<br/>approval requests<br/>summaries (7 days)")]
+        link["link entry<br/>guardian.py --session-link<br/>~/.ssh/authorized_keys2 (Guardian-owned)<br/>from=...,command=...,restrict,<br/>one line per workstation key"]
+        relay["mail relay unit<br/>(resident agents)"]
+    end
+    subgraph wsmac["ws-mac-1 (macOS)"]
+        dm["session link daemon<br/>LaunchAgent<br/>own link key, hub host key pinned"]
+        s1["interactive CLI in tmux<br/>cleaner@ws-mac-1"]
+        m1["session MCP"]
+        h1["hooks: SessionStart,<br/>UserPromptSubmit, Stop,<br/>PermissionRequest, SessionEnd"]
+    end
+    subgraph wswsl["ws-wsl-1 (WSL)"]
+        dl["session link daemon<br/>systemd user unit<br/>own link key, hub host key pinned"]
+        s2["interactive CLI in tmux<br/>builder@ws-wsl-1"]
+    end
+    subgraph wswin["ws-win-1 (native Windows)"]
+        dw["session link daemon<br/>scheduled task<br/>own link key, hub host key pinned"]
+        s3["interactive CLI<br/>notes@ws-win-1<br/>(queue only, no wake)"]
+    end
+    subgraph nodes["Tier-1 nodes (resident-agents.md)"]
+        ra["resident agents<br/>claude@node-1 ..."]
+    end
+
+    op --> api --> cli --> store
+    link <--> store
+    relay <--> store
+    dm -- "workstation-opened SSH (ssh -T) over the tailnet<br/>hub tailnet IPv4, then link name (SD12)" --> link
+    dl -- "workstation-opened SSH (ssh -T) over the tailnet" --> link
+    dw -- "workstation-opened SSH (ssh -T) over the tailnet" --> link
+    relay -- "hub-opened SSH, worker protocol 3" --> ra
+    s1 --- m1 -- "per-session socket" --> dm
+    s1 --- h1 -- "per-session socket" --> dm
+    dm -. "tmux wake: operator mail only,<br/>fixed line, no content" .-> s1
+    s2 -- "per-session socket" --> dl
+    dl -. "tmux wake: operator mail only" .-> s2
+    s3 -- "per-session named pipe" --> dw

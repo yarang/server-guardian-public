@@ -2,7 +2,7 @@
 const countSuffix = (n: number | undefined): string => (n === undefined ? '' : ` (${n})`);
 
 const nodes = {
-  fleetSections: '플릿 섹션',
+  fleetSections: '노드 섹션',
   statusOptions: { all: '모든 상태', online: '온라인', offline: '오프라인' },
   statusEmpty: { online: '온라인', offline: '오프라인' },
   reach: {

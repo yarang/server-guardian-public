@@ -7,17 +7,18 @@ from tempfile import TemporaryDirectory
 from typing import Any, Callable, Dict, List, Optional, Union
 from unittest.mock import patch
 
-from debate_engine import RETRIEVAL_PROMPT_VERSION, DebateEngine, JUDGE_JSON_EXAMPLE, JUDGE_VERDICT_RULE, judge_missing_parts
+from debate_engine import (NO_ANSWER_BUDGET, NO_ANSWER_PSEUDO, RETRIEVAL_PROMPT_VERSION, DebateEngine,
+                           JUDGE_JSON_EXAMPLE, JUDGE_VERDICT_RULE, is_bare_request, is_non_answer, judge_missing_parts)
 from debate_events import EventWriter
 from llm_runner import BUILTIN_PROVIDER, LLMResult
 from mcp_client import MCPClient
 from repo_map import MAP_VERSION
 from repo_tools import RepoTools, find_pseudo_tool_calls
-from team_manager import Lineup, Member
+from team_manager import JUDGE_ROLE, Lineup, Member
 from test_repo_tools import COMMIT, git, make_repo
 from testenv import isolate_data_dir, restore_data_dir, set_auto_apply
 
-Script = Union[str, Callable[[str], str]]
+Script = Union[str, Callable[[str], str], LLMResult]
 
 
 def setUpModule() -> None:
@@ -41,8 +42,9 @@ READ_NOTES = block({"op": "read", "path": "apps/agent/notes.txt"})
 class FakeRunner:
     """Stands in for LLMRunner.run_session_prompt. Replies come from per-role scripts.
 
-    A script is a list of replies (the last one repeats) or a function of the prompt. Session ids
-    are "<role>-s<n>"; a continuation call is recognized by its session id.
+    A script is a list of replies (the last one repeats) or a function of the prompt; an LLMResult entry is
+    returned as is, so one call can be a builtin fallback. Session ids are "<role>-s<n>"; a continuation call
+    is recognized by its session id.
     """
 
     def __init__(self, scripts: Dict[str, Union[List[Script], Callable[[str], str]]], provider: str = "claude-cli",
@@ -62,7 +64,7 @@ class FakeRunner:
             return session_id.split("-")[0]
         if "Decide if consensus is reached" in prompt:
             return "judge"
-        if "Critique this proposal rigorously" in prompt:
+        if "Critique this proposal" in prompt or "Critique each proposal" in prompt:
             return "critic"
         return "expert"
 
@@ -83,6 +85,8 @@ class FakeRunner:
             n = len(self.calls)
         if callable(text):
             text = text(prompt)  # outside the lock, so scripts may block (a barrier for the panel test)
+        if isinstance(text, LLMResult):
+            return text  # a scripted result as-is: one call can be a builtin fallback
         if self.stateless:
             return LLMResult("opencode-cli", text, failures=list(self.failures))
         return LLMResult(self.provider, text, session_id or f"{role}-s{n}", resumed=session_id is not None,
@@ -99,6 +103,10 @@ class FakeRunner:
 class EngineHarness(unittest.TestCase):
     def setUp(self) -> None:
         set_auto_apply(self)
+        # As in scripts/ci.sh: with a claude CLI installed the protocol and map go to the system prompt, not the message.
+        providers = patch.dict(os.environ, {"GUARDIAN_LLM_PROVIDERS": "none"})
+        providers.start()
+        self.addCleanup(providers.stop)
         self._tmp = TemporaryDirectory()
         self.root = Path(self._tmp.name)
         self.repo = make_repo(self.root)
@@ -129,6 +137,38 @@ class EngineHarness(unittest.TestCase):
     @staticmethod
     def plain_scripts(expert: List[Script], judge: Optional[List[Script]] = None) -> Dict[str, Any]:
         return {"expert": expert, "critic": ["critique"], "judge": judge or ["Needs work.\nVERDICT: REJECTED"]}
+
+
+class JudgeReasonsTests(EngineHarness):
+    """p20: a rejecting judge's answer reaches the next round's expert, not the critics."""
+
+    def test_the_next_expert_reads_what_the_judge_asked_for(self) -> None:
+        runner = FakeRunner({
+            "expert": ["Proposal one.", "Proposal two."],
+            "critic": ["Critic point.", "Second critique."],
+            "judge": ["[R1] Add a test for empty input.\nVERDICT: REJECTED", "Still not.\nVERDICT: REJECTED"],
+        })
+        engine = self.engine()
+        engine.max_rounds = 2
+        self.run_debate(engine, runner)
+        first, second = runner.prompts("expert")
+        self.assertNotIn("Previous Critique", first)  # nothing to answer yet
+        self.assertNotIn("The judge rejected", first)
+        self.assertIn("Previous Critique: Critic point.", second)
+        self.assertIn("The judge rejected the previous proposal and said what must change:\n"
+                      "[R1] Add a test for empty input.", second)
+        self.assertNotIn("VERDICT", second.split("said what must change:", 1)[1].split("\n\n", 1)[0])
+        for prompt in runner.prompts("critic"):
+            self.assertNotIn("Add a test for empty input", prompt)
+        judge_text = "\n".join(runner.prompts("judge") + runner.system_texts("judge"))
+        self.assertIn("If REJECTED, write what must change before you can approve", judge_text)
+
+    def test_an_approval_or_no_judge_hands_nothing_on(self) -> None:
+        self.assertEqual(DebateEngine._judge_reasons([]), "")
+        approved = [{"role": JUDGE_ROLE, "content": "Fine.\nVERDICT: APPROVED", "consensus": True}]
+        self.assertEqual(DebateEngine._judge_reasons(approved), "")
+        rejected = [{"role": JUDGE_ROLE, "content": "Fix X.\n```findings\n[]\n```\nVERDICT: REJECTED", "consensus": False}]
+        self.assertEqual(DebateEngine._judge_reasons(rejected), "Fix X.")
 
 
 class RetrievalLoopTests(EngineHarness):
@@ -729,6 +769,165 @@ class ProductionProblemTests(EngineHarness):
         self.run_debate(self.engine(), runner)
         self.assertNotIn("citation_check", [e["type"] for e in self.events()])
 
+    # --- a re-ask that falls back keeps the first answer --------------------------------------------
+
+    # The re-ask call comes back builtin (the provider timed out); the failures are the honest record of it.
+    BUILTIN_REPLY = LLMResult(BUILTIN_PROVIDER, "canned builtin analysis", failures=["claude: timed out after 300s"])
+
+    def test_a_citation_reask_that_falls_back_keeps_the_first_answer(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["See cli/tool.py:3.", self.BUILTIN_REPLY]))
+        result = self.run_debate(self.engine(), runner)
+
+        entry = self.expert_entry(result)
+        self.assertEqual(entry["content"], "See cli/tool.py:3.")  # the good first answer survives
+        self.assertEqual(entry["provider"], "claude-cli")
+        self.assertEqual(entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(entry["fallbacks"], ["claude: timed out after 300s"])
+        finished = self.event("agent_finished")
+        self.assertEqual(finished["data"]["provider"], "claude-cli")
+        self.assertFalse(finished["data"]["fallback"])
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli"})
+
+    def test_a_format_reask_that_falls_back_keeps_the_builtin_outcome(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["proposal"], judge=["No verdict line here.", self.BUILTIN_REPLY]))
+        result = self.run_debate(self.engine(), runner)
+
+        judge_entry = result["transcript"][2]
+        self.assertEqual(judge_entry["provider"], BUILTIN_PROVIDER)  # unchanged: a base without parts is not restored
+        self.assertEqual(judge_entry["content"], "canned builtin analysis")
+        self.assertEqual(self.event("verdict")["data"], {"approved": False, "unverified": True})
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "format", "kept": False, "provider": "claude-cli"})
+
+    def test_a_judge_citation_reask_that_falls_back_is_restored_with_its_verdict(self) -> None:
+        first = "The claim is wrong, see cli/tool.py:3.\nVERDICT: REJECTED"
+        runner = FakeRunner(self.plain_scripts(["proposal"], judge=[first, self.BUILTIN_REPLY]))
+        result = self.run_debate(self.engine(), runner)
+
+        judge_entry = result["transcript"][2]
+        self.assertEqual(judge_entry["provider"], "claude-cli")  # the whole answer, verdict included, is kept
+        self.assertEqual(judge_entry["content"], first)
+        self.assertEqual(judge_entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(self.event("verdict")["data"], {"approved": False, "unverified": False})
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli"})
+
+    def test_a_reask_code_request_whose_followup_falls_back_keeps_the_first_answer(self) -> None:
+        runner = FakeRunner(self.plain_scripts([
+            "See cli/tool.py:3.",
+            block({"op": "read", "path": "cli/tool.py"}),  # the re-ask answer asks for the code
+            self.BUILTIN_REPLY,  # and serving it fails: the follow-up call falls back
+        ]))
+        result = self.run_debate(self.engine(), runner)
+
+        entry = self.expert_entry(result)
+        self.assertEqual(entry["content"], "See cli/tool.py:3.")
+        self.assertEqual(entry["provider"], "claude-cli")
+        # Not recomputed on the restore: the citation check ran on the first answer, before the ask.
+        self.assertEqual(entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(entry["retrievals"][0]["paths"], ["cli/tool.py"])
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli"})
+
+    # --- a re-ask whose reply is not an answer at all keeps the first answer -------------------------
+
+    # The EXAONE case of 2026-11-19: the re-ask came back from the real provider as one unfenced requests
+    # object. The retrieval loop serves no fence, so this exact text must not become the round's answer.
+    BARE_REQUEST_REPLY = (
+        '{"requests": [{"op": "read", "path": "cli/llm-agent/team_manager.py:1-60"}, '
+        '{"op": "read", "path": "cli/llm-agent/team_manager.py:255-330"}, '
+        '{"op": "read", "path": "cli/llm-agent/config_ops.py:85-120"}, '
+        '{"op": "read", "path": "cli/llm-agent/test_team_manager.py:1-45"}, '
+        '{"op": "read", "path": "cli/llm-agent/test_team_manager.py:295-395"}, '
+        '{"op": "read", "path": "apps/web-desktop/src/lib/debate.ts:45-115"}, '
+        '{"op": "read", "path": "apps/web-desktop/src/lib/debate.ts:775-800"}, '
+        '{"op": "read", "path": "apps/web-desktop/src/pages/debate/TeamDialog.tsx:95-115"}, '
+        '{"op": "read", "path": "scripts/ci.sh:100-115"}]}'
+    )
+
+    def test_a_citation_reask_answered_by_a_bare_request_keeps_the_first_answer(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["See cli/tool.py:3.", self.BARE_REQUEST_REPLY]))
+        result = self.run_debate(self.engine(), runner)
+
+        entry = self.expert_entry(result)
+        self.assertEqual(entry["content"], "See cli/tool.py:3.")  # the request object is not an answer
+        self.assertEqual(entry["provider"], "claude-cli")
+        # The first check's list, not recomputed: the re-ask turns showed files the first answer never cited from.
+        self.assertEqual(entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(len(runner.prompts("expert")), 2)
+        self.assertEqual(len([e for e in self.events() if e["type"] == "citation_check"]), 1)
+        self.assertNotIn("evidence_check", [e["type"] for e in self.events()])
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli", "reason": "no_answer"})
+
+    def test_a_shorter_real_reask_answer_still_replaces_the_first_answer(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["See cli/tool.py:3.", "No finding."]))
+        result = self.run_debate(self.engine(), runner)
+
+        entry = self.expert_entry(result)
+        self.assertEqual(entry["content"], "No finding.")  # dropping the unbacked claim is the point of the ask
+        self.assertNotIn("unverified_citations", entry)
+        self.assertNotIn("reask_failed", [e["type"] for e in self.events()])
+
+    def test_a_whitespace_reask_reply_keeps_the_first_answer(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["See cli/tool.py:3.", "   \n\n"]))
+        result = self.run_debate(self.engine(), runner)
+
+        entry = self.expert_entry(result)
+        self.assertEqual(entry["content"], "See cli/tool.py:3.")
+        self.assertEqual(entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(len([e for e in self.events() if e["type"] == "citation_check"]), 1)
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli", "reason": "no_answer"})
+
+    def test_a_cut_off_bare_request_reask_reply_keeps_the_first_answer(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["See cli/tool.py:3.", '{"requests": [{"op": "read", "path": "cli/to']))
+        result = self.run_debate(self.engine(), runner)
+
+        entry = self.expert_entry(result)
+        self.assertEqual(entry["content"], "See cli/tool.py:3.")
+        self.assertEqual(entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli", "reason": "no_answer"})
+
+    def test_a_judge_citation_reask_answered_by_a_bare_request_keeps_the_first_answer(self) -> None:
+        first = "The claim is wrong, see cli/tool.py:3.\nVERDICT: REJECTED"
+        runner = FakeRunner(self.plain_scripts(["proposal"], judge=[first, self.BARE_REQUEST_REPLY]))
+        result = self.run_debate(self.engine(), runner)
+
+        judge_entry = result["transcript"][2]
+        self.assertEqual(judge_entry["content"], first)  # the whole answer, verdict included, is kept
+        self.assertEqual(judge_entry["provider"], "claude-cli")
+        self.assertEqual(judge_entry["unverified_citations"], ["cli/tool.py"])
+        self.assertEqual(self.event("verdict")["data"], {"approved": False, "unverified": False})
+        self.assertEqual(len([e for e in self.events() if e["type"] == "citation_check"]), 1)
+        self.assertNotIn("format_retry", [e["type"] for e in self.events()])  # the restored verdict needs no repair
+        self.assertEqual(self.event("reask_failed")["data"],
+                         {"kind": "citation", "kept": True, "provider": "claude-cli", "reason": "no_answer"})
+
+    def test_non_answer_and_bare_request_classification(self) -> None:
+        bare = json.dumps({"requests": [{"op": "read", "path": "cli/tool.py"}]})
+        self.assertTrue(is_bare_request(bare))
+        self.assertTrue(is_bare_request('{"requests": [{"op": "read", "path": "cli/to'))  # cut off mid-request
+        self.assertFalse(is_bare_request("The requests list was served."))  # prose that merely says "requests"
+        self.assertFalse(is_bare_request(json.dumps({"verdict": "APPROVED"})))  # JSON without a requests list
+        self.assertFalse(is_bare_request('{"requests": "read"}'))  # requests present but not a list
+
+        self.assertTrue(is_non_answer("   \n"))  # whitespace only
+        self.assertTrue(is_non_answer(bare))  # a bare retrieval request
+        self.assertTrue(is_non_answer(NO_ANSWER_PSEUDO))  # the engine's own placeholders
+        self.assertTrue(is_non_answer(NO_ANSWER_BUDGET))
+        fenced_repo = "```repo\n" + bare + "\n```"
+        self.assertTrue(is_non_answer(fenced_repo))  # a fenced block holds no prose
+        fenced_ops = "```ops\n" + bare + "\n```"
+        self.assertTrue(is_non_answer(fenced_ops, ops=True))
+        self.assertFalse(is_non_answer("No finding."))  # a short real answer is an answer
+        self.assertFalse(is_non_answer("See cli/tool.py:3."))
+        self.assertFalse(is_non_answer("Discussion of the requests object."))  # the word alone changes nothing
+        self.assertFalse(is_non_answer(json.dumps({"decision": "x"})))  # a JSON dict without requests
+        self.assertFalse(is_non_answer(NO_ANSWER_PSEUDO + " and more after it"))  # never matched by prefix
+
 
 def add_mention_files(harness: "EngineHarness") -> None:
     """Commits a Go file that only names cli/guardian.py in a string constant, plus two Python files."""
@@ -1099,6 +1298,23 @@ class PanelAndEventTests(EngineHarness):
         self.assertEqual(len(failed), 3)  # expert, critic, judge each skipped claude
         self.assertEqual(failed[0]["data"], {"provider": "claude", "error": "timed out after 300s"})
         self.assertEqual(failed[0]["role"], "Domain Expert")
+
+    def test_turn_stats_become_one_provider_usage_event(self) -> None:
+        stats = {"elapsed_s": 1129.3, "timeout_s": 1200.0, "timeout_source": "EXAONE_TIMEOUT", "effort": "high",
+                 "stream": True, "retries": 0, "first_byte_s": 1.8, "finish_reason": "stop", "prompt_bytes": 73000,
+                 "prompt_tokens": 38364, "completion_tokens": 20730, "reasoning_tokens": 20564}
+        runner = FakeRunner(self.plain_scripts([LLMResult("exaone-api", "FINAL expert answer", stats=stats)]))
+        self.run_debate(self.engine(), runner)
+        usage = [e for e in self.events() if e["type"] == "provider_usage"]
+        self.assertEqual(len(usage), 1)  # the critic and the judge answered without stats
+        self.assertEqual(usage[0]["data"], {"provider": "exaone-api", **stats})
+        self.assertEqual((usage[0]["round"], usage[0]["role"], usage[0]["agent"]),
+                         (1, "Domain Expert", "Domain Expert"))
+
+    def test_turns_without_stats_emit_no_provider_usage(self) -> None:
+        runner = FakeRunner(self.plain_scripts(["FINAL expert answer"]))
+        self.run_debate(self.engine(), runner)
+        self.assertEqual([e for e in self.events() if e["type"] == "provider_usage"], [])
 
     def test_builtin_fallback_is_flagged(self) -> None:
         def builtin(prompt, context=None, session_id=None, provider=None, providers=None):

@@ -5,8 +5,8 @@
 `debate-agent-retrieval.md`의 탐색(repo 블록, `repo_*` MCP)을 바꾸지 않고 그 위에 길잡이를 더한다.
 탐색은 여전히 근거를 얻는 유일한 길이고, 이 문서의 모든 기능은 "어디를 읽을지"를 줄여 주는 역할만 한다.
 
-지금 값(2026-10-18): `INDEX_VERSION` 2(`code_index.py`), `MAP_VERSION` 3(`repo_map.py`), `GOINDEX_VERSION` 1(`go_facts.py`),
-`WIKI_PROMPT_VERSION` `2026-10-16.wiki6`(`wiki_build.py`), `RETRIEVAL_PROMPT_VERSION` `2026-10-17.p10`(`debate_engine.py`. p2.6 뒤의
+지금 값(2026-10-30): `INDEX_VERSION` 2(`code_index.py`), `MAP_VERSION` 3(`repo_map.py`), `GOINDEX_VERSION` 1(`go_facts.py`),
+`WIKI_PROMPT_VERSION` `2026-10-30.wiki7`(`wiki_build.py`), `RETRIEVAL_PROMPT_VERSION` `2026-10-30.p23`(`debate_engine.py`. p2.6 뒤의
 올림은 이 문서 밖의 기능에서 왔다). 아래 구현 메모에 적힌 버전 값은 그 단계 당시의 값이다.
 
 ## 문제
@@ -664,3 +664,16 @@ updated: 2026-10-12T09:00:00Z
 - 임베딩·벡터 검색(의미 검색 op `search`)은 별도 실험으로 남긴다. 들어오더라도 후보 위치만 주는 2층 길잡이와 같은 규칙(근거 아님)을 따른다.
 - LSP 서버는 띄우지 않는다. Go는 P2.6에서 일회성 타입 검사로 정확한 참조를 얻고, 그 밖의 언어의 `refs`는 이름 기반이며 결과에 그렇게 적는다.
 - 위키 서술을 판정자의 액션 검증(`ContextPack.saw`)에 쓰지 않는다. 판정자는 지금처럼 읽은 원문으로만 패치를 만든다.
+
+### 작성자 프롬프트 wiki7 (2026-10-30)
+
+- **링크 후보.** 작성자는 알파벳순 앞의 페이지 id 60개만 받고 id를 지어내지 말라는 지시를 받아서, 페이지가 더 많은 위키에서는 뒤쪽 페이지를
+  링크할 수 없었다. `link_candidates`가 그 페이지의 같은 계열(개요와 그룹 페이지)을 앞에 두고, `build_prompt`는 id를 최대 300개
+  (`MAX_LINK_IDS`) 준다.
+- **길이 하나.** 개요 페이지는 안내에서 "약 4000자", 답 형식에서 "약 6000자 미만"을 함께 받았다. 이제 답 형식이 개요에는 4000, 나머지
+  페이지에는 6000을 말한다.
+- **findings 블록.** 답 형식이 페이지 뒤의 findings 블록은 허용되며 페이지에서 빠진다고 말한다. 코드 읽기 프로토콜이 요청하는 것이고
+  `parse_answer`도 이미 그렇게 했다.
+- **언어 규칙.** 작성자는 감사, solo agent와 마찬가지로 토론용 "decision, rationale, constraints, checks and action reasons"가 빠진 언어
+  규칙을 받는다(`answer_language_rule(..., debate=False)`). 토론 프롬프트는 그대로다.
+- 버전이 올라가서 `--stale`가 wiki6으로 쓴 LLM 페이지를 모두 고르므로, 다음 수동 새로고침은 위키 전체를 다시 쓴다(운영자 결정, 2026-10-30).

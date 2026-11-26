@@ -15,17 +15,14 @@ import { Ago } from '../../components/Ago';
 import { Card } from '../../components/Card';
 import { DataGate } from '../../components/DataGate';
 import { MarkdownDoc } from '../../components/MarkdownDoc';
-import { useExportAction } from '../../components/ExportButton';
 import { Notice } from '../../components/Notice';
 import { ProjectSwitcher } from '../../components/ProjectSwitcher';
 import { Row, Stack, mono, muted } from '../../components/layout';
 import { useHubData } from '../../hooks/useHubData';
-import { inDesktopShell } from '../../lib/exportFolder';
+import { inDesktopShell } from '../../lib/shell';
 import { OFFICE_FORMATS, artifactParams, artifactView, canMakeDerived, derivedFormat, mermaidAsMarkdown, parseArtifactRoute, svgDataUrl } from '../../lib/artifacts';
 import type { ArtifactRoute, OfficeFormat } from '../../lib/artifacts';
 import { parseTime } from '../../lib/debate';
-import { countResults, exportGetRoot, exportSave } from '../../lib/exportFolder';
-import { versionFiles } from '../../lib/exportThread';
 import { errorText, fmtBytes } from '../../lib/format';
 import { hrefFor } from '../../router';
 import { useProjectStore } from '../../state/projectStore';
@@ -58,17 +55,11 @@ function When({ iso }: { iso: string }) {
 
 /**
  * Saves a downloaded artifact. The text came through the authenticated API (cookie or bearer), so a Blob link works
- * in both modes without a token in the URL. The desktop shell writes it into the export folder when one is set (any
- * kind, as `v<n>/<file>` of its thread); without one it can only write Markdown to Downloads (`save_download`).
+ * in both modes without a token in the URL. The desktop shell can only write Markdown to Downloads (`save_download`).
  */
-async function saveArtifact(file: ArtifactFile, text: string, at: { project: string; thread: string; version: number }): Promise<string> {
+async function saveArtifact(file: ArtifactFile, text: string): Promise<string> {
   const base = file.path.split('/').pop() ?? file.path;
   if (inDesktopShell()) {
-    const root = await exportGetRoot();
-    if (root) {
-      const [saved] = await exportSave(at.project, at.thread, [{ relPath: `v${at.version}/${file.path}`, contents: text }]);
-      return `${root}/${at.project}/${at.thread}/${saved.savedAs}`;
-    }
     if (file.kind !== 'markdown') throw new Error(tr.artifacts.desktopMarkdownOnly);
     return invoke<string>('save_download', { fileName: base, contents: text });
   }
@@ -85,7 +76,7 @@ async function saveArtifact(file: ArtifactFile, text: string, at: { project: str
 
 /**
  * Saves a derived Office file (binary, so it cannot take the text path above). Browser only: the desktop shell's
- * `save_download` and export folder write text, and a Blob link does not download inside its webview.
+ * `save_download` writes text, and a Blob link does not download inside its webview.
  */
 function saveDerived(file: ArtifactFile, blob: Blob): string {
   if (inDesktopShell()) throw new Error(tr.artifacts.desktopOfficeBrowserOnly);
@@ -131,7 +122,7 @@ function FileViewer({ project, thread, version, file }: { project: string; threa
         return;
       }
       const text = state.phase === 'ready' ? state.text : await fetchArtifactText(thread, version, file.path);
-      setSaved({ ok: true, text: tr.artifacts.downloaded(await saveArtifact(file, text, { project, thread, version })) });
+      setSaved({ ok: true, text: tr.artifacts.downloaded(await saveArtifact(file, text)) });
     } catch (e) {
       if (!(e instanceof AuthRequiredError)) setSaved({ ok: false, text: tr.artifacts.downloadFailed(errorText(e)) });
     }
@@ -261,20 +252,6 @@ function VersionChips({ thread, versions, current }: { thread: string; versions:
   );
 }
 
-/** Writes every file of one version into the export folder (desktop shell only). */
-function SaveVersion({ thread, version }: { thread: string; version: number }) {
-  const exp = useExportAction(async () => {
-    const { project, files } = await versionFiles(thread, version);
-    return files.length === 0 ? { written: 0, skipped: 0, renamed: 0 } : countResults(await exportSave(project, thread, files));
-  });
-  return (
-    <div style={{ display: 'grid', gap: 'var(--sg-s-3)' }}>
-      <div>{exp.button(tr.shell.exportFolder.saveVersion)}</div>
-      {exp.notice}
-    </div>
-  );
-}
-
 function VersionFiles({ thread, version, route }: { thread: string; version: number; route: ArtifactRoute }) {
   const state = useHubData<ArtifactManifest>(() => fetchArtifactManifest(thread, version));
   return (
@@ -283,7 +260,7 @@ function VersionFiles({ thread, version, route }: { thread: string; version: num
         const open = route.file ? m.files.find((f) => f.path === route.file) : undefined;
         return (
           <Stack gap="var(--sg-s-5)">
-            {m.expired_at ? <Notice tone="info">{tr.artifacts.expiredVersion}</Notice> : <SaveVersion thread={thread} version={version} />}
+            {m.expired_at ? <Notice tone="info">{tr.artifacts.expiredVersion}</Notice> : null}
             {open ? (
               <>
                 <div>

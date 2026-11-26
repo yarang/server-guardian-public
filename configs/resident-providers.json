@@ -1,0 +1,184 @@
+{
+  "format": 1,
+  "measured": "2026-11-14",
+  "node": "node-1",
+  "source": "docs/analysis/2026-11-14-m0-resident-probe/results.md",
+  "note": "The M0 table of docs/design/resident-agents.md. Registration reads resident and default_driver; a provider with resident false is refused. Placeholders: <workdir> is the agent's empty working directory, <config_dir> its isolated CLI config, <home> the node user's home, <settings> and <mcp_config> files the supervisor writes. Layer status is pass, fail, unverified or not_probed.",
+  "budget": {
+    "basis": "Highest measured peak per turn 331 MiB (claude TUI, short turn, stub mailbox MCP); about 55 % margin for the real repo_mcp.py child and longer transcripts. Each figure is one short-turn sample.",
+    "where": "The figures moved to configs/worker-requirements.json (resident_memory_mib, resident_turn_memory_mib, install-order step 2, M2a 2026-11-15); registration reads them there. The basis stays here.",
+    "per_node_mib": {
+      "headless_only": 3584,
+      "with_one_tmux_instance": 4096
+    },
+    "cpu_share_max": 0.04,
+    "max_jobs_change": false
+  },
+  "providers": {
+    "claude": {
+      "version": "2.1.301",
+      "resident": true,
+      "supports_fork": true,
+      "default_driver": "headless",
+      "drivers": {
+        "tmux": {
+          "status": "unverified",
+          "layers": {
+            "config": "pass",
+            "tools": "pass",
+            "composer": "unverified"
+          },
+          "open_check": "With a prompt suggestion (ghost text) on screen and CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false set, a bare Enter must submit nothing. Suggestions are gated by a server flag and did not reproduce on demand; the code reading shows the env var returns before the flag and the setting are read. 2.1.301 has no switch that turns off '!' shell input in the composer, so this check decides the composer layer. probe-resident.sh re-tests it per version.",
+          "command": [
+            "claude",
+            "--setting-sources", "",
+            "--settings", "<settings>",
+            "--tools", "",
+            "--mcp-config", "<mcp_config>",
+            "--strict-mcp-config",
+            "--allowedTools", "mcp__mailbox__*,mcp__repo__*",
+            "--disable-slash-commands",
+            "--permission-mode", "dontAsk"
+          ],
+          "env": {
+            "CLAUDE_CONFIG_DIR": "<config_dir>",
+            "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION": "false",
+            "DISABLE_AUTOUPDATER": "1",
+            "CLAUDE_CODE_OAUTH_TOKEN": "from <home>/.guardian/llm.env, never printed"
+          },
+          "env_clear": true,
+          "settings": {
+            "promptSuggestionEnabled": false,
+            "hooks": ["SessionStart", "UserPromptSubmit", "Stop", "Notification"]
+          },
+          "seed_files": {
+            "<config_dir>/.claude.json": {
+              "hasCompletedOnboarding": true,
+              "projects": {
+                "<workdir>": {"hasTrustDialogAccepted": true, "hasCompletedProjectOnboarding": true}
+              }
+            }
+          },
+          "signals": {
+            "turn_start": "UserPromptSubmit hook (session_id)",
+            "turn_end": "Stop hook (session_id, stop_hook_active, last_assistant_message)",
+            "question": "none observed. Notification idle_prompt arrives about 60 s after Stop and means waiting after the turn, not a question. Under --permission-mode dontAsk with --tools \"\" no permission question can arise; this follows from the mode and was not observed.",
+            "stop_hook_guard": "stop_hook_active true on the second Stop after a block (observed)",
+            "session_start": "SessionStart hook with source startup"
+          },
+          "hook_output_reaches_model": ["UserPromptSubmit stdout", "Stop block reason"],
+          "rules": [
+            "Hooks print nothing or fixed text only.",
+            "The hook forwarder never echoes last_assistant_message.",
+            "Wake lines are fixed text and never start with '!' or '/'.",
+            "--prompt-suggestions false only controls print and SDK output; it is not the TUI switch."
+          ],
+          "session_id_source": "session_id in every hook payload; transcript_path names the same id",
+          "session_id_flag_in_tui": "not_probed",
+          "system_prompt_slot": "--append-system-prompt (used by _claude_system_args in headless); not probed in the TUI",
+          "memory_mib": {"idle": 315, "turn_peak": 331},
+          "cpu_share": 0.04
+        },
+        "headless": {
+          "status": "pass",
+          "basis": "The existing llm_runner path (run_session_prompt with resume) and its closure; not re-probed with the mailbox MCP in M0. The mailbox MCP adapter is an M2 deliverable.",
+          "memory_mib": {"turn_peak": "not measured; the TUI figure 331 stands in"}
+        }
+      }
+    },
+    "codex": {
+      "version": "0.163.0",
+      "resident": false,
+      "open_resident": true,
+      "supports_fork": false,
+      "open_driver": "headless",
+      "default_driver": null,
+      "reason": "The tools layer fails in the TUI and in headless exec: with every feature of CODEX_MCP_DISABLED_FEATURES plus shell_snapshot, worktrees, sleep_tool and others disabled, a read-only sandbox and an isolated CODEX_HOME, codex still offers functions.exec, apply_patch, collaboration.spawn_agent and the other collaboration tools. Headless exec also listed skills from the user's skill directory.",
+      "drivers": {
+        "tmux": {
+          "status": "fail",
+          "layers": {"config": "pass", "tools": "fail", "composer": "not counted: tools already fails"},
+          "command": [
+            "codex", "--no-daemon", "--strict-config",
+            "--disable", "<each of CODEX_MCP_DISABLED_FEATURES, shell_snapshot, worktrees, sleep_tool, in_app_browser, realtime_conversation, skill_mcp_dependency_install, workspace_dependencies>",
+            "-c", "mcp_servers.mailbox.*=<stub>",
+            "-c", "web_search=\"disabled\"",
+            "-c", "notify=[<hook>, \"codex-notify\"]",
+            "-s", "read-only", "-a", "never", "-C", "<workdir>"
+          ],
+          "env": {"CODEX_HOME": "<config_dir>"},
+          "env_clear": true,
+          "signals": {
+            "turn_start": "none",
+            "turn_end": "notify agent-turn-complete (thread-id, turn-id, client codex-tui, input-messages, last-assistant-message)",
+            "question": "none"
+          },
+          "session_id_source": "thread-id in the notify payload",
+          "memory_mib": {"idle": 203, "turn_peak": 237},
+          "cpu_share": 0.01
+        },
+        "headless": {
+          "status": "fail",
+          "layers": {"config": "fail", "tools": "fail", "composer": "pass"},
+          "session_id_source": "thread_id in the thread.started event of --json"
+        }
+      },
+      "follow_up": "Checked 2026-11-15: functions.exec is the code-mode host (feature code_mode_host). It has no file API, MCP calls run through it, and disabling it breaks MCP, so _codex_mcp_args in llm_runner.py rightly keeps it. Sub-agents of collaboration.spawn_agent inherit the locked tool set, collaboration_modes cannot be disabled, and apply_patch is blocked by the read-only sandbox. Debate turns therefore have no file or shell channel; codex still fails layer 2 here because tools beyond mailbox and repo stay offered. Re-probe when a release can drop the collaboration tools and apply_patch."
+    },
+    "agy": {
+      "version": "1.5.12",
+      "resident": true,
+      "supports_fork": false,
+      "default_driver": "headless",
+      "drivers": {
+        "headless": {
+          "status": "pass",
+          "layers": {
+            "config": "pass",
+            "tools": "pass",
+            "composer": "pass"
+          },
+          "tools_basis": "The PreToolUse hook alone: built-in tools stay offered and are denied by the hook (read_file, write_file, run_command, invoke_subagent, schedule, search_web, send_message tried). On 1.5.9 and 1.5.12 the hook fails closed on exit 1, on a hang (cut and denied) and when its file is missing (exit 127, denied). Without hooks.json agy 1.5.12 ran write_file and created the file (1.5.9 refused run_command; writes were not tried then): the hook is the only closure layer, so the supervisor checks hooks.json and the hook file before each start. Calls to the mailbox MCP need the hook's allow and permissions.allow.",
+          "composer_basis": "No composer in headless: prompts arrive as stream-json user events; text starting with '!' or '/' went to the model as plain text.",
+          "command": [
+            "agy",
+            "--output-format", "stream-json",
+            "--input-format", "stream-json",
+            "--print-timeout", "200s",
+            "--disable-slash-commands",
+            "--print=",
+            "[--conversation <id>]"
+          ],
+          "env": {"HOME": "<config_dir>", "AGY_CLI_DISABLE_AUTO_UPDATE": "true"},
+          "env_clear": true,
+          "seed_files": {
+            "<config_dir>/.gemini/antigravity-cli/antigravity-oauth-token": "symlink to the node user's token, never a copy",
+            "<config_dir>/.gemini/config/mcp_config.json": {"mcpServers": {"mailbox": "<server>", "repo": "<server>"}},
+            "<config_dir>/.gemini/config/hooks.json": {"<name>": {"PreToolUse": [{"matcher": "*", "hooks": [{"command": "<hook>"}]}], "SessionStart": "<hook>", "PreInvocation": "<hook>", "PostInvocation": "<hook>", "Stop": "<hook>"}},
+            "<config_dir>/.gemini/antigravity-cli/settings.json": {"trustedWorkspaces": ["<workdir>"], "permissions": {"allow": ["mcp(mailbox/<tool>)", "mcp(repo/<tool>)"]}},
+            "<config_dir>/.gemini/antigravity-cli/cache/onboarding.json": {"consumerOnboardingComplete": true, "enterpriseOnboardingComplete": false, "onboardingComplete": true}
+          },
+          "onboarding": "Seeded marker (operator's decision of 2026-11-15): the values the node user's account already holds; the TUI then shows no color-scheme or terms screen. Optional data sharing is not part of the marker and stays off.",
+          "pin": "AGY_CLI_DISABLE_AUTO_UPDATE=true on every resident launch (agy honours only the exact lowercase value true; \"1\" left the updater on, which is how 1.5.9 became 1.5.12 on 2026-11-19); the supervisor refuses to start a version that is not this table's version. The node user's own agy, rc files and settings are not changed.",
+          "hook_rule": "allow only toolCall.name call_mcp_tool with args.ServerName mailbox or repo; deny everything else; print {} for other events",
+          "signals": {
+            "turn_start": "the process start (headless); PreInvocation fires per model invocation, several per turn",
+            "turn_end": "the result event and the process exit; Stop hook with fullyIdle and terminationReason",
+            "question": "none",
+            "session_start": "SessionStart fires only for a new conversation, not on resume"
+          },
+          "session_id_source": "result.conversation_id in the result event; conversationId in every hook payload",
+          "resume": "--conversation <id> (observed: a later turn recalled the earlier answer)",
+          "system_prompt_slot": "none known; not probed",
+          "memory_mib": {"turn_peak": 256, "turn_peak_resume": 233},
+          "cpu_share": 0.02
+        },
+        "tmux": {
+          "status": "unverified",
+          "layers": {"config": "pass", "tools": "pass", "composer": "unverified"},
+          "reason": "Probed on 1.5.9 and again on 1.5.12 with the seeded onboarding marker (no consent screen). The PreToolUse hook holds in the TUI. The composer has '!' bash mode, which runs a shell command without the PreToolUse hook and has no switch, and 50 slash commands (/hooks, /permissions, /mcp, /logout, ...). A bare Enter on the empty composer submits nothing; no path from model or hook output into the composer was seen. Same class as claude tmux, so headless stays the default."
+        }
+      }
+    }
+  }
+}

@@ -14,5 +14,9 @@ import { wiki } from './en/wiki';
 import { artifacts } from './en/artifacts';
 import { personas } from './en/personas';
 import { results } from './en/results';
+import { ask } from './en/ask';
+import { review } from './en/review';
+import { flows } from './en/flows';
+import { residents } from './en/residents';
 
-export const en: Messages = { common, shell, ops, fleet, debate, agents, wiki, artifacts, personas, results };
+export const en: Messages = { common, shell, ops, fleet, debate, agents, wiki, artifacts, personas, results, ask, review, flows, residents };

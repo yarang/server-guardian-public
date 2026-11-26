@@ -6,14 +6,18 @@ import { SelectField } from '../../components/SelectField';
 import { Grid, Row, Stack, mono, muted } from '../../components/layout';
 import type { HubDataState } from '../../hooks/useHubData';
 import { roleTone } from '../../lib/debate';
-import { NEW_PERSONA_PARAM, matchesPersona, personasHref, roleOptions } from '../../lib/personas';
+import { NEW_PERSONA_PARAM, isCharacter, matchesPersona, personasHref, roleOptions, seatTone } from '../../lib/personas';
 import type { PersonaConfig, PersonaList as PersonaListData } from '../../types';
+import { FormatChip } from '../debate/FormatChip';
 import { SourceChip } from '../debate/SourceChip';
 import { tr } from '../../i18n';
 
 const P = tr.personas;
 
-/** All personas as cards: search over name / id / domain, a role filter, builtin / custom chip, edit link. */
+/**
+ * All personas as cards: search over name / id / domain (a character over its tagline and identity), a role
+ * filter (a character has no role label, so it shows under "all" only), builtin / custom and format chips.
+ */
 export function PersonaList({ state }: { state: HubDataState<PersonaListData> }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('');
@@ -63,17 +67,35 @@ export function PersonaList({ state }: { state: HubDataState<PersonaListData> })
                     <Card key={p.id}>
                       <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
                         <strong style={{ overflowWrap: 'anywhere' }}>{p.name}</strong>
-                        <SourceChip source={p.source} />
+                        <Row gap="var(--sg-s-2)" style={{ flexWrap: 'nowrap' }}>
+                          <SourceChip source={p.source} />
+                          <FormatChip persona={p} />
+                        </Row>
                       </Row>
-                      <div style={{ color: 'var(--sg-text-secondary)', fontSize: 13, overflowWrap: 'anywhere' }}>{p.domain}</div>
+                      <div style={{ color: 'var(--sg-text-secondary)', fontSize: 13, overflowWrap: 'anywhere' }}>
+                        {isCharacter(p) ? p.profile?.tagline || p.persona?.identity || '' : p.domain}
+                      </div>
                       <Row gap="var(--sg-s-3)">
-                        <StatusChip tone={roleTone(p.role || '')}>{p.role}</StatusChip>
+                        {isCharacter(p)
+                          ? (p.seats ?? []).map((s) => (
+                              <StatusChip key={s} tone={seatTone(s)}>
+                                {P.slot[s] ?? s}
+                              </StatusChip>
+                            ))
+                          : <StatusChip tone={roleTone(p.role || '')}>{p.role || ''}</StatusChip>}
                         <span style={{ ...mono, ...muted, fontSize: 12, overflowWrap: 'anywhere' }}>{p.id}</span>
                       </Row>
                       <div>
-                        <Button size="sm" variant="outline" aria-label={P.editAria(p.name)} onClick={() => (window.location.hash = personasHref(p.id))}>
-                          {P.edit}
-                        </Button>
+                        {isCharacter(p) ? (
+                          // The character opens read-only (C2), so the button says view, not edit.
+                          <Button size="sm" variant="outline" aria-label={P.character.title(p.name)} onClick={() => (window.location.hash = personasHref(p.id))}>
+                            {P.view}
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" aria-label={P.editAria(p.name)} onClick={() => (window.location.hash = personasHref(p.id))}>
+                            {P.edit}
+                          </Button>
+                        )}
                       </div>
                     </Card>
                   ))}

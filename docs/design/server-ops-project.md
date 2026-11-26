@@ -707,3 +707,29 @@ they get their own lineups instead of widening `fleet-ops`.
     team gains nothing from the gate, so a `DISPUTED` there is cosmetic; if it becomes noise, state the clause as
     report text rather than as a constraint. Not changed.
   - Not covered: no repetition, no human grade, no comparison against `fleet-ops` on the same host.
+
+### fleet-ops calibration (2026-10-30, prompt `p19` (the GitHub mirror's number; `p21` after the merge with the local history))
+
+The operator decided to give the watch team the calibration of the specialist teams. `ops_safety_critic` and
+`ops_capacity_critic` grade each objection `[차단]` (a cited harm) or `[권고]` (advice), ask for no precondition the order
+or the checks do not contain, cite `[#번호 조회 노드]` and leave each other's concern to the other critic;
+`ops_judge` turns only `[차단]` into a changed action, invents no prohibitions and names what its tools cannot do. The
+capacity critic used to be told to confirm journald and logrotate settings "from the checks", which no check reads;
+it now names the checks that show sizes and growth and calls the settings out of the tools. The team keeps its members,
+tools and the watch. Not measured: no debate has run with the new prompts.
+
+### LLM CLI skills brought in step (2026-10-30)
+
+- `guardian-host-cleanup` now lists every directory Guardian's own actions refuse to remove whole (`ops_paths.SYSTEM_DIRS`:
+  `/var/log`, `/opt`, `/srv`, `/tmp`, ...) as "never removed or emptied themselves"; before, its rules allowed
+  `rm -rf --one-file-system -- /var/log` on any host the skill is installed on. `guardian-workspaces` joined the
+  protected names. `test_llm_skills.py` fails when `ops_paths` gains a tree, a system directory or a name the skill
+  does not list, when a skill names a `guardian.py` flag that does not exist, or when the fleet skill misses an
+  operations team.
+- `guardian-fleet-ops` picks the team by the order (`fleet-ops`, `fleet-services`, `fleet-mesh`, `fleet-provision`) and
+  has a plan section (`--plans`, `--plan-show`, `--plan-run --yes`, `--plan-reject`, run only after the operator's yes
+  to that plan id); before, a package order went to `fleet-ops`, which holds no package tool.
+- `guardian-host-check` and `guardian-host-cleanup` look at `uname -s` and `/etc/os-release` first: their commands are
+  for Debian and Ubuntu. The read-only check may use the system's own equivalent; the cleanup runs nothing on another
+  system.
+- The hosts get the new text only with `scripts/deploy-llm-skills.sh`.

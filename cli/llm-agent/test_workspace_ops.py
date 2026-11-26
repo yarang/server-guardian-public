@@ -65,6 +65,12 @@ class WorkspaceResetTests(PublishCase):
             self.assertIn("not the tracked branch", result[1]["error"])
         self.assertTrue((self.ws / "junk.txt").exists())
 
+    def test_a_trailing_newline_in_an_id_or_actor_is_refused(self) -> None:
+        # "$" also matches just before a trailing newline, so only fullmatch refuses "demo\n" / "op\n".
+        self.assertEqual(workspace_ops.reset_plan_json(self.db, self.workspaces, "demo\n")[0], 2)
+        self.assertEqual(workspace_ops.reset_apply_json(self.db, self.workspaces, "demo\n", "op")[0], 2)
+        self.assertEqual(workspace_ops.reset_apply_json(self.db, self.workspaces, "demo", "op\n")[0], 2)
+
     def test_busy_workspace_is_a_conflict(self) -> None:
         from project_registry import workspace_lock
 
@@ -106,6 +112,11 @@ class PublicationsTests(PublishCase):
         # The same id pattern as the hub route: anything else is a bad input, not a lookup.
         for bad in ("t1", "missing", "thread_../x", "thread_" + "a" * 81):
             self.assertEqual(workspace_ops.publications_json(self.db, bad)[0], 2, bad)
+
+    def test_a_thread_id_with_a_trailing_newline_is_refused(self) -> None:
+        # "thread_x\n" is bad input (2), not an unknown thread (3): "$" also matches before a trailing newline.
+        self.assertEqual(workspace_ops.publications_json(self.db, "thread_x")[0], 3)
+        self.assertEqual(workspace_ops.publications_json(self.db, "thread_x\n")[0], 2)
 
     def test_cli_exit_codes(self) -> None:
         env = {**os.environ, "GUARDIAN_DATA_DIR": str(self.root / "cli-data")}

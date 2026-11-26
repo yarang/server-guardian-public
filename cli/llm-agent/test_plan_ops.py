@@ -423,6 +423,9 @@ class JsonTests(PlanCase):
 
         self.assertEqual(plan_ops.show_plan_json(self.db, mcp, "plan_nope")[0], action_ops.NOT_FOUND)
         self.assertEqual(plan_ops.show_plan_json(self.db, mcp, "../x")[0], action_ops.INVALID_INPUT)
+        # "$" also matches just before a trailing newline, so only fullmatch refuses "plan_nope\n".
+        self.assertEqual(plan_ops.show_plan_json(self.db, mcp, "plan_nope\n")[0], action_ops.INVALID_INPUT)
+        self.assertEqual(plan_ops.run_plan_json(self.db, mcp, plan_id, "tester\n")[0], action_ops.INVALID_INPUT)
         self.assertEqual(plan_ops.run_plan_json(self.db, mcp, plan_id, "bad actor!")[0], action_ops.INVALID_INPUT)
 
         code, ran = plan_ops.run_plan_json(self.db, mcp, plan_id, "tester", host_wait=0.2, host_poll=0.05)

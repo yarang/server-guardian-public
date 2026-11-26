@@ -2,7 +2,7 @@
 
 English | [한국어](wiki-viewer.ko.md)
 
-Status: proposed 2026-10-27; decisions 1-5 approved the same day as recommended. V0 (page links), V1 (index, reading view), V2 (`summary`, `links`) and V3 (shortcuts) are built and deployed (2026-10-28, `d84562c`). V4 (three modes: Read, Files, History; decision 6, approved 2026-10-28) is built and deployed (2026-10-28, `5a8df55`). Nothing is checked in a real browser yet.
+Status: proposed 2026-10-27; decisions 1-5 approved the same day as recommended. V0 (page links), V1 (index, reading view), V2 (`summary`, `links`) and V3 (shortcuts) are built and deployed (2026-10-28, `d84562c`). V4 (three modes: Read, Files, History; decision 6, approved 2026-10-28) is built and deployed (2026-10-28, `5a8df55`). V0-V4 checked in a real browser on 2026-10-31 at desktop width (see the last notes); 390 px is not checked.
 Base documents: "Layer 2. Code wiki" in `debate-code-index-wiki.md` and `code-wiki-coverage.md` (page kinds, file view). This
 document only changes how the dashboard shows pages; page storage, the writer and the evidence rules do not change.
 
@@ -204,4 +204,9 @@ V1 does not wait for V2: without a summary a card shows the scope line, and "Ref
 
 - `tests/wikiViewer.test.ts` (helpers), `tests/wiki.test.tsx` (index, search, split directories, reading view, actions, tree state,
   shortcuts), `python3 -m unittest test_code_wiki` (92 tests, `ViewerListingTests`). V4: `Wiki view: modes` in `tests/wiki.test.tsx` (7 tests) and the changed build tests; `scripts/ci.sh web` passed with 826 tests.
-- **Not done:** a check in a real browser at 1280 px and 390 px (section 6); the `[[id]]`-only assumption of V0 against real stored pages.
+- **Real-browser check (2026-10-31, hub dashboard in Chrome, about 1180 px wide, read-only):** V0: a stored page had 11 `[[id]]`
+  links, none marked missing, a click opened the target page. V1: index, search, status, start list and cards. V2: summaries in
+  the list and the "referenced by" section. V3: `]`/`[`, `g i`, and `/` (opens `?find=1` with the field focused). V4: Read |
+  Files (979 files) | History, build buttons only in History. No defect found in the wiki view itself.
+- **Not done:** 390 px (the browser window could not be narrowed from the tool; the built-in pane needs a token login), the tree's
+  collapse state after a reload, and the build buttons themselves (they write).

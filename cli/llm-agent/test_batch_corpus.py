@@ -20,7 +20,7 @@ class CorpusTests(unittest.TestCase):
     def test_the_corpus_has_the_size_it_documents(self) -> None:
         result = batch_corpus.measure()
         self.assertEqual(result["healthy"], 14)
-        self.assertEqual(sum(c["total"] for c in result["classes"].values()), 35)
+        self.assertEqual(sum(c["total"] for c in result["classes"].values()), 36)
 
     def test_a_gate_that_calls_everything_reversible_is_caught(self) -> None:
         with patch.object(batch_gate, "is_reversible", return_value=True):

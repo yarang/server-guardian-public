@@ -21,7 +21,7 @@ GUARDIAN_TEAMS_DIR (default <GUARDIAN_DATA_DIR>/teams) and override builtin ones
 
 "host" is optional: a model-worker host (remote_agents.py) the member thinks on, an inventory id or a label
 (worker:any, worker:other); without it the member runs on the hub.
-"code_tools" is optional: "mcp" lets a claude or codex member call read-only repo tools (needs GUARDIAN_REPO_MCP=1 on the host).
+"code_tools" is optional: "mcp" lets a claude, codex or opencode member call read-only repo tools (needs GUARDIAN_REPO_MCP=1 on the host).
 On a member with a "host" the tools read a snapshot of the commit on the worker: repo_list, repo_grep, repo_read,
 repo_outline and repo_map, without the symbol index (repo_defs, repo_refs, repo_callers, repo_callees).
 Only the critic may be a panel (a list). The expert and the judge are always one agent, so the
@@ -46,10 +46,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional
 
-from llm_runner import DEFAULT_PROVIDER_ORDER
+import character
+from llm_runner import KNOWN_PROVIDERS
 from mcp_client import RETIRED_TOOLS, TOOLS
 from persona_manager import PersonaManager
 from remote_agents import host_syntax_error, inventory_host_error
+from role_cards import home_seat
 
 EXPERT_ROLE = "Domain Expert"
 CRITIC_ROLE = "Critic Agent"
@@ -83,18 +85,20 @@ class Member:
 
     persona: str
     providers: List[str] = field(default_factory=list)
-    # "mcp" gives a claude or codex member read-only repo_* MCP tools (repo_mcp.py); None keeps engine-mediated repo blocks.
+    # "mcp" gives a claude, codex or opencode member read-only repo_* MCP tools (repo_mcp.py); None keeps engine-mediated repo blocks.
     code_tools: Optional[str] = None
     # Where the member thinks: None = the hub; a placement label (remote_agents.LABELS) or an inventory host id of an
     # enabled model worker. With code_tools "mcp" the worker reads a snapshot of the commit (five tools, no symbol index).
     host: Optional[str] = None
     # The position a versus advocate defends, written by the team author (never by a model); None for every other seat.
     stance: Optional[str] = None
+    # The seat id of a flow (flow_graph.py) this member was compiled from; None for a member of a team file.
+    seat: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """Snapshot form: code_tools, host and stance appear only when set, so older snapshots keep their shape."""
+        """Snapshot form: code_tools, host, stance and seat appear only when set, so older snapshots keep their shape."""
         data = asdict(self)
-        for optional in ("code_tools", "host", "stance"):
+        for optional in ("code_tools", "host", "stance", "seat"):
             if data[optional] is None:
                 del data[optional]
         return data
@@ -122,6 +126,11 @@ class Lineup:
     # The advocates of a versus flow (exactly two, side A first) and how often they answer each other.
     sides: List[Member] = field(default_factory=list)
     exchanges: int = 1
+    # Set by the engine when the run was started from a flow template (flow_templates.apply_to_lineup); not a team field.
+    template: Optional[Dict[str, Any]] = None
+    # Set by the engine when the run was started from a flow (flow_graph.compile_flow): its id, hash, parameter values,
+    # the characters seated and, for shapes the five kinds do not name, the custom steps; not a team field.
+    flow_graph: Optional[Dict[str, Any]] = None
 
     def stage_key(self, index: int) -> str:
         """Session key of a pipeline stage: by position, so one persona in two stages keeps two sessions."""
@@ -164,6 +173,10 @@ class Lineup:
             if self.sides:
                 data["flow"]["sides"] = [m.to_dict() for m in self.sides]
                 data["flow"]["exchanges"] = self.exchanges
+        if self.template:  # absent unless a template started the run, so older snapshots keep their shape
+            data["template"] = self.template
+        if self.flow_graph:  # likewise: absent unless a flow started the run
+            data["flow_graph"] = self.flow_graph
         return data
 
 
@@ -194,7 +207,10 @@ def _member(raw: Any, where: str) -> Member:
         problem = host_syntax_error(host)
         if problem:
             raise TeamValidationError(f"{where}.host: {problem}")
-    return Member(raw["persona"], list(providers), code_tools, host)
+    seat = raw.get("seat")
+    if seat is not None and not isinstance(seat, str):
+        raise TeamValidationError(f"{where}.seat: expected the seat id of a flow")
+    return Member(raw["persona"], list(providers), code_tools, host, seat=seat)
 
 
 def _side(raw: Any, where: str) -> Member:
@@ -253,7 +269,7 @@ def parse_lineup(data: Dict[str, Any]) -> Lineup:
     if not isinstance(data, dict):
         raise TeamValidationError("team must be a JSON object")
     team_id = data.get("id")
-    if not isinstance(team_id, str) or not TEAM_ID_PATTERN.match(team_id):
+    if not isinstance(team_id, str) or not TEAM_ID_PATTERN.fullmatch(team_id):
         raise TeamValidationError("id: use 1-64 lowercase letters, digits, '-' or '_'")
     flow = _flow(data.get("flow"))
     flow_kind = flow.kind
@@ -309,6 +325,13 @@ def parse_lineup(data: Dict[str, Any]) -> Lineup:
     )
 
 
+def _card_seat(where: str) -> str:
+    """The role card seat of a lineup position: drafters, stages and sides write like the expert."""
+    if where == "judge":
+        return "judge"
+    return "critic" if where.startswith("critic") else "expert"
+
+
 def validate_lineup(lineup: Lineup, persona_mgr: Optional[PersonaManager] = None) -> List[str]:
     """Checks references and limits. Raises on errors; returns warnings worth showing."""
     persona_mgr = persona_mgr or PersonaManager()
@@ -359,16 +382,30 @@ def validate_lineup(lineup: Lineup, persona_mgr: Optional[PersonaManager] = None
     if len(set(drafter_ids)) != len(drafter_ids):
         errors.append("proposers: the expert and each proposer need a different persona (it keys the session)")
 
-    members = [("expert", lineup.expert), *((f"proposers[{i}]", m) for i, m in enumerate(lineup.proposers)),
-               *((f"flow.stages[{i}]", m) for i, m in enumerate(lineup.stages)),
-               *((f"flow.sides[{i}]", m) for i, m in enumerate(lineup.sides)),
-               *((f"critic[{i}]", m) for i, m in enumerate(lineup.critics)), ("judge", lineup.judge)]
-    for where, member in members:
-        if persona_mgr.get_persona(member.persona) is None:
+    members = [("expert", lineup.expert, "expert"),
+               *((f"proposers[{i}]", m, "proposer") for i, m in enumerate(lineup.proposers)),
+               *((f"flow.stages[{i}]", m, "stage") for i, m in enumerate(lineup.stages)),
+               *((f"flow.sides[{i}]", m, "side") for i, m in enumerate(lineup.sides)),
+               *((f"critic[{i}]", m, "verifier" if flow == FLOW_VERIFY else "critic")
+                 for i, m in enumerate(lineup.critics)),
+               ("judge", lineup.judge, "judge")]
+    for where, member, seat in members:
+        persona = persona_mgr.get_persona(member.persona)
+        if persona is None:
             errors.append(f"{where}: unknown persona {member.persona!r}")
-        unknown = [p for p in member.providers if p not in DEFAULT_PROVIDER_ORDER]
+        else:
+            allowed = character.persona_seats(persona)
+            if allowed is not None and seat not in allowed:
+                # a character (format 2) sits only in the seats it names; a format 1 persona has no seat list
+                errors.append(f"{where}: persona {member.persona!r} may sit in {', '.join(allowed) or 'none'}, "
+                              f"not {seat}")
+            elif home_seat(persona) not in (None, _card_seat(where)):
+                # the card follows the home seat (role_cards.py): elsewhere the persona keeps its role and its card
+                warnings.append(f"{where}: persona {member.persona!r} has role_card {home_seat(persona)}; it keeps "
+                                "that seat's role and card here")
+        unknown = [p for p in member.providers if p not in KNOWN_PROVIDERS]
         if unknown:
-            errors.append(f"{where}: unknown provider(s) {unknown}; known: {DEFAULT_PROVIDER_ORDER}")
+            errors.append(f"{where}: unknown provider(s) {unknown}; known: {KNOWN_PROVIDERS}")
         if member.host:
             problem = inventory_host_error(member.host)
             if problem:
@@ -435,15 +472,16 @@ def _now_iso() -> str:
 def judge_tools(lineup: Lineup, judge_persona: Dict[str, Any]) -> Optional[List[str]]:
     """Tools the judge may propose: the team list narrowed by the persona's own list.
 
-    None means every catalog tool. A team can only narrow what the persona allows, never widen it.
+    None means every catalog tool. A team can only narrow what the persona allows, never widen it. The persona's own
+    list is its `tools` for a character (format 2), its `mcp_capabilities` before C2.
     """
-    persona_tools = judge_persona.get("mcp_capabilities") or None
+    own = character.persona_tools(judge_persona)
     if lineup.allowed_tools is None:
-        return persona_tools
+        return own
     team_tools = [t for t in lineup.allowed_tools if t not in RETIRED_TOOLS]
-    if persona_tools is None:
+    if own is None:
         return team_tools
-    return [t for t in team_tools if t in persona_tools]
+    return [t for t in team_tools if t in own]
 
 
 def builtin_teams_dir() -> Path:
@@ -494,7 +532,7 @@ class TeamManager:
         return list(merged.values())
 
     def get_team(self, team_id: str) -> Optional[Dict[str, Any]]:
-        if not TEAM_ID_PATTERN.match(team_id):
+        if not TEAM_ID_PATTERN.fullmatch(team_id):
             return None
         for directory in (self.directory, self.builtin_dir):
             path = directory / f"{team_id}.json"
@@ -503,7 +541,7 @@ class TeamManager:
         return None
 
     def is_custom(self, team_id: str) -> bool:
-        return TEAM_ID_PATTERN.match(team_id) is not None and (self.directory / f"{team_id}.json").exists()
+        return TEAM_ID_PATTERN.fullmatch(team_id) is not None and (self.directory / f"{team_id}.json").exists()
 
     def load(self, team_id: Optional[str]) -> Lineup:
         """Resolves a team id to a validated lineup; None or 'default' gives the built-in lineup."""

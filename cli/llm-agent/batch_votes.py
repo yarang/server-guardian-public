@@ -66,10 +66,14 @@ def vote_task(task: str, goal: str, plan_hash: str, steps: List[Dict[str, Any]],
     if any(step.get("free_script") for step in steps):
         lines += ["", "NOTE: the steps marked RUNS WITHOUT A PERSON run as soon as the critics have voted, with no human "
                       "reading them first and no way to undo them. Your vote is the only review: read each script "
-                      "line by line and oppose on any concrete risk."]
+                      "line by line and oppose on any concrete risk. In this plan an oppose sends the plan to a person even "
+                      "without a citation, so an objection to the script text itself counts. Approve only when you have read every line and "
+                      "its guard stops it on any state other than the one the checks showed, and say in reason what "
+                      "you checked; such a plan needs at least one approve, so do not approve by default."]
     lines += ["",
               "The judge approved this plan; you vote on exactly this plan. Where the risk depends on the state of "
-              "the hosts, check it first with an ops block, then answer.",
+              "the hosts, check it first with an ops block, then answer. If your instructions grade objections, an "
+              "objection you would mark [차단] is an oppose, and a [권고] goes into the reason of an approve.",
               VOTE_FORMAT]
     return "\n".join(lines)
 
@@ -121,11 +125,12 @@ def parse_vote(text: str, plan_hash: str) -> Tuple[Optional[Dict[str, Any]], Opt
 
 
 def cast_vote(critic: str, text: str, plan_hash: str, verified: Callable[[str], bool],
-              failed: Optional[str] = None) -> Dict[str, Any]:
+              failed: Optional[str] = None, free: bool = False) -> Dict[str, Any]:
     """The stored vote of one critic: {"critic", "vote", "reason", "cites", "counted"[, "note"]}.
 
     cites keeps only the verified citations (verified(cite) must say yes). An oppose is counted only with at least
-    one of them; without, it stays an oppose with counted false and a note. No valid vote, or failed (the critic
+    one of them; without, it stays an oppose with counted false and a note. free: the plan holds a free script, where
+    every oppose counts (batch_gate._conditions holds such a plan on any oppose, whatever is stored). No valid vote, or failed (the critic
     could not be asked), is an abstention."""
     if failed:
         return {"critic": critic, "vote": ABSTAIN, "reason": "", "cites": [], "counted": False, "note": failed}
@@ -136,8 +141,8 @@ def cast_vote(critic: str, text: str, plan_hash: str, verified: Callable[[str], 
     cites = [c for c in vote["cites"] if verified(c)]
     out = {"critic": critic, "vote": vote["vote"], "reason": vote["reason"], "cites": cites, "counted": False}
     if vote["vote"] == OPPOSE:
-        out["counted"] = bool(cites)
-        if not cites:
+        out["counted"] = bool(cites) or free
+        if not out["counted"]:
             out["note"] = "no verified server-state citation: kept as advice"
     return out
 

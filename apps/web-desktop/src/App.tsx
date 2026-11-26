@@ -12,8 +12,9 @@ import { useNarrow } from './hooks/useNarrow';
 import { ApprovalsPage } from './pages/ApprovalsPage';
 import { DebatesPage } from './pages/DebatesPage';
 import { FleetPage } from './pages/FleetPage';
+import { OverviewPage } from './pages/OverviewPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { ROUTES, hrefFor, useRoute } from './router';
+import { ROUTES, fleetHref, hrefFor, useRoute } from './router';
 import type { ParsedRoute, RouteId } from './router';
 import { AppStores } from './state/AppStores';
 import { useApprovalsStore } from './state/approvalsStore';
@@ -29,11 +30,12 @@ interface PageContext {
 
 /** Route -> page mapping. */
 const PAGES: Record<RouteId, (ctx: PageContext) => ReactNode> = {
+  overview: () => <OverviewPage />,
   fleet: ({ params, query }) => <FleetPage params={params} query={query} />,
-  debates: ({ params }) => <DebatesPage jobId={params[0]} wikiPage={params[1]} extra={params.slice(2)} />,
+  debates: ({ params, query }) => <DebatesPage jobId={params[0]} wikiPage={params[1]} extra={params.slice(2)} query={query} />,
   approvals: ({ params }) => <ApprovalsPage actionId={params[0]} />,
   settings: ({ params, agentUrl, openSettings }) => (
-    <SettingsPage agentUrl={agentUrl} onEditEndpoint={openSettings} section={params[0]} />
+    <SettingsPage agentUrl={agentUrl} onEditEndpoint={openSettings} section={params[0]} params={params.slice(1)} />
   ),
 };
 
@@ -125,7 +127,8 @@ function ConnectedShell({
   const current = ROUTES.find((r) => r.id === route) ?? ROUTES[0];
   const items: NavEntry[] = ROUTES.map((r) => ({
     label: r.label,
-    href: hrefFor(r.id),
+    // The bare #/fleet is the legacy alias of Overview, so the Fleet entry links to its first tab.
+    href: r.id === 'fleet' ? fleetHref('nodes') : hrefFor(r.id),
     icon: <Icon name={r.icon} />,
     active: r.id === route,
     // A group / fleet run keeps going while other pages are open; say so on the nav item.

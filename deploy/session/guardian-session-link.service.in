@@ -1,0 +1,17 @@
+[Unit]
+Description=Server Guardian session link daemon (operator sessions; dials the hub, holds the session sockets)
+Documentation=https://git.example.com/owner/server-guardian
+# docs/design/operator-sessions.md (S2). Rendered by scripts/install-session-link.sh. A systemd
+# USER unit: the CLI sessions and tmux live in the operator's login session, so the daemon must
+# too. State stays under @ROOT@ (config, key, pin, spool, sockets); nothing else is written.
+
+[Service]
+Type=simple
+ExecStart="@PYTHON@" "@LIB@/session_daemon.py" --home "@HOME_DIR@"
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target

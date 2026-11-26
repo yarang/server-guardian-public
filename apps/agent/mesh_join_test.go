@@ -108,6 +108,69 @@ func TestMeshJoinRegistersAndTags(t *testing.T) {
 	}
 }
 
+// The reserved tag:workstation marks an operator workstation (docs/design/operator-sessions.md, SD3a): it is
+// usable only when GUARDIAN_HEADSCALE_TAGS lists it, it joins alone, and only its answer tells the operator to
+// register the workstation on the hub. A server join answer carries neither key.
+func TestMeshJoinWorkstationTag(t *testing.T) {
+	cases := []struct {
+		name        string
+		allow       string   // GUARDIAN_HEADSCALE_TAGS
+		tags        []string // the request's tags
+		wantCode    int
+		wantErr     string // refusal message fragment (400 cases)
+		workstation bool   // the answer must be a workstation join (200 cases)
+	}{
+		{"listed alone", "tag:fleet, tag:edge, tag:workstation", []string{"tag:workstation"}, 200, "", true},
+		{"listed twice", "tag:fleet, tag:edge, tag:workstation", []string{"tag:workstation", "tag:workstation"}, 200, "", true},
+		{"with tag:fleet", "tag:fleet, tag:edge, tag:workstation", []string{"tag:workstation", "tag:fleet"}, 400, "alone", false},
+		{"tag:fleet first", "tag:fleet, tag:edge, tag:workstation", []string{"tag:fleet", "tag:workstation"}, 400, "alone", false},
+		{"with tag:edge", "tag:fleet, tag:edge, tag:workstation", []string{"tag:edge", "tag:workstation"}, 400, "alone", false},
+		{"not listed", "tag:fleet, tag:edge", []string{"tag:workstation"}, 400, "not one of the tags", false},
+		{"server join", "tag:fleet, tag:edge, tag:workstation", []string{"tag:fleet"}, 200, "", false},
+	}
+	for _, tc := range cases {
+		e := meshEnv(t)
+		t.Setenv("GUARDIAN_HEADSCALE_TAGS", tc.allow)
+		e.ssh.probe.stdout = "node_id=31\nname=ws-mac-1\nipv4=100.64.0.31\nipv6=fd7a:115c:a1e0::1f\ntags=" + strings.Join(tc.tags, ",") + "\n"
+		rec, m := e.do("POST", "/api/mesh/join", map[string]any{"auth": meshTestID, "tags": tc.tags, "name": "ws-mac-1"})
+		if rec.Code != tc.wantCode {
+			t.Errorf("%s: %d %v", tc.name, rec.Code, m)
+			continue
+		}
+		if tc.wantCode == 400 {
+			if m["field"] != "tags" || !strings.Contains(m["error"].(string), tc.wantErr) {
+				t.Errorf("%s: refusal: %v", tc.name, m)
+			}
+			if len(e.ssh.probed) != 0 {
+				t.Errorf("%s: ssh ran for a refused request: %v", tc.name, e.ssh.probed)
+			}
+			continue
+		}
+		if len(e.ssh.probed) != 1 {
+			t.Fatalf("%s: calls: %v", tc.name, e.ssh.probed)
+		}
+		if !tc.workstation {
+			if _, has := m["workstation"]; has {
+				t.Errorf("%s: server join answer carries workstation: %v", tc.name, m)
+			}
+			if _, has := m["next"]; has {
+				t.Errorf("%s: server join answer carries next: %v", tc.name, m)
+			}
+			continue
+		}
+		if m["workstation"] != true {
+			t.Errorf("%s: workstation: %v", tc.name, m)
+		}
+		next, _ := m["next"].(string)
+		if !strings.Contains(next, "guardian.py --session-add ws-mac-1 --address 100.64.0.31 --key '") {
+			t.Errorf("%s: next = %q", tc.name, next)
+		}
+		if script := e.ssh.probed[0]; !strings.Contains(script, "-t 'tag:workstation'") {
+			t.Errorf("%s: script lacks the workstation tag:\n%s", tc.name, script)
+		}
+	}
+}
+
 func TestMeshFieldsKeepTheFirstValueAndJoinWarnings(t *testing.T) {
 	f := meshFields("name=a\nwarning=x\nname=b\nwarning=y\nnoise\n")
 	if f["name"] != "a" || f["warning"] != "x; y" {

@@ -79,11 +79,15 @@ class EventWriter:
         prompt: Optional[str] = None,
         stage: Optional[int] = None,
         side: Optional[str] = None,
+        step: Optional[int] = None,
+        seat: Optional[str] = None,
     ) -> None:
         """Appends one event and flushes. Never raises: a broken events file must not stop a debate.
 
         stage (optional, 0-based) is the pipeline stage and side (optional, "A" or "B") the versus advocate of an agent
-        event (docs/design/team-flows.md).
+        event (docs/design/team-flows.md). step (optional, 0-based) is the position of the flow step in the round's step
+        list that asked the agent (docs/design/flow-templates.md); the Judge, outside the steps, has none. seat
+        (optional) is the flow seat of the agent when the run started from a flow (docs/design/flow-graph.md, G2).
 
         prompt (optional) is saved as prompts/<seq>.txt before the event is written, so a reader that sees
         "prompt_saved" can always fetch it. Over MAX_PROMPT_BYTES it is cut; past MAX_PROMPTS_BYTES per job
@@ -97,7 +101,7 @@ class EventWriter:
             self._seq += 1
             event: Dict[str, Any] = {"seq": self._seq, "ts": _timestamp(), "thread_id": self.thread_id, "type": type}
             for key, value in (("round", round), ("role", role), ("agent", agent), ("agent_name", agent_name),
-                               ("stage", stage), ("side", side)):
+                               ("stage", stage), ("side", side), ("step", step), ("seat", seat)):
                 if value is not None:
                     event[key] = value
             event["data"] = dict(data or {})

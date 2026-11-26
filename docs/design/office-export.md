@@ -110,7 +110,14 @@ D2 comes first because it is exactly what option A covers and needs no dashboard
 - **Checked:** `test_report_snapshot.py` (keep, same text, changed text, validators, symlink and non-regular file,
   design refusal, ops project, convert after keep, CLI exit codes), Go route tests with the fake CLI (status mapping,
   audit line, unknown thread), web tests (keep, warnings, 409, refusal, disabled without a report, hidden for design,
-  viewer open for a code project, button hidden for a design project in the report dialog), and a Go test that a kept version of a non-design project is listed in Results, readable and convertible (the Go routes have no project-kind gate). Not checked in a real browser or on the hub.
+  viewer open for a code project, button hidden for a design project in the report dialog), and a Go test that a kept version of a non-design project is listed in Results, readable and convertible (the Go routes have no project-kind gate).
+- **Real-browser check (2026-10-31, hub dashboard in Chrome, looked at only, nothing kept).** The report dialog of a code
+  debate shows "Download MD" and an enabled "Keep as document" with its tooltip; an ops report (`fleet`) shows the same plus
+  "Save .mmd". The keep click itself and the convert buttons after it are not exercised: they write a version on the hub.
+  Found on the way: the Mermaid diagram of the ops report renders with the dark theme on the light page (black actor boxes,
+  pale labels), because `main.tsx` still forced `colorScheme = 'dark'`; fixed in `883b022` (the inline style dropped, `mermaidTheme()` follows the computed
+  `color-scheme`; native checkboxes had the same cause), deployed 2026-10-31 and checked in Chrome the same day: the
+  artifact `.mmd` view draws light nodes with dark labels, the Quick ask checkbox is light.
 
 ### D2: Markdown to DOCX (built 2026-10-27, deployed 2026-10-28)
 

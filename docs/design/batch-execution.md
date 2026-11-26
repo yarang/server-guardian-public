@@ -303,7 +303,8 @@ a clean worktree, and deployment only when asked.
   install whose manager is still `auto` goes to a person.
 - Open for the operator: a plan where every critic abstains is still released (decision of 2026-10-20), so the
   quorum is zero; an objection must cite a node check, so a purely content-level concern (a script that reads wrong)
-  stays advice; `restart_service` counts as undoable (open point 4).
+  stays advice (for free scripts decided on 2026-10-30, see the end of 12.5); `restart_service` counts as undoable
+  (open point 4).
 - Carried over to B4 (done in 12.4): the dashboard ops editor rebuilt `policy` and dropped `policy.batch` on save. The B2 notes about the daily count, the actor and the run-time risk check are resolved in 12.3.
 
 ### 12.3 B3 (built 2026-10-20, not deployed)
@@ -454,3 +455,14 @@ the deploy changes no behaviour by itself.
 - **Tests.** `test_free_scripts.py` (resolution, gate, guard, bypass shapes, deny list, run), `test_provisioning.py` (tool
   gate, batch rules only for a judge holding a batch tool), `test_batch_corpus.py`, `projects.test.tsx`.
 - **Not done.** F2 (read-only probes for scripts). No `script_groups` is set on any project yet; the operator chooses them.
+- **Vote text, prompt `p19` (2026-10-30; the GitHub mirror's number, `p21` after the merge with the local history).** A plan with a free script tells each critic to approve only after reading
+  every line and finding a guard that stops the script on any other state than the checks showed, to say what it checked,
+  and not to approve by default (the explicit approve of 12.5 was otherwise the default answer of "no objection found").
+  Every vote maps a `[차단]` objection to oppose and a `[권고]` to the reason of an approve.
+- **Uncited objections hold a free script (operator's decision, 2026-10-30).** The free-script note asked critics to oppose
+  on any concrete risk, but an objection to the script text itself could not cite a server check and stayed advice, so
+  the script ran. Now, in a plan with a free script, every oppose sends the plan to a person: `batch_gate._conditions`
+  holds the plan on any oppose when a step is a free script (whatever the stored vote says, so a group opted in after the
+  vote is covered), and `cast_vote(..., free=True)` stores such an oppose as counted, so the plan view does not show it
+  as advice. The vote task tells the critic. Elsewhere an uncited objection stays advice (5.2). Corpus: new defect
+  "free script, uncited objection" (healthy plans unchanged at 14, defects 36, recall 1.00, false-block 0.00).

@@ -30,6 +30,7 @@ import ops_paths
 PREFIX = "ops:"
 LOW_SCOPES = ("dangling_images", "build_cache")
 SCOPES = LOW_SCOPES + ("stopped_containers", "unused_images")
+UPDATE_SCOPES = ("index", "security", "upgrade")
 MAX_SIZE = re.compile(r"^([1-9][0-9]{0,5})([MG])$")
 MIN_JOURNAL_BYTES = 100 * 1024 ** 2
 MAX_PATHS = 50
@@ -76,6 +77,12 @@ ACTIONS: Dict[str, Tuple[Dict[str, str], str]] = {
     "ops:apt_clean": (
         {"target_host": "string"},
         "Empty the apt package cache (/var/cache/apt/archives) on one host; installed packages are not affected (low risk)",
+    ),
+    "ops:system_update": (
+        {"target_host": "string", "scope": "string"},
+        "Update apt package indexes or upgrade installed OS packages on one Debian/Ubuntu host without removing "
+        "existing packages (--no-remove). scope is \"index\" (apt-get update only, low risk), \"security\" (upgrade "
+        "only packages from -security origins, medium risk), or \"upgrade\" (apt-get upgrade --no-remove, high risk)",
     ),
     "ops:remove_paths": (
         {"target_host": "string", "paths": "list", "older_than_days": "integer?"},
@@ -153,6 +160,13 @@ def risk(tool: str, args: Optional[Dict[str, Any]] = None, preview: Optional[Dic
         return "low"
     if tool == "ops:docker_prune":
         return "low" if (args or {}).get("scope") in LOW_SCOPES else "medium"
+    if tool == "ops:system_update":
+        scope = (args or {}).get("scope")
+        if scope == "index":
+            return "low"
+        if scope == "security":
+            return "medium"
+        return "high"
     return "medium"
 
 
@@ -186,6 +200,11 @@ def validate(tool: str, args: Dict[str, Any], deny: Sequence[str] = (),
         return ops_packages.shape(tool, args)
     if tool == "ops:docker_prune" and args.get("scope") not in SCOPES:
         raise ValueError(f"scope must be one of {', '.join(SCOPES)}")
+    if tool == "ops:system_update":
+        scope = str(args.get("scope", "")).strip().lower()
+        if scope not in UPDATE_SCOPES:
+            raise ValueError(f"scope must be one of {', '.join(UPDATE_SCOPES)}")
+        return {**args, "scope": scope}
     if tool == "ops:journal_vacuum":
         size = str(args.get("max_size", "")).strip().upper()
         if not MAX_SIZE.fullmatch(size):
@@ -245,6 +264,8 @@ def measure_command(tool: str, args: Dict[str, Any]) -> str:
     if tool == "ops:apt_clean":
         # partial/ is root-only: measure with sudo when possible and drop du's permission warnings.
         return f"sudo -n du -sk {APT_ARCHIVES} 2>/dev/null || du -sk {APT_ARCHIVES} 2>/dev/null"
+    if tool == "ops:system_update":
+        return "apt list --upgradable 2>/dev/null | grep -v '^Listing' || true"
     if tool == "ops:remove_paths":
         # One line per path: bytes, entries, newest mtime, path ("missing" when it does not exist).
         return SUDO + "for p in " + _quoted(args["paths"]) + "; do if [ -e \"$p\" ] || [ -L \"$p\" ]; then " \
@@ -276,6 +297,19 @@ def run_command(tool: str, args: Dict[str, Any], before: Dict[str, Any]) -> str:
         return f"sudo -n journalctl --vacuum-size={args['max_size']}"
     if tool == "ops:apt_clean":
         return "sudo -n apt-get clean"
+    if tool == "ops:system_update":
+        scope = args["scope"]
+        if scope == "index":
+            return "sudo -n DEBIAN_FRONTEND=noninteractive apt-get update"
+        if scope == "security":
+            pkgs = [item.split("=", 1)[0] for item in (before.get("items") or []) if "=" in item]
+            pkgs = [p for p in pkgs if re.fullmatch(r"[a-z0-9][a-z0-9+._-]{0,99}", p)]
+            if not pkgs:
+                return "echo 'no security updates available'"
+            return ("sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade "
+                    "--no-remove -- " + _quoted(pkgs))
+        return ("sudo -n DEBIAN_FRONTEND=noninteractive apt-get update && "
+                "sudo -n DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-remove")
     if tool == "ops:remove_paths":
         refuse_mounts = ("for p in " + _quoted(args["paths"]) + "; do if mountpoint -q -- \"$p\" 2>/dev/null; then "
                          "echo \"refusing: $p is a mount point\"; exit 4; fi; done; ")
@@ -375,6 +409,22 @@ def parse_measure(tool: str, args: Dict[str, Any], stdout: str) -> Tuple[Optiona
         return total, present
     if tool == "ops:remove_old_kernels":
         return None, old_kernel_packages(text)
+    if tool == "ops:system_update":
+        scope = (args or {}).get("scope")
+        items = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("Listing") or "/" not in line:
+                continue
+            head, _, rest = line.partition("/")
+            parts = rest.split()
+            if not head or len(parts) < 2:
+                continue
+            suite, ver = parts[0], parts[1]
+            if scope == "security" and "-security" not in suite.lower():
+                continue
+            items.append(f"{head}={ver}")
+        return None, sorted(set(items))
     return None, None
 
 

@@ -157,6 +157,9 @@ class RunTests(unittest.TestCase):
         self.assertIn("=== CITATION CHECK ===", message)
         self.assertIn("#1 disk_usage n1, #3 ops_hosts", message)
         self.assertEqual(c.unverified_citations("no citations here"), (0, []))
+        # a check without a host is cited without one; a check with a host must name it
+        self.assertEqual(c.unverified_citations("hosts [#3 ops_hosts] and the disk [#1 disk_usage]"),
+                         (2, ["[#1 disk_usage]"]))
 
     def test_headscale_status_never_prints_node_keys(self) -> None:
         command = ops_checks.CHECKS["headscale_status"][0]({})

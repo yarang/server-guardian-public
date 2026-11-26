@@ -510,7 +510,7 @@ class JudgeFormatTests(EngineHarness):
 
 class PromptTests(EngineHarness):
     def test_version_and_findings_instruction_in_the_repo_block_and_mcp_prompts(self) -> None:
-        self.assertEqual(RETRIEVAL_PROMPT_VERSION, "2026-10-23.p20")
+        self.assertEqual(RETRIEVAL_PROMPT_VERSION, "2026-11-11.p29")
         runner = FakeRunner(self.plain_scripts(["x"]))
         self.run_debate(self.engine(), runner)
         for role in ("expert", "critic", "judge"):

@@ -8,6 +8,8 @@ import argparse
 import json
 import os
 import sys
+
+import character
 from multi_agent import MultiAgentSystem
 
 
@@ -556,6 +558,98 @@ def handle_config_commands(args) -> bool:
         if code:
             sys.exit(code)
         return True
+    if getattr(args, "verdict_sources", False):
+        import verdict_sources
+
+        code, payload = verdict_sources.report()
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        if code:
+            sys.exit(code)
+        return True
+    if getattr(args, "jev_verdict_report", False):
+        import jev_verdict
+
+        print(json.dumps(jev_verdict.report(), indent=2, ensure_ascii=False))
+        return True
+    if getattr(args, "flows", False) or getattr(args, "flow_save", False) or getattr(args, "flow_delete", None):
+        import config_ops
+        from flow_graph import FlowStore
+        from flow_templates import FlowTemplateStore
+        from persona_manager import PersonaManager
+        from team_manager import TeamManager
+
+        personas = PersonaManager()
+        store = FlowStore(persona_mgr=personas)
+        if args.flows:
+            code, payload = config_ops.flows_report(store, TeamManager(persona_mgr=personas), FlowTemplateStore())
+        elif args.flow_save:
+            code, payload = config_ops.save_flow(store, sys.stdin.read())
+        else:
+            code, payload = config_ops.delete_flow(store, args.flow_delete)
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        if code:
+            sys.exit(code)
+        return True
+    if (getattr(args, "flow_draft_check", False) or getattr(args, "flow_draft_save", False)
+            or getattr(args, "flow_drafts", False) or getattr(args, "flow_draft_promote", None)
+            or getattr(args, "flow_draft_delete", None)):
+        import config_ops
+        from flow_graph import FlowStore
+        from persona_manager import PersonaManager
+
+        personas = PersonaManager()
+        store = FlowStore(persona_mgr=personas)
+        ws = getattr(args, "workstation", None)
+        if args.flow_draft_check:
+            code, payload = config_ops.check_flow_draft(sys.stdin.read(), personas)
+        elif args.flow_draft_save:
+            if not ws:
+                code, payload = config_ops.INVALID, {"ok": False, "error": "--flow-draft-save needs --workstation"}
+            else:
+                code, payload = config_ops.save_flow_draft(sys.stdin.read(), ws, personas)
+        elif args.flow_drafts:
+            code, payload = config_ops.list_flow_drafts(ws)
+        elif args.flow_draft_promote:
+            if not ws:
+                code, payload = config_ops.INVALID, {"ok": False, "error": "--flow-draft-promote needs --workstation"}
+            else:
+                code, payload = config_ops.promote_flow_draft(ws, args.flow_draft_promote, store, personas,
+                                                              as_id=getattr(args, "promote_as", None),
+                                                              overwrite=bool(getattr(args, "overwrite", False)))
+        else:
+            if not ws:
+                code, payload = config_ops.INVALID, {"ok": False, "error": "--flow-draft-delete needs --workstation"}
+            else:
+                code, payload = config_ops.delete_flow_draft(ws, args.flow_draft_delete)
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        if code:
+            sys.exit(code)
+        return True
+    if args.flow_templates or args.flow_template_save or args.flow_template_delete:
+        import config_ops
+        from flow_templates import FlowTemplateStore
+        from persona_manager import PersonaManager
+        from team_manager import TeamManager
+
+        store = FlowTemplateStore()
+        if args.flow_templates:
+            code, payload = config_ops.flow_templates_report(store, TeamManager(persona_mgr=PersonaManager()))
+        elif args.flow_template_save:
+            code, payload = config_ops.save_flow_template(store, sys.stdin.read())
+        else:
+            code, payload = config_ops.delete_flow_template(store, args.flow_template_delete)
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        if code:
+            sys.exit(code)
+        return True
+    if getattr(args, "persona_suggest", False):
+        import persona_suggest
+
+        code, payload = persona_suggest.run_cli(sys.stdin.read())
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        if code:
+            sys.exit(code)
+        return True
     if not (args.teams or args.personas or args.persona_save or args.persona_delete
             or args.team_save or args.team_delete or args.projects or args.project_save
             or args.project_delete or args.project_sync):
@@ -629,6 +723,61 @@ def handle_config_commands(args) -> bool:
     if code:
         sys.exit(code)
     return True
+
+
+def _resolve_flow_template(args, events) -> dict:
+    """The resolved start of --flow-template for --debate: exits 2 with the reason when it cannot start."""
+    from flow_templates import FlowTemplateStore, TemplateValidationError, parse_param_args, resolve
+
+    def refuse(message: str):
+        print(f"❌ Flow template: {message}", file=sys.stderr)
+        events.close()
+        sys.exit(2)
+
+    if args.debate != "-":
+        refuse("the task comes from the template; pass --debate - with --flow-template")
+    if args.thread:
+        refuse("a template starts a new thread; drop --thread")
+    data = FlowTemplateStore().get(args.flow_template)
+    if data is None:
+        refuse(f"no template {args.flow_template!r}")
+    try:
+        run, _warnings = resolve(data, parse_param_args(args.param), team=args.team)
+    except TemplateValidationError as exc:
+        refuse(str(exc))
+    return run
+
+
+def _resolve_flow(args, events) -> dict:
+    """The resolved start of --flow for --debate (flow_graph.resolve_run): exits 2 with the reason when it cannot start."""
+    from flow_graph import FlowStore, FlowValidationError, find, parse_seat_args, resolve_run
+    from flow_templates import FlowTemplateStore, TemplateValidationError, parse_param_args
+    from persona_manager import PersonaManager
+    from project_registry import ProjectManager, ProjectValidationError
+    from team_manager import TeamManager
+
+    def refuse(message: str):
+        print(f"❌ Flow: {message}", file=sys.stderr)
+        events.close()
+        sys.exit(2)
+
+    if args.flow_template or args.team:
+        refuse("a flow seats its own characters; drop --flow-template and --team (use --seat SEAT=CHARACTER)")
+    if args.thread:
+        refuse("a flow starts a new thread; drop --thread")
+    personas = PersonaManager()
+    try:
+        flow = find(args.flow, FlowStore(persona_mgr=personas), TeamManager(persona_mgr=personas), FlowTemplateStore())
+        if flow is None:
+            refuse(f"no flow, template or team {args.flow!r}")
+        try:
+            kind = ProjectManager().load(args.project).kind
+        except ProjectValidationError as exc:
+            refuse(str(exc))
+        return resolve_run(flow, parse_param_args(args.param), parse_seat_args(args.seat), personas,
+                           project_kind=kind, task=None if args.debate == "-" else args.debate)
+    except (FlowValidationError, TemplateValidationError) as exc:
+        refuse(str(exc))
 
 
 def handle_wiki_commands(args) -> bool:
@@ -875,6 +1024,442 @@ def handle_artifacts_prune(args) -> bool:
     return True
 
 
+def handle_solo_commands(args) -> bool:
+    """Solo agent commands (docs/design/solo-agent.md, phase S1). Returns True when handled.
+
+    --agent-run QUESTION asks one role of --project alone (no Judge, no round, read-only) and prints the labelled
+    answer; with --general it is a question without a project (no tools, claude only; --project and the context
+    options are refused); --solo-prune expires records older than GUARDIAN_SOLO_KEEP_DAYS. Exit codes: 0 ok, 2 invalid input,
+    4 both solo slots are busy."""
+    question = getattr(args, "agent_run", None)
+    prune = getattr(args, "solo_prune", False)
+    if question is None and not prune:
+        return False
+    import solo_agent
+
+    if prune:
+        removed = solo_agent.prune()
+        if args.json:
+            print(json.dumps({"ok": True, "removed": removed}, ensure_ascii=False))
+        else:
+            print(f"Expired {len(removed)} solo record(s)")
+        return True
+    runner = None
+    try:
+        runner = solo_agent.SoloRunner(args.project, role=args.role, provider=getattr(args, "provider", None),
+                                       language_name=args.language, run_id=getattr(args, "solo_id", None),
+                                       general=bool(getattr(args, "general", False)))
+        result = runner.run(question, context_paths=args.context_path, context_ref=args.context_ref)
+    except solo_agent.SoloError as exc:
+        if args.json:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
+        else:
+            print(f"❌ {exc}", file=sys.stderr)
+        sys.exit(exc.code)
+    finally:
+        if runner is not None:
+            runner.close()
+    if getattr(args, "result_file", None):
+        with open(args.result_file, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, ensure_ascii=False, indent=2)
+    if args.json:
+        print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
+    else:
+        print(solo_agent.render(result), end="")
+    return True
+
+
+def handle_review_commands(args) -> bool:
+    """Quick review commands (docs/design/verification-layer.md, V1 and V2). Returns True when handled.
+
+    --review checks one change of --project with one read-only reviewer and prints the labelled findings. The change
+    is --range BASE..HEAD, --patch FILE / - for stdin with --patch-base REF, --ref BRANCH [--base REF]
+    [--expect-sha SHA] (fetched from the project's origin), or --action ID (a PROPOSED jev_mcp:apply_patch action of
+    the project, read-only). --review-prune expires records older than GUARDIAN_REVIEW_KEEP_DAYS.
+    Exit codes: 0 ok, 2 invalid input, 4 every review slot is busy."""
+    wanted = getattr(args, "review", False)
+    prune = getattr(args, "review_prune", False)
+    if not wanted and not prune:
+        return False
+    import review_agent
+
+    if prune:
+        removed = review_agent.prune()
+        if args.json:
+            print(json.dumps({"ok": True, "removed": removed}, ensure_ascii=False))
+        else:
+            print(f"Expired {len(removed)} review record(s)")
+        return True
+
+    def refuse(message: str, code: int = review_agent.USAGE):
+        if args.json:
+            print(json.dumps({"ok": False, "error": message}, ensure_ascii=False))
+        else:
+            print(f"❌ {message}", file=sys.stderr)
+        sys.exit(code)
+
+    patch_text = None
+    if getattr(args, "patch", None):
+        try:
+            patch_text = sys.stdin.read() if args.patch == "-" else open(args.patch, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as exc:
+            refuse(f"patch: {exc}")
+    if not args.project:
+        refuse("--review needs --project")
+    runner = None
+    try:
+        runner = review_agent.ReviewRunner(args.project, change_range=getattr(args, "range", None), patch=patch_text,
+                                           patch_base=getattr(args, "patch_base", None),
+                                           ref=getattr(args, "ref", None), base_ref=getattr(args, "base", None),
+                                           expect_sha=getattr(args, "expect_sha", None),
+                                           action_id=getattr(args, "action", None), role=args.role,
+                                           provider=getattr(args, "provider", None), language_name=args.language,
+                                           run_id=getattr(args, "review_id", None))
+        result = runner.run()
+    except review_agent.ReviewError as exc:
+        refuse(str(exc), exc.code)
+    finally:
+        if runner is not None:
+            runner.close()
+    if getattr(args, "result_file", None):
+        with open(args.result_file, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, ensure_ascii=False, indent=2)
+    if args.json:
+        print(json.dumps({"ok": True, **result}, ensure_ascii=False, indent=2))
+    else:
+        print(review_agent.render(result), end="")
+    return True
+
+
+def handle_resident_monitor(args) -> bool:
+    """Read-only resident agent monitor (docs/design/resident-monitor.md). Returns True when handled.
+
+    --resident-monitor prints a snapshot of agents, turns, mail metadata, tasks and events;
+    --resident-mail-body MAIL_ID prints one mail body with secrets masked. Never writes the store.
+    Exit codes: 0 ok, 1 store read error, 2 invalid mail id, 3 mail not found."""
+    monitor = getattr(args, "resident_monitor", False)
+    mail_id = getattr(args, "resident_mail_body", None)
+    artifacts = getattr(args, "resident_artifacts", None)
+    artifact_get = getattr(args, "resident_artifact_get", None)
+    artifact_pin = getattr(args, "resident_artifact_pin", None)
+    queries = getattr(args, "resident_queries", None)
+    query_get = getattr(args, "resident_query_get", None)
+    res_sessions = getattr(args, "resident_sessions", None)
+    if (not monitor and mail_id is None and artifacts is None and artifact_get is None
+            and artifact_pin is None and queries is None and query_get is None
+            and res_sessions is None):
+        return False
+    import resident_monitor
+
+    json_out = bool(getattr(args, "json", False))
+    if artifact_pin is not None:
+        import mail_store
+        res = mail_store.MailStore().pin_artifact(artifact_pin, pinned=True)
+        if json_out:
+            print(json.dumps(res, ensure_ascii=False))
+        else:
+            print(f"pinned {artifact_pin}" if res.get("ok") else f"error: {res.get('detail') or res.get('reason')}")
+        if not res.get("ok"):
+            sys.exit(2 if res.get("reason") == "bad_id" else 3)
+        return True
+    if query_get is not None:
+        code = resident_monitor.cli_query_get(query_get, json_out)
+    elif res_sessions is not None:
+        agent = res_sessions or None
+        project = getattr(args, "project", None) or None
+        include_inactive = bool(getattr(args, "include_inactive", False))
+        code = resident_monitor.cli_sessions(agent, project, json_out, include_inactive=include_inactive)
+    elif queries is not None:
+        agent = queries or None
+        project = getattr(args, "project", None) or None
+        skey = getattr(args, "query_session_key", None) or None
+        limit = getattr(args, "query_limit", 50) or 50
+        code = resident_monitor.cli_queries(project, agent, json_out, session_key=skey, limit=limit)
+    elif artifact_get is not None:
+        code = resident_monitor.cli_artifact_get(
+            artifact_get, json_out, out_path=getattr(args, "resident_artifact_out", None))
+    elif artifacts is not None:
+        agent = artifacts or None
+        code = resident_monitor.cli_artifacts(agent, json_out)
+    elif mail_id is not None:
+        code = resident_monitor.cli_mail_body(mail_id, json_out)
+    else:
+        code = resident_monitor.cli_monitor(json_out)
+    if code:
+        sys.exit(code)
+    return True
+
+
+def handle_resident_query_writes(args) -> bool:
+    """Direct resident session query write commands (--resident-query, --resident-query-cancel).
+    Exit codes: 0 ok, 2 invalid input/refused, 3 not found, 4 conflict/state/budget refusal."""
+    target = getattr(args, "resident_query", None)
+    cancel_id = getattr(args, "resident_query_cancel", None)
+    reset_addr = getattr(args, "resident_session_reset", None)
+    if target is None and cancel_id is None and reset_addr is None:
+        return False
+    import time
+    import uuid
+    import mail_queries
+    import mail_store
+    import resident_monitor
+
+    json_out = bool(getattr(args, "json", False))
+    store = mail_store.MailStore()
+
+    def exit_for_reason(reason: str) -> int:
+        if reason in ("not_found", "unknown_agent"):
+            return 3
+        if reason in ("agent_not_ready", "no_active_session", "queue_full", "query_budget",
+                      "already_running", "already_finished", "agent_retired", "resident_off",
+                      "session_limit_reached", "session_busy"):
+            return 4
+        return 2
+
+    if reset_addr is not None:
+        skey = getattr(args, "session_key", None) or getattr(args, "query_session_key", None) or ""
+        res = store.reset_agent_session(reset_addr, skey)
+        if json_out:
+            print(json.dumps(res, ensure_ascii=False))
+        elif res.get("ok"):
+            print(f"archived session {res['session_key']} on {res['address']} (epoch {res['epoch']})")
+        else:
+            print(f"❌ {res.get('detail') or res.get('reason')}", file=sys.stderr)
+        if not res.get("ok"):
+            sys.exit(exit_for_reason(str(res.get("reason") or "")))
+        return True
+
+    if cancel_id is not None:
+        res = store.cancel_query(cancel_id)
+        if json_out:
+            print(json.dumps(res, ensure_ascii=False))
+        elif res.get("ok"):
+            print(f"cancelled {cancel_id}")
+        else:
+            print(f"❌ {res.get('detail') or res.get('reason')}", file=sys.stderr)
+        if not res.get("ok"):
+            sys.exit(exit_for_reason(str(res.get("reason") or "")))
+        return True
+
+    prompt_val = getattr(args, "prompt", None)
+    if getattr(args, "prompt_stdin", False) or prompt_val == "-":
+        prompt_text = sys.stdin.read()
+    else:
+        prompt_text = prompt_val or ""
+    project = getattr(args, "project", None) or ""
+    timeout_sec = int(getattr(args, "query_timeout", mail_queries.DEFAULT_QUERY_TIMEOUT)
+                      or mail_queries.DEFAULT_QUERY_TIMEOUT)
+    res = store.submit_query(
+        target, project, prompt_text,
+        caller="operator", caller_kind="operator",
+        task=getattr(args, "query_task", None),
+        mode=getattr(args, "query_mode", None) or "in_place",
+        session_key=getattr(args, "query_session_key", None) or getattr(args, "session_key", None),
+        timeout_sec=timeout_sec,
+        op_id=getattr(args, "op_id", None) or str(uuid.uuid4()),
+    )
+    if not res.get("ok"):
+        if json_out:
+            print(json.dumps({"ok": False, "error": res.get("detail") or res.get("reason"),
+                              "reason": res.get("reason")}, ensure_ascii=False))
+        else:
+            print(f"❌ {res.get('detail') or res.get('reason')}", file=sys.stderr)
+        sys.exit(exit_for_reason(str(res.get("reason") or "")))
+
+    if getattr(args, "no_wait", False):
+        if json_out:
+            print(json.dumps(res, ensure_ascii=False))
+        else:
+            print(f"queued {res['id']} -> {res['address']} (project={res['project']}, epoch={res['epoch']})")
+        return True
+
+    qid = res["id"]
+    deadline = time.monotonic() + float(timeout_sec) + 15.0
+    final: Optional[dict] = None
+    while time.monotonic() < deadline:
+        cur = resident_monitor.query_get(qid)
+        if cur is not None and cur.get("status") in mail_queries.QUERY_TERMINAL_STATES:
+            final = cur
+            break
+        time.sleep(0.5)
+    if final is None:
+        final = resident_monitor.query_get(qid) or {**res, "error": "timed out waiting for answer"}
+    if json_out:
+        print(json.dumps({"ok": final.get("status") == "completed", **final}, ensure_ascii=False))
+    else:
+        if final.get("status") == "completed":
+            print(final.get("answer") or "")
+            if final.get("answer_truncated"):
+                print("\n[answer truncated at 64 KiB]", file=sys.stderr)
+        else:
+            print(f"❌ query {qid} {final.get('status')}: {final.get('error') or 'no answer'}",
+                  file=sys.stderr)
+    if final.get("status") != "completed":
+        sys.exit(1)
+    return True
+
+
+def handle_resident_commands(args) -> bool:
+    """Resident agent commands (docs/design/resident-agents.md, phase M1). Returns True when handled.
+
+    --resident-add/--resident-remove/--residents manage the declaration file; --mail-send,
+    --mail-list, --tasks, --task-create (with --task-project/--task-sha), --task-calls and
+    --task-cancel are the operator's mailbox and task board.
+    Output is human-readable by default, JSON with --json. Exit codes: 0 ok, 2 refused or invalid
+    input (the reason is printed)."""
+    # getattr: callers in tests build partial Namespaces without the resident options.
+    flags = (getattr(args, "resident_add", None), getattr(args, "resident_remove", None),
+             getattr(args, "residents", False), getattr(args, "mail_send", None),
+             getattr(args, "mail_list", None) is not None, getattr(args, "tasks", False),
+             getattr(args, "task_create", None), getattr(args, "task_cancel", None),
+             getattr(args, "task_calls", None), getattr(args, "mail_relay", False))
+    if not any(value for value in flags):
+        return False
+    import uuid
+
+    import mail_store
+    import resident_registry
+    from resident_registry import RegistrationError
+
+    def fail(message, reason=None):
+        payload = {"ok": False, "error": message}
+        if reason:
+            payload["reason"] = reason
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False))
+        else:
+            print(f"❌ {message}", file=sys.stderr)
+        sys.exit(2)
+
+    def show(result, line):
+        if args.json:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            print(line)
+
+    def op_id():
+        return args.op_id or str(uuid.uuid4())
+
+    store = mail_store.MailStore()
+    try:
+        if getattr(args, "mail_relay", False):
+            import mail_relay
+
+            mail_relay.main()
+            return True
+        if args.resident_add:
+            if not args.node:
+                fail("--resident-add needs --node")
+            if not args.provider:
+                fail("--resident-add needs --provider")
+            peers = [p.strip() for p in args.peers.split(",") if p.strip()] if args.peers else None
+            entry = resident_registry.add_agent(args.resident_add, args.node, args.provider,
+                                                character=args.character, driver=args.driver,
+                                                peers=peers, tools=getattr(args, "tools", "closed"))
+            address = f"{entry['name']}@{entry['node']}"
+            tools = ", tools open" if entry.get("tools") == "open" else ""
+            show({"ok": True, "agent": entry},
+                 f"Declared {address} (provider {entry['provider']}, "
+                 f"driver {entry['driver']}{tools}).")
+        elif args.resident_remove:
+            resident_registry.remove_agent(args.resident_remove)
+            show({"ok": True, "removed": args.resident_remove}, f"Removed {args.resident_remove}.")
+        elif args.residents:
+            agents, problems = resident_registry.list_agents()
+            payload = {"ok": True, "agents": agents, "problems": problems}
+            if args.json:
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
+            else:
+                for agent in agents:
+                    state = agent["state"] or "declared (no store)"
+                    print(f"{agent['address']:<24} {agent['provider']:<8} {agent['driver']:<9} "
+                          f"{state} epoch {agent['epoch'] if agent['epoch'] is not None else '-'}")
+                for problem in problems:
+                    print(f"⚠️  {problem}")
+                if not agents:
+                    print("No resident agents declared.")
+        elif args.mail_send:
+            if args.mail_body is None:
+                fail("--mail-send needs --mail-body (or '-' to read stdin)")
+            body = sys.stdin.read() if args.mail_body == "-" else args.mail_body
+            result = store.send("operator", args.mail_send, args.mail_kind, args.mail_subject or "",
+                                body, op_id=op_id(), reply_to=args.mail_reply_to, task=args.mail_task)
+            if not result.get("ok"):
+                fail(f"--mail-send refused: {result.get('reason')}: {result.get('detail')}",
+                     result.get("reason"))
+            line = f"Sent {result['id']} (thread {result['thread']}, hop {result['hop']})"
+            show(result, line + (f" — {result['note']}" if result.get("note") else ""))
+        elif args.mail_list is not None:
+            if args.mail_list == "":
+                rows = store.list_mail()
+            elif args.mail_list == "operator":
+                rows = store.list_mail(address="operator")
+            else:
+                rows = store.inbox_queued(args.mail_list)
+            if args.json:
+                print(json.dumps({"ok": True, "mail": rows}, indent=2, ensure_ascii=False))
+            else:
+                for row in rows:
+                    print(f"{row['id']}  {row['created']}  {row['from_kind']}:{row['sender']} -> "
+                          f"{row['recipient']}  {row['kind']}/{row['state']}  {row['subject'] or ''}")
+                if not rows:
+                    print("No mail.")
+        elif args.tasks:
+            rows = store.task_list("operator")
+            if args.json:
+                print(json.dumps({"ok": True, "tasks": rows}, indent=2, ensure_ascii=False))
+            else:
+                for row in rows:
+                    who = row["owner"] or row["assignee"] or "-"
+                    blockers = f" blocked_by {','.join(row['blocked_by'])}" if row["blocked_by"] else ""
+                    # O3: a row with a patch names its action; one still waiting for it says so.
+                    action = ""
+                    if row.get("patch"):
+                        action = (f"  action #{row['patch_action']}" if row.get("patch_action")
+                                  else "  action pending")
+                    print(f"{row['id']}  {row['status']:<11} {who:<24} {row['title']}{blockers}{action}")
+                if not rows:
+                    print("No tasks.")
+        elif args.task_create:
+            blocked = tuple(b.strip() for b in args.task_blocked_by.split(",") if b.strip()) \
+                if args.task_blocked_by else ()
+            project = getattr(args, "task_project", None)
+            sha = getattr(args, "task_sha", None)
+            if project:
+                # A task that names a project is pinned to its commit here (M2e); the store keeps
+                # full shas only.
+                import mail_snapshots
+
+                try:
+                    project, sha = mail_snapshots.resolve_project_sha(project, sha)
+                except mail_snapshots.TaskSnapshotError as exc:
+                    fail(f"--task-create refused: bad_project: {exc}", "bad_project")
+            result = store.task_create("operator", args.task_create, args.task_detail or "",
+                                       op_id=op_id(), assignee=args.task_assignee,
+                                       blocked_by=blocked, project=project, sha=sha)
+            if not result.get("ok"):
+                fail(f"--task-create refused: {result.get('reason')}: {result.get('detail')}",
+                     result.get("reason"))
+            show(result, f"Created {result['id']} ({result['status']}).")
+        elif getattr(args, "task_calls", None):
+            result = store.task_calls("operator", args.task_calls)
+            if not result.get("ok"):
+                fail(f"--task-calls refused: {result.get('reason')}: {result.get('detail')}",
+                     result.get("reason"))
+            print(json.dumps(result["calls"], indent=2, ensure_ascii=False))
+        elif args.task_cancel:
+            if not args.task_reason:
+                fail("--task-cancel needs --task-reason")
+            result = store.task_cancel("operator", args.task_cancel, args.task_reason)
+            if not result.get("ok"):
+                fail(f"--task-cancel refused: {result.get('reason')}: {result.get('detail')}",
+                     result.get("reason"))
+            show(result, f"Cancelled {result['id']}.")
+    except RegistrationError as exc:
+        fail(str(exc))
+    return True
+
+
 def handle_audit_commands(args) -> bool:
     """Repository audit commands (docs/design/repo-audit-mode.md, phases A1 and A2). Returns True when handled.
 
@@ -919,8 +1504,88 @@ def handle_audit_commands(args) -> bool:
     return True
 
 
+def _workstation_line(entry) -> str:
+    keys = "keys line ok" if entry.get("keys_line") else "keys line MISSING"
+    node = f" node {entry['node']}" if entry.get("node") else ""
+    return f"{entry['id']:<20} {entry['address']:<16} {keys}{node}"
+
+
+def handle_operator_session_commands(args) -> bool:
+    """Operator sessions on the hub (docs/design/operator-sessions.md, phase S1). Returns True when handled.
+
+    --session-link is sshd's forced command for one workstation (it returns the link's exit code);
+    --session-add/--session-remove/--session-address change the workstation registry and rewrite the
+    Guardian-owned authorized_keys2 whole; --session-list shows workstations, sshd's view of the keys
+    file and the session rows. Exit codes: 0 ok, 2 refused or invalid input."""
+    if getattr(args, "session_link", False):
+        import session_link
+
+        sys.exit(session_link.entry(getattr(args, "workstation", None) or ""))
+    if not any((getattr(args, "session_add", None), getattr(args, "session_remove", None),
+                getattr(args, "session_address", None), getattr(args, "session_list", False))):
+        return False
+    import session_registry
+    from session_registry import RegistrationError
+
+    def show(result, line):
+        print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else line)
+
+    try:
+        if args.session_add:
+            if not args.address or not args.key:
+                raise RegistrationError("--session-add needs --address and --key")
+            entry = session_registry.add_workstation(args.session_add, args.address, args.key,
+                                                     node=args.node)
+            show({"ok": True, "workstation": entry},
+                 f"Registered {entry['id']} ({entry['address']}); authorized_keys2 rewritten.")
+        elif args.session_remove:
+            entry = session_registry.remove_workstation(args.session_remove)
+            show({"ok": True, "removed": entry["id"]},
+                 f"Removed {entry['id']}; its link line is gone and its stream ends on the next poll.")
+        elif args.session_address:
+            if not args.address:
+                raise RegistrationError("--session-address needs --address")
+            entry = session_registry.set_address(args.session_address, args.address)
+            show({"ok": True, "workstation": entry}, f"{entry['id']} now links from {entry['address']}.")
+        else:
+            _show_session_list(args, session_registry)
+    except RegistrationError as exc:
+        if args.json:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
+        else:
+            print(f"❌ {exc}", file=sys.stderr)
+        sys.exit(2)
+    return True
+
+
+def _show_session_list(args, session_registry) -> None:
+    import mail_store
+
+    entries, problems = session_registry.list_workstations()
+    sshd = session_registry.sshd_reads_keys2()
+    sessions = mail_store.MailStore().session_rows()
+    if args.json:
+        print(json.dumps({"ok": True, "workstations": entries, "problems": problems, "sshd": sshd,
+                          "sessions": sessions}, indent=2, ensure_ascii=False))
+        return
+    for entry in entries:
+        print(_workstation_line(entry))
+    if not entries:
+        print("No workstations registered.")
+    for problem in problems:
+        print(f"⚠️  {problem}")
+    verdict = {True: "reads authorized_keys2: ", False: "does NOT read authorized_keys2: ",
+               None: ""}[sshd.get("ok")]
+    print(f"sshd: {verdict}{sshd.get('detail', '')}")
+    for row in sessions:
+        away = " away" if row.get("away") else ""
+        print(f"{row['address']:<32} {row['state']}{away}")
+
+
 def handle_session_commands(args) -> bool:
     """Runs debate and session management options. Returns True when one was handled."""
+    if handle_operator_session_commands(args):
+        return True
     if handle_ops_watch(args):
         return True
     if handle_artifacts_prune(args):
@@ -936,6 +1601,16 @@ def handle_session_commands(args) -> bool:
     if handle_wiki_commands(args):
         return True
     if handle_audit_commands(args):
+        return True
+    if handle_solo_commands(args):
+        return True
+    if handle_review_commands(args):
+        return True
+    if handle_resident_monitor(args):
+        return True
+    if handle_resident_query_writes(args):
+        return True
+    if handle_resident_commands(args):
         return True
     if not (args.debate or args.attach or args.sessions is not None or args.prune_sessions is not None):
         return False
@@ -968,11 +1643,23 @@ def handle_session_commands(args) -> bool:
             extra["context_paths"] = args.context_path
         if args.context_ref:
             extra["context_ref"] = args.context_ref
+        task, team = args.debate, args.team
+        if getattr(args, "flow", None):
+            run = _resolve_flow(args, events)
+            task, team = run["task"], None
+            extra["flow_run"] = run
+            if args.rounds is None and run.get("max_rounds"):
+                engine.max_rounds = run["max_rounds"]
+        elif args.flow_template:
+            run = _resolve_flow_template(args, events)
+            task, team = run["task"], run["team"]
+            extra["template_run"] = run
+            if args.rounds is None and run.get("max_rounds"):
+                engine.max_rounds = run["max_rounds"]
         try:
-            result = engine.run_debate(args.debate, project_id=args.project, thread_id=args.thread, team=args.team,
-                                       **extra)
+            result = engine.run_debate(task, project_id=args.project, thread_id=args.thread, team=team, **extra)
         except TeamValidationError as e:
-            print(f"❌ Team {args.team}: {e}", file=sys.stderr)
+            print(f"❌ Team {team}: {e}", file=sys.stderr)
             sys.exit(2)
         except ContextError as e:
             print(f"❌ Code context: {e}", file=sys.stderr)
@@ -1074,8 +1761,36 @@ def main():
     config.add_argument("--personas", action="store_true", help="List personas (builtin and custom)")
     config.add_argument("--persona-save", action="store_true", help="Validate and save a custom persona")
     config.add_argument("--persona-delete", metavar="ID", help="Delete a custom persona")
+    config.add_argument("--persona-suggest", action="store_true",
+                        help="Draft a persona and profile with one LLM turn from {brief, seat, kind, provider?} on stdin; saves nothing")
     config.add_argument("--team-save", action="store_true", help="Validate and save a custom team")
     config.add_argument("--team-delete", metavar="ID", help="Delete a custom team")
+    config.add_argument("--flow-templates", action="store_true", help="List flow templates with the catalog (JSON)")
+    config.add_argument("--flow-template-save", action="store_true", help="Validate and save a custom flow template")
+    config.add_argument("--flow-template-delete", metavar="ID", help="Delete a custom flow template")
+    config.add_argument("--verdict-sources", action="store_true",
+                        help="List the registered verdict sources and their shadow numbers (JSON; docs/design/verdict-sources.md)")
+    config.add_argument("--jev-verdict-report", action="store_true",
+                        help="Summarise the jev shadow verdicts of the hub's debate jobs (JSON; docs/design/jev-verdict.md)")
+    config.add_argument("--flows", action="store_true",
+                        help="List flows, with teams and templates converted, and the catalog (JSON)")
+    config.add_argument("--flow-save", action="store_true", help="Validate and save a custom flow (JSON on stdin)")
+    config.add_argument("--flow-delete", metavar="ID", help="Delete a custom flow")
+    config.add_argument("--flow-draft-check", action="store_true",
+                        help="Check a session flow draft (JSON on stdin): convert, validate, whether it runs; saves "
+                             "nothing (docs/design/session-flows.md)")
+    config.add_argument("--flow-draft-save", action="store_true",
+                        help="Validate and store a session flow draft (JSON on stdin) under --workstation")
+    config.add_argument("--flow-drafts", action="store_true",
+                        help="List stored session flow drafts, every workstation's or --workstation's (JSON)")
+    config.add_argument("--flow-draft-promote", metavar="ID",
+                        help="Promote a session flow draft of --workstation to a custom flow (--promote-as, "
+                             "--overwrite)")
+    config.add_argument("--flow-draft-delete", metavar="ID", help="Delete a session flow draft of --workstation")
+    config.add_argument("--promote-as", metavar="NEWID",
+                        help="Flow id --flow-draft-promote saves under (default: the draft's id)")
+    config.add_argument("--overwrite", action="store_true",
+                        help="Let --flow-draft-promote replace an existing custom flow (a builtin id stays refused)")
     config.add_argument("--projects", action="store_true", help="List projects with their workspace state")
     config.add_argument("--project-save", action="store_true", help="Validate and save a custom project")
     config.add_argument("--project-delete", metavar="ID", help="Delete a custom project (keeps the clone)")
@@ -1097,6 +1812,16 @@ def main():
     groups.add_argument("--group-save", action="store_true", help="Validate and save a node group (create, or update by id)")
     groups.add_argument("--group-delete", metavar="ID", help="Delete a node group")
     groups.add_argument("--group-preview", action="store_true", help="Resolve a group definition's members without saving")
+    debate.add_argument("--flow-template", metavar="ID",
+                        help="Start --debate's flow from a flow template (see --flow-templates); the task comes from "
+                             "the template, --team replaces its default team")
+    debate.add_argument("--flow", metavar="ID",
+                        help="Start --debate from a flow (see --flows; a template or team id starts it converted). A "
+                             "flow with a task text takes --debate - and --param values; one without takes the task")
+    debate.add_argument("--seat", action="append", metavar="SEAT=CHARACTER",
+                        help="Seat another character in a seat of --flow ('close' for the Judge; repeatable)")
+    debate.add_argument("--param", action="append", metavar="KEY=VALUE",
+                        help="A value for a parameter of --flow-template or --flow (repeatable)")
     debate.add_argument("--rounds", type=int, default=None, help="Maximum debate rounds for --debate (default: team's, else 3)")
     debate.add_argument("--sessions", nargs="?", const="", metavar="THREAD", help="List persisted agent sessions (optionally for one thread)")
     debate.add_argument("--attach", metavar="THREAD", help="Open a thread's agent session interactively in tmux")
@@ -1189,12 +1914,167 @@ def main():
     audit.add_argument("--repo-audit-list", action="store_true", help="List the project's audits (JSON)")
     audit.add_argument("--repo-audit-show", metavar="ID", help="One audit: state, plan summary, shards still to run (JSON)")
 
+    solo = parser.add_argument_group("solo agent (docs/design/solo-agent.md)")
+    solo.add_argument("--agent-run", metavar="QUESTION",
+                      help="Ask one role of --project alone: no Judge, no round, read-only; the answer is labelled SOLO "
+                           "(--role persona id, --provider, --context-path/--context-ref, --language, --result-file)")
+    solo.add_argument("--provider", metavar="NAME",
+                      help="With --agent-run: the one provider to use (default: first available). "
+                           "With --resident-add: the provider of the new resident agent")
+    solo.add_argument("--general", action="store_true",
+                      help="With --agent-run: a question without a project: no code or server tools, answered from general "
+                           "knowledge by claude only, labelled \"no sources\" (exclusive with --project and the context options)")
+    solo.add_argument("--solo-id", metavar="ID",
+                      help="With --agent-run: the record id to use (the hub generates it so it can answer before the run ends)")
+    solo.add_argument("--solo-prune", action="store_true",
+                      help="Expire solo records older than GUARDIAN_SOLO_KEEP_DAYS (30)")
+
+    review = parser.add_argument_group("quick review (docs/design/verification-layer.md, V1 and V2)")
+    review.add_argument("--review", action="store_true",
+                        help="Review one change of --project with one read-only reviewer (no Judge, no actions); the "
+                             "findings are labelled REVIEW (--range, --patch, --ref or --action; --role, --provider, "
+                             "--language, --result-file)")
+    review.add_argument("--range", metavar="BASE..HEAD", help="With --review: the change as two refs of the workspace")
+    review.add_argument("--patch", metavar="FILE",
+                        help="With --review: the change as a unified diff file (- reads stdin), applied to --patch-base")
+    review.add_argument("--patch-base", metavar="REF", help="With --review --patch: the commit the patch applies to "
+                                                             "(default HEAD)")
+    review.add_argument("--ref", metavar="BRANCH",
+                        help="With --review: the change as a branch of the project's origin remote, fetched into a "
+                             "private namespace (no URL, the workspace is not touched)")
+    review.add_argument("--base", metavar="REF",
+                        help="With --review --ref: the base ref (default: the merge-base of the branch and the "
+                             "project branch)")
+    review.add_argument("--expect-sha", metavar="SHA",
+                        help="With --review --ref: refuse when the fetched head is not this commit (40 hex)")
+    review.add_argument("--action", type=int, metavar="ID",
+                        help="With --review: the change as a PROPOSED jev_mcp:apply_patch action of --project (its "
+                             "edits, read from the decision database read-only)")
+    review.add_argument("--review-id", metavar="ID",
+                        help="With --review: the record id to use (the hub generates it so it can answer before the run ends)")
+    review.add_argument("--review-prune", action="store_true",
+                        help="Expire review records older than GUARDIAN_REVIEW_KEEP_DAYS (30)")
+
+    resident = parser.add_argument_group("resident agents (docs/design/resident-agents.md)")
+    resident.add_argument("--resident-add", metavar="NAME",
+                          help="Declare a resident agent on --node with --provider (the M0 table "
+                               "decides the driver; --character, --driver, --peers and --tools are optional)")
+    resident.add_argument("--node", metavar="NODE",
+                          help="Inventory node of --resident-add; tailnet node name (display only) of --session-add")
+    resident.add_argument("--character", metavar="ID", help="Character (format 2 persona) of --resident-add")
+    resident.add_argument("--driver", choices=["tmux", "headless"],
+                          help="Driver of --resident-add (default: the M0 table's; refused unless the table passes it)")
+    resident.add_argument("--peers", metavar="A,B",
+                          help="Peers of --resident-add (full addresses or unique bare names; default: every declared agent)")
+    resident.add_argument("--tools", choices=["closed", "open"], default="closed",
+                          help="Tools of --resident-add: closed (default) or open - built-in tools "
+                               "inside the node sandbox; open needs claude or agy and the node's "
+                               "sandbox probe passed at this release's sandbox version")
+    resident.add_argument("--resident-remove", metavar="NAME@NODE",
+                          help="Remove a resident agent: retire it, release its tasks, mark unacked mail "
+                               "undeliverable, then drop the declaration")
+    resident.add_argument("--residents", action="store_true",
+                          help="List the declared resident agents with their state and epoch")
+    resident.add_argument("--resident-monitor", action="store_true",
+                          help="Read-only snapshot of resident agents, turns, mail metadata, tasks and events "
+                               "(dashboard monitor)")
+    resident.add_argument("--resident-mail-body", metavar="MAIL_ID",
+                          help="Show one resident mail's body with secrets masked (read-only)")
+    resident.add_argument("--resident-artifacts", nargs="?", const="", default=None, metavar="AGENT",
+                          help="List artifacts published by resident agents (optional AGENT filter)")
+    resident.add_argument("--resident-artifact-get", metavar="ARTIFACT_ID",
+                          help="Fetch one resident artifact's metadata and content (read-only)")
+    resident.add_argument("--resident-artifact-out", metavar="PATH",
+                          help="Write --resident-artifact-get raw bytes to PATH")
+    resident.add_argument("--resident-artifact-pin", metavar="ARTIFACT_ID",
+                          help="Pin a resident artifact so it never expires")
+    resident.add_argument("--resident-query", metavar="NAME@NODE",
+                          help="Submit a direct hub-project-scoped query to an active resident session")
+    resident.add_argument("--prompt", metavar="TEXT",
+                          help="Prompt text for --resident-query ('-' reads stdin)")
+    resident.add_argument("--prompt-stdin", action="store_true",
+                          help="Read --resident-query prompt from stdin")
+    resident.add_argument("--query-task", metavar="TASK_ID",
+                          help="Optional task reference belonging to --project for --resident-query")
+    resident.add_argument("--query-session-key", metavar="KEY",
+                          help="Session key for --resident-query / --resident-queries (default project:<id>; or main / project:<id>:<label>)")
+    resident.add_argument("--query-mode", choices=("in_place", "fork"), default="in_place",
+                          help="Query execution mode (in_place or claude-only read-only fork)")
+    resident.add_argument("--query-timeout", type=int, default=180, metavar="SEC",
+                          help="Execution timeout in seconds for --resident-query (10..600, default 180)")
+    resident.add_argument("--no-wait", action="store_true",
+                          help="Return immediately after queuing --resident-query without waiting for the answer")
+    resident.add_argument("--resident-queries", nargs="?", const="", default=None, metavar="ADDRESS",
+                          help="List recent direct resident session queries (optional ADDRESS and --project filters)")
+    resident.add_argument("--query-limit", type=int, default=50, metavar="N",
+                          help="Maximum rows for --resident-queries (default 50)")
+    resident.add_argument("--resident-query-get", metavar="QUERY_ID",
+                          help="Read one direct resident session query with masked prompt and answer (read-only)")
+    resident.add_argument("--resident-query-cancel", metavar="QUERY_ID",
+                          help="Cancel an unstarted direct resident session query")
+    resident.add_argument("--resident-sessions", nargs="?", const="", default=None, metavar="ADDRESS",
+                          help="List scoped active sessions of resident agents (optional ADDRESS and --project filters)")
+    resident.add_argument("--include-inactive", action="store_true",
+                          help="Include archived/lost/closed sessions in --resident-sessions")
+    resident.add_argument("--resident-session-reset", metavar="ADDRESS",
+                          help="Archive/reset one scoped session on ADDRESS (requires --session-key)")
+    resident.add_argument("--session-key", metavar="KEY",
+                          help="Target session key for --resident-session-reset (or --resident-query)")
+    resident.add_argument("--mail-send", metavar="TO",
+                          help="The operator sends mail to TO (an agent address); with --mail-subject, "
+                               "--mail-body ('-' reads stdin), --mail-kind, --mail-reply-to, --mail-task")
+    resident.add_argument("--mail-subject", metavar="TEXT", help="Subject of --mail-send")
+    resident.add_argument("--mail-body", metavar="TEXT", help="Body of --mail-send ('-' reads stdin)")
+    resident.add_argument("--mail-kind", metavar="KIND", default="message",
+                          help="Kind of --mail-send (default message: message, question, answer, task_offer, shutdown)")
+    resident.add_argument("--mail-reply-to", metavar="ID", help="Mail id --mail-send answers")
+    resident.add_argument("--mail-task", metavar="ID", help="Task --mail-send is about")
+    resident.add_argument("--op-id", metavar="ID",
+                          help="Operation id of --mail-send/--task-create (default a fresh uuid; the same id "
+                               "returns the first answer and stores nothing)")
+    resident.add_argument("--mail-list", nargs="?", const="", metavar="ADDRESS",
+                          help="List mail: ADDRESS gives that agent's queued inbox, no argument the recent mail")
+    resident.add_argument("--tasks", action="store_true", help="List the resident task board (operator view)")
+    resident.add_argument("--task-create", metavar="TITLE",
+                          help="Create a task (with --task-detail, --task-assignee, --task-blocked-by, "
+                               "--task-project, --task-sha)")
+    resident.add_argument("--task-detail", metavar="TEXT", help="Detail of --task-create")
+    resident.add_argument("--task-assignee", metavar="ADDRESS", help="Assignee of --task-create")
+    resident.add_argument("--task-blocked-by", metavar="K1,K2", help="Blockers of --task-create (task ids, comma-separated)")
+    resident.add_argument("--task-project", metavar="ID",
+                          help="Project --task-create is pinned to (a code project; resolved to its sha)")
+    resident.add_argument("--task-sha", metavar="REF",
+                          help="Commit of --task-project (a ref; default the project workspace's HEAD)")
+    resident.add_argument("--task-calls", metavar="ID",
+                          help="Print the stored tool call log of a task (JSON, operator view)")
+    resident.add_argument("--task-cancel", metavar="ID", help="Cancel a task (needs --task-reason)")
+    resident.add_argument("--task-reason", metavar="TEXT", help="Reason of --task-cancel")
+    resident.add_argument("--mail-relay", action="store_true",
+                          help="run the resident mail relay (hub unit)")
+
+    sessions = parser.add_argument_group("operator sessions (docs/design/operator-sessions.md)")
+    sessions.add_argument("--session-add", metavar="WORKSTATION",
+                          help="Register a workstation with --address (tailnet IPv4) and --key (its link public key, "
+                               "ssh-ed25519); rewrites the Guardian-owned ~/.ssh/authorized_keys2")
+    sessions.add_argument("--session-remove", metavar="WORKSTATION",
+                          help="Remove a workstation and its link line")
+    sessions.add_argument("--session-address", metavar="WORKSTATION",
+                          help="Give a workstation a new tailnet address (--address); rewrites its from= (SD9)")
+    sessions.add_argument("--session-list", action="store_true",
+                          help="List workstations, whether sshd reads authorized_keys2, and the session rows")
+    sessions.add_argument("--address", metavar="IPV4", help="Tailnet IPv4 of --session-add/--session-address")
+    sessions.add_argument("--key", metavar="KEY", help="Link public key of --session-add ('ssh-ed25519 AAAA...')")
+    sessions.add_argument("--session-link", action="store_true",
+                          help="The link entry: sshd's forced command for --workstation (not for interactive use)")
+    sessions.add_argument("--workstation", metavar="ID",
+                          help="Workstation id of --session-link and the --flow-draft-* flags")
+
     args = parser.parse_args()
     if args.actor is not None:
         # Recorded as decided_by / publication actor: one format for the plain and the JSON forms.
         from action_ops import ACTOR_PATTERN, INVALID_INPUT
 
-        if not ACTOR_PATTERN.match(args.actor):
+        if not ACTOR_PATTERN.fullmatch(args.actor):
             message = "actor: use 1-64 letters, digits or @:._-"
             if args.json:
                 print(json.dumps({"ok": False, "error": message}))
@@ -1305,8 +2185,11 @@ def main():
                 for p in system.list_personas():
                     marker = " 🟢 (active)" if p.get("id") == cur_id else ""
                     print(f" • [{p.get('id')}] {p.get('name')}{marker}")
-                    print(f"   Role: {p.get('role')}")
-                    print(f"   System: {p.get('system_prompt')[:60]}...")
+                    if character.is_character(p):
+                        print(f"   Seats: {', '.join(p.get('seats') or [])}")
+                    else:
+                        print(f"   Role: {p.get('role')}")
+                    print(f"   System: {character.body_text(p)[:60]}...")
                 print()
                 continue
             elif parts[1] == "use" and len(parts) > 2:
@@ -1320,8 +2203,11 @@ def main():
             elif parts[1] in ["current", "info"]:
                 curr = system.get_active_persona()
                 print(f"\n🎭 Active Persona: {curr.get('name')} ({curr.get('id')})")
-                print(f" Role: {curr.get('role')}")
-                print(f" System Prompt: {curr.get('system_prompt')}\n")
+                if character.is_character(curr):
+                    print(f" Seats: {', '.join(curr.get('seats') or [])}")
+                else:
+                    print(f" Role: {curr.get('role')}")
+                print(f" System Prompt: {character.body_text(curr)}\n")
                 continue
 
         try:

@@ -1,0 +1,53 @@
+flowchart TB
+    op["operator<br/>(dashboard, AGENT_TOKEN)"]
+
+    subgraph hub["hub site-a-arm1"]
+        api["Go agent API<br/>/api/mail, /api/tasks"]
+        cli["guardian.py --mail-*<br/>(spawned by newCmd)"]
+        store[("mail store mailbox/mail.db (WAL)<br/>messages, tasks, turn records, events")]
+        relay["mail relay unit (Python)<br/>admission, limits, routing,<br/>heartbeat, kill switch"]
+        gates["existing gates<br/>approvals, jev, debates"]
+        api --> cli --> store
+        relay <--> store
+    end
+
+    subgraph n1["node-1 (worker protocol 3)"]
+        wr1["worker.py relay<br/>(client of the daemon)"]
+        daemon["worker daemon worker.sock<br/>identity per socket, job slots,<br/>delivered spool, task snapshots, call logs"]
+        sup1["resident supervisor<br/>(systemd user unit)"]
+        subgraph tmux1["tmux session guardian-resident"]
+            subgraph wc["claude window (isolated config, no built-in tools)"]
+                c1["claude CLI"]
+                cm["mailbox MCP + repo MCP<br/>(stdio children)"]
+                c1 --> cm
+            end
+            subgraph wx["codex window"]
+                x1["codex CLI"]
+                xm["mailbox MCP + repo MCP"]
+                x1 --> xm
+            end
+            subgraph wg["agy window"]
+                g1["agy CLI"]
+                gm["mailbox MCP + repo MCP"]
+                g1 --> gm
+            end
+        end
+        wr1 <--> daemon
+        cm & xm & gm -- "per-agent socket (0700)" --> daemon
+        c1 & x1 & g1 -. "hooks: turn start, turn end, question" .-> daemon
+        sup1 --> tmux1
+        daemon -. "fixed wake line only, after admission" .-> tmux1
+    end
+
+    subgraph n2["node-2 .. node-6"]
+        wr2["worker.py relay"]
+        d2["worker daemon"]
+        tmux2["tmux: claude | codex | agy"]
+        wr2 <--> d2 <--> tmux2
+    end
+
+    op --> api
+    relay <-- "SSH stream opened by the hub" --> wr1
+    relay <-- "SSH stream opened by the hub" --> wr2
+    store -. "operator files a result" .-> gates
+    n1 x--x n2

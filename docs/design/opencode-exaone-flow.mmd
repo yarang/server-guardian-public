@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    participant E as Debate engine
+    participant R as LLMRunner (opencode invoker)
+    participant O as opencode 2.2.7 --standalone
+    participant X as EXAONE API
+
+    E->>R: turn prompt (seat chain or default chain)
+    R->>R: _exaone_pace() (1 request start per second, shared with exaone)
+    R->>O: stdin prompt, OPENCODE_CONFIG_CONTENT, per-call XDG dirs, DISABLE_* flags
+    O->>X: POST /v1/chat/completions (stream, reasoning_effort high, max_completion_tokens 65536)
+    X-->>O: SSE: reasoning_content, content, finish_reason
+    alt model calls the skill tool
+        O->>O: permission deny (tool_use error)
+        O->>X: second request with the denial
+        X-->>O: SSE answer
+    end
+    O-->>R: JSON events on stdout (step_start, text, tool_use, step_finish, error)
+    alt text in the last step and reason stop
+        R-->>E: answer, label opencode-cli
+    else error event, empty text, reason length, or OPENCODE_TIMEOUT passed
+        R-->>E: RuntimeError "opencode: ...", the chain moves on
+    end

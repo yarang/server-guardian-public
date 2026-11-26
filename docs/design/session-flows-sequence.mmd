@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant M as Session model (workstation)
+    participant D as Link daemon (workstation)
+    participant L as Link entry (hub, session_link.py)
+    participant A as Hub API (loopback, AGENT_TOKEN)
+    participant P as Dashboard (person)
+
+    M->>D: flow_check {kind, seats}
+    D->>L: frame flow_check
+    L->>L: validate fields, refuse extras
+    L->>A: --flow-draft-check (no write)
+    A-->>M: errors, warnings, graph
+    M->>D: flow_draft_save
+    D->>L: frame flow_draft_save
+    L->>A: save under flow-drafts/<ws>/
+    A-->>M: draft id
+    P->>A: POST /api/flow-drafts/<ws>/<id>/promote
+    A->>A: FlowStore.save (no builtin, no silent overwrite)
+    M->>D: flow_run {project, flow, seats, params}
+    D->>L: frame flow_run
+    L->>A: POST /api/debates + started_by=session:<ws>
+    A-->>M: job id (or 429 when slots are full)
+    M->>D: flow_run_get {id, wait_sec}
+    D->>L: frame flow_run_get
+    L->>A: GET /api/debates/<id>
+    A-->>M: status, decision (only if started_by matches)
+    Note over A,P: Proposed actions wait in Approvals for a person (SD4)

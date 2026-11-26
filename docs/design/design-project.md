@@ -283,6 +283,12 @@ Implemented 2026-10-18, not deployed. Deviations from the design:
 - **Events are not implemented** (`artifact_created`, `artifact_version_finished`, `artifact_skipped`). `write_artifact` runs inside `action_ops._execute`, an approved-action CLI run outside any job's `events.jsonl`, so there is no event sink to write to. The audit line and the manifest are the record. Adding events needs a job-independent sink; not done.
 - **Entry point**: `pages/debate/ArtifactsLink.tsx` puts a "View artifacts" link (`#/debates/artifacts/<thread>`) next to `ReportButton` in `JobResult` and `RunDetail`, for finished debates only. It is shown only when the debate belongs to the selected project and that project is `kind: "design"`, because the Artifacts tab exists only for the selected design project; a job without a project counts as the default code project. The link does not check whether the thread has stored versions; an empty thread shows the tab's own empty state.
 - **Not done**: the real-browser download check (a click in the dashboard, then comparing the saved file's sha256 with the manifest). The Go tests cover 401 without a cookie, 200 with Bearer, 206 for Range, 404 for path escape and symlinks, and the sha256 of the served and zipped bytes; `ci.sh web` and `go` pass. The browser check stays **open** as an end condition of P3.
+- **Real-browser check of the tab (2026-10-31, hub dashboard in Chrome, read-only).** `fleet` shows the empty notice; the
+  `dashboard-ui` design project lists one thread with 2 versions; v2 holds `ui-map.mmd`, `ui-review.docx`, `ui-review.md`,
+  `ui-review.pptx`, each row with kind, size, stage, author and sha256; the Word/PowerPoint make buttons are hidden because
+  both files exist; the Markdown viewer renders headings and tables, the `.docx` view says to download it, the `.mmd` view
+  draws the diagram (in the dark Mermaid theme, the defect noted in `office-export.md`). The "Download" button is there
+  but was not clicked, so the sha256 comparison above is still open.
 
 ### Seeded-defect corpus (P2 evaluation)
 

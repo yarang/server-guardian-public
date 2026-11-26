@@ -14,7 +14,7 @@ means that software.
 | English | 한국어 | Meaning | Do not use |
 |---|---|---|---|
 | node | 노드 | Any machine in the fleet inventory, the hub included. This is what Guardian inspects and operates. API: `/api/nodes`, `node_start`, `total_nodes`, type `FleetNode`. | server, 서버, 머신, 장비 |
-| fleet | 플릿 | All nodes of the inventory. | |
+| fleet | 플릿 | All nodes of the inventory. The dashboard destination for it is called Nodes (노드), and the fleet summary is Overview (현황). | |
 | inventory | 인벤토리 | The list of nodes (`servers.json`) with their metadata. | |
 | node group | 노드 그룹 | A user-defined set of nodes (`docs/design/node-groups.md`). | |
 | hub | 허브 | The one node that runs the hub agent, the dashboard and the data. Its `guardian_role` is `hub`. | |
@@ -41,6 +41,16 @@ migrated.
 | team | 팀 | The lineup of debate agents with their personas and flow. | |
 | project | 프로젝트 | The target of a debate: `code`, `ops` or `design`. | |
 | thread | 스레드 | A series of rounds on one task. | 대화 |
+| flow | 흐름 | A way of working drawn as seats, bundles, the close and links (`docs/design/flow-graph.md`). Teams and templates show as flows too. | workflow (in Korean copy) |
+| seat | 자리 | Where one character does one job in a flow. | node (that is a machine) |
+| job | 맡은 일 | What a seat does: write, critique, rewrite, rebut, summarise. | |
+| bundle | 동시 묶음 | Seats that run in parallel. | group (that is a node group) |
+| close | 마감 | The one shared close of a flow: Judge, jev gate, action checks. | gate (that is a check) |
+| link | 연결 | One seat reads another's result; a look-back link reads the previous round. | edge |
+| input mode | 받는 방식 | How a seat receives earlier work: raw, condensed, structured (key sections), latest. | |
+| summariser | 정리자 | A seat that shortens earlier work for the seat it feeds. | |
+| quick review | 빠른 리뷰 | One reviewer checks a change (`base..head` or a patch) with read-only tools; label `REVIEW`, no Judge, never a verdict (`docs/design/verification-layer.md`). | quick check, 퀵 리뷰 |
+| verification layer | 검증 계층 | What Guardian is for code work: it checks work produced elsewhere instead of producing it. | ADE, 개발 환경 |
 
 ## Changes
 
@@ -52,3 +62,18 @@ migrated.
 
 In Korean running text, write what happens ("서비스를 재시작해요", "패키지를 삭제해요") instead of the noun 조치. The
 noun 액션 names the object.
+
+## Navigation
+
+The five dashboard destinations (decided 2026-10-29, `docs/design/ui-flow-redesign.md`). Route ids are unchanged except the new `overview`.
+
+| English | 한국어 | Meaning | Route |
+|---|---|---|---|
+| Overview | 현황 | What needs attention now (the former Fleet summary). | `#/overview` |
+| Nodes | 노드 | Inventory, groups, SSH audit, commands and command sets. | `#/fleet` |
+| Workflows | 업무 흐름 | Where debates (runs of a team) are started and read. The single run is still a debate (토론). | `#/debates` |
+| Approvals | 승인 | Actions waiting for a person. | `#/approvals` |
+| Settings | 설정 | Hub connection, flow setup, execution environments, display. | `#/settings` |
+| flow setup | 흐름 구성 | Settings group holding projects, teams and personas. | `#/settings/flowConfig` |
+| execution environments | 실행 환경 | Settings group for the workers (워커) that run debate agents. | `#/settings/workers` |
+

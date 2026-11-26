@@ -32,8 +32,10 @@ function mockHealthyHub() {
   mocked.fetchTeams.mockResolvedValue(teamList);
   mocked.fetchDebates.mockResolvedValue([]);
   mocked.listActions.mockResolvedValue([]);
+  mocked.fetchCommandSets.mockResolvedValue({ ok: true, max_age_days: 180, stale: [], sets: [] });
 }
 
+const O0 = ko.shell.nav.routes.overview.label;
 const F0 = ko.shell.nav.routes.fleet.label;
 const D0 = ko.shell.nav.routes.debates.label;
 const S0 = ko.shell.nav.routes.settings.label;
@@ -44,10 +46,9 @@ describe('App shell', () => {
     mocked.checkAgentHealth.mockResolvedValue({ state: 'online', reasons: [] });
   });
 
-  it('defaults to the Fleet summary and reports the agent online', async () => {
+  it('defaults to the Overview page and reports the agent online', async () => {
     renderApp();
-    expect(screen.getByRole('heading', { level: 1, name: F0 })).toBeTruthy();
-    expect(screen.getByRole('button', { name: ko.shell.nav.fleetTabs.summary }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('heading', { level: 1, name: O0 })).toBeTruthy();
     expect(await screen.findByText(ko.shell.status.online)).toBeTruthy();
     expect(await screen.findByRole('region', { name: ko.ops.overview.reachability.title })).toBeTruthy();
   });
@@ -84,31 +85,35 @@ describe('App shell', () => {
   });
 
   it('follows the URL hash for every route and links the navigation to hashes', async () => {
+    const O = ko.shell.nav.routes.overview.title;
     const F = ko.shell.nav.routes.fleet.title;
     const D = ko.shell.nav.routes.debates.title;
     const A = ko.shell.nav.routes.approvals.title;
     const S = ko.shell.nav.routes.settings.title;
     const cases: Array<[string, string]> = [
-      ['#/fleet', F],
+      ['#/overview', O],
       ['#/fleet/nodes', F],
       ['#/fleet/ssh', F],
       ['#/fleet/commands', F],
+      ['#/fleet/commandSets', F],
       ['#/debates', D],
       ['#/approvals', A],
       ['#/settings', S],
-      // legacy aliases land on the four destinations
-      ['#/overview', F],
+      // legacy aliases land on the five destinations
+      ['#/fleet', O],
+      ['#/fleet/summary', O],
       ['#/nodes', F],
       ['#/security', F],
       ['#/ssh', F],
       ['#/run', F],
       ['#/batch', F],
       ['#/terminal', F],
-      ['#/assistant', F],
-      ['#/more', F],
+      ['#/assistant', O],
+      ['#/more', O],
       ['#/agents', D],
       ['#/debate', D],
-      ['#/unknown', F],
+      ['#/settings/commandSets', F],
+      ['#/unknown', O],
     ];
     renderApp();
     for (const [hash, title] of cases) {
@@ -126,13 +131,14 @@ describe('App shell', () => {
     await waitFor(() => expect(within(nav).getByRole('link', { name: F0 }).getAttribute('aria-current')).toBe('page'));
   });
 
-  it('lists the same four destinations in the sidebar and the mobile tab bar, with no More tab', () => {
+  it('lists the same five destinations in the sidebar and the mobile tab bar, with no More tab', () => {
     renderApp();
     const nav = screen.getByRole('navigation', { name: ko.shell.nav.primary });
     // One flat list: no group headings.
     expect(within(nav).queryAllByRole('group')).toHaveLength(0);
-    const names = [F0, D0, ko.shell.nav.routes.approvals.label, S0];
-    const hrefs = ['#/fleet', '#/debates', '#/approvals', '#/settings'];
+    const names = [O0, F0, D0, ko.shell.nav.routes.approvals.label, S0];
+    // The bare #/fleet is the legacy Overview alias, so the Fleet entry points at its first tab.
+    const hrefs = ['#/overview', '#/fleet/nodes', '#/debates', '#/approvals', '#/settings'];
     const links = within(nav).getAllByRole('link');
     expect(links.map((a) => a.textContent)).toEqual(names);
     expect(links.map((a) => a.getAttribute('href'))).toEqual(hrefs);
@@ -150,8 +156,13 @@ describe('App shell', () => {
     const tabs = screen.getByRole('navigation', { name: ko.shell.nav.primaryMobile });
     await waitFor(() => expect(within(tabs).getByRole('link', { name: S0 }).getAttribute('aria-current')).toBe('page'));
     expect(within(tabs).getByRole('link', { name: F0 }).getAttribute('aria-current')).toBeNull();
+    expect(within(tabs).getByRole('link', { name: O0 }).getAttribute('aria-current')).toBeNull();
     window.location.hash = '#/run';
     await waitFor(() => expect(within(tabs).getByRole('link', { name: F0 }).getAttribute('aria-current')).toBe('page'));
+    // The old summary hash marks Overview, not the Fleet entry.
+    window.location.hash = '#/fleet';
+    await waitFor(() => expect(within(tabs).getByRole('link', { name: O0 }).getAttribute('aria-current')).toBe('page'));
+    expect(within(tabs).getByRole('link', { name: F0 }).getAttribute('aria-current')).toBeNull();
   });
 
   it('renders the legacy terminal alias as the Commands tab', async () => {
@@ -245,18 +256,16 @@ describe('App shell', () => {
     expect(screen.getByRole('button', { name: ko.debate.start.start })).toBeTruthy();
     expect(await screen.findByText(ko.debate.page.empty)).toBeTruthy();
     expect(screen.queryByText(new RegExp('^' + ko.debate.persona.section))).toBeNull();
-    expect(screen.queryByText(new RegExp('^' + ko.debate.team.section))).toBeNull();
-    expect(screen.getByRole('link', { name: ko.debate.page.manageTeams }).getAttribute('href')).toBe('#/settings/teams');
   });
 
-  it('renders the proposed actions at #/approvals and the configuration at #/settings/teams', async () => {
+  it('renders the proposed actions at #/approvals and the configuration at #/settings/flows and personas', async () => {
     window.location.hash = '#/approvals';
     renderApp();
     expect(await screen.findByText(ko.debate.actions.empty)).toBeTruthy();
-    window.location.hash = '#/settings/teams';
-    expect(await screen.findByText(ko.debate.team.sectionCount(2))).toBeTruthy();
+    window.location.hash = '#/settings/flows';
+    expect(await screen.findByText(ko.flows.intro)).toBeTruthy();
     window.location.hash = '#/settings/personas';
-    expect(await screen.findByText(ko.debate.persona.sectionCount(4))).toBeTruthy();
+    expect(await screen.findByText(ko.personas.listTitle(4, 4))).toBeTruthy();
   });
 
   it('Refresh refetches the page data', async () => {

@@ -211,6 +211,37 @@ class ShardTests(RunCase):
         record = self.store.load_shard(self.audit, "s0001")
         self.assertEqual((record["state"], record["findings"], record["coverage"]), ("done", [], "complete"))
 
+    def test_a_broken_findings_block_is_asked_again_not_read_as_clean(self) -> None:
+        # an empty list means "checked, found nothing"; invalid JSON must not mean the same (prompt version 4)
+        fake = self.expert(READ_ALL, "```findings\n[{\"path\": \"cli/tool.py\",]\n```", findings())
+        self.run_audit(fake)
+        record = self.store.load_shard(self.audit, "s0001")
+        self.assertEqual((record["state"], record["findings"]), ("done", []))
+        self.assertIn("cannot be read: the findings block is not valid JSON", fake.prompts("expert")[-1])
+
+    def test_a_findings_block_broken_twice_fails_the_shard(self) -> None:
+        broken = "```findings\n{not json\n```"
+        self.run_audit(self.expert(READ_ALL, broken, broken))
+        record = self.store.load_shard(self.audit, "s0001")
+        self.assertEqual(record["state"], "failed")
+        self.assertTrue(record["error"].startswith("bad_format: the findings block is not valid JSON"), record)
+
+    def test_the_shard_prompt_has_one_findings_format(self) -> None:
+        fake = self.expert(READ_ALL, findings())
+        self.run_audit(fake)
+        first = fake.calls[0]
+        text = first["prompt"] + (first["instructions"].text() if first["instructions"] else "")
+        self.assertIn('"scenario"', text)  # the audit's own format
+        self.assertNotIn("If you can, end your final answer with a findings block", text)  # not the debate's
+        self.assertIn(f"at most {audit_run.MAX_AUDIT_FINDINGS} items", text)
+
+    def test_parse_audit_findings_counts_what_it_cuts(self) -> None:
+        items = [{"n": i} for i in range(audit_run.MAX_AUDIT_FINDINGS + 5)]
+        kept, problem, cut = audit_run.parse_audit_findings("```findings\n" + json.dumps(items) + "\n```")
+        self.assertEqual((len(kept), problem, cut), (audit_run.MAX_AUDIT_FINDINGS, None, 5))
+        self.assertEqual(audit_run.parse_audit_findings("no block"), (None, None, 0))
+        self.assertEqual(audit_run.parse_audit_findings("```findings\n{}\n```")[1], "the findings block is not a JSON list")
+
     def test_the_audit_never_creates_actions(self) -> None:
         action = ('```json\n{"actions": [{"tool": "apply_patch", "path": "cli/tool.py", "old": "return 1", '
                   '"new": "return 3"}]}\n```')

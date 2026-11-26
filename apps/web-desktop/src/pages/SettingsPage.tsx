@@ -1,36 +1,57 @@
 import { useCallback, useState } from 'react';
 import { Button, Panel, SegmentedControl } from '@server-guardian/ui';
-import { fetchCommandSets, fetchPersonas, fetchTeams, fetchWorkers } from '../api';
+import { fetchWorkers } from '../api';
 import { LANGUAGES, isLanguage, language, setLanguage, tr } from '../i18n';
 import type { Language } from '../i18n';
 import { Notice } from '../components/Notice';
 import { SelectField } from '../components/SelectField';
 import { Row, Stack, mono, muted } from '../components/layout';
 import { useHubData } from '../hooks/useHubData';
-import { inDesktopShell } from '../lib/exportFolder';
 import { fleetHref, navigate } from '../router';
 import { useProjectStore } from '../state/projectStore';
-import { ExportFolderSection } from './ExportFolderSection';
-import { CommandSetsSection } from './debate/CommandSetsSection';
-import { PersonasSection } from './debate/PersonasSection';
 import { ProjectsSection } from './debate/ProjectsSection';
-import { TeamsSection } from './debate/TeamsSection';
 import { WorkersSection } from './debate/WorkersSection';
+import { FlowsTab } from './flows/FlowsTab';
+import { PersonasTab } from './personas/PersonasTab';
 
-export const SETTINGS_SECTIONS = [
+/** Top-level groups of the Settings page (`#/settings/<group>`). */
+export const SETTINGS_GROUPS = [
   { value: 'endpoint', label: tr.shell.settingsPage.sections.endpoint },
-  { value: 'projects', label: tr.shell.settingsPage.sections.projects },
-  { value: 'personas', label: tr.shell.settingsPage.sections.personas },
-  { value: 'teams', label: tr.shell.settingsPage.sections.teams },
-  { value: 'commandSets', label: tr.shell.settingsPage.sections.commandSets },
+  { value: 'flowConfig', label: tr.shell.settingsPage.sections.flowConfig },
   { value: 'workers', label: tr.shell.settingsPage.sections.workers },
+  { value: 'display', label: tr.shell.settingsPage.sections.display },
 ] as const;
 
-export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]['value'];
+export type SettingsGroup = (typeof SETTINGS_GROUPS)[number]['value'];
 
-/** `#/settings/:section` param as a section; missing or unknown values show the hub connection. */
+/** The sections the flow setup group switches between, under a control of its own. */
+export const FLOW_CONFIG_SECTIONS = [
+  { value: 'projects', label: tr.shell.settingsPage.sections.projects },
+  { value: 'flows', label: tr.shell.settingsPage.sections.flows },
+  { value: 'personas', label: tr.shell.settingsPage.sections.personas },
+] as const;
+
+export type FlowConfigSection = (typeof FLOW_CONFIG_SECTIONS)[number]['value'];
+
+/** Every section `#/settings/<value>` can show: a group of its own or one of the flow setup sections. */
+export type SettingsSection = 'endpoint' | 'workers' | 'display' | FlowConfigSection;
+
+/**
+ * `#/settings/:section` param as a section. `flowConfig` means the flow setup group's first section
+ * (projects); missing or unknown values show the hub connection.
+ */
 export function parseSection(param: string | undefined): SettingsSection {
-  return SETTINGS_SECTIONS.find((s) => s.value === param)?.value ?? 'endpoint';
+  if (param === 'flowConfig') return 'projects';
+  // The team editor was removed (docs/design/ui-verification-review.md, X1): flows replace teams.
+  if (param === 'teams') return 'flows';
+  const flow = FLOW_CONFIG_SECTIONS.find((s) => s.value === param);
+  if (flow) return flow.value;
+  return param === 'workers' || param === 'display' ? param : 'endpoint';
+}
+
+/** The group a section renders under: the flow setup sections share `flowConfig`. */
+function groupOf(section: SettingsSection): SettingsGroup {
+  return SETTINGS_GROUPS.find((g) => g.value === section)?.value ?? 'flowConfig';
 }
 
 /** The dashboard language (i18n/index.ts): saved per browser, applied by reloading the page. */
@@ -72,28 +93,6 @@ function ProjectsPane() {
   return <ProjectsSection state={projects} onChanged={projects.reload} />;
 }
 
-function PersonasPane() {
-  const personas = useHubData(fetchPersonas);
-  return <PersonasSection state={personas} onReload={personas.reload} onChanged={personas.reload} />;
-}
-
-function TeamsPane() {
-  const personas = useHubData(fetchPersonas);
-  const teams = useHubData(fetchTeams);
-  const reloadPersonas = personas.reload;
-  const reloadTeams = teams.reload;
-  const reloadAll = useCallback(() => {
-    reloadPersonas();
-    reloadTeams();
-  }, [reloadPersonas, reloadTeams]);
-  return <TeamsSection state={teams} personas={personas.data?.personas ?? []} onChanged={reloadAll} />;
-}
-
-function CommandSetsPane() {
-  const sets = useHubData(fetchCommandSets);
-  return <CommandSetsSection state={sets} onChanged={sets.reload} />;
-}
-
 function WorkersPane() {
   const workers = useHubData(fetchWorkers);
   return <WorkersSection state={workers} />;
@@ -101,35 +100,48 @@ function WorkersPane() {
 
 /**
  * Settings: a section switcher (`#/settings/<section>`) over the configuration the dashboard
- * edits. Each section fetches its own data when shown; the existing dialogs are reused as-is.
+ * edits. Four groups; the flow setup group holds a second switcher for projects, flows and
+ * characters (personas). Each section fetches its own data when shown; the existing dialogs are reused as-is.
  */
 export function SettingsPage({
   agentUrl,
   onEditEndpoint,
   section,
+  params = [],
 }: {
   agentUrl: string;
   onEditEndpoint: () => void;
   /** `#/settings/:section` param. */
   section?: string;
+  /** Path segments after the section (`#/settings/personas/<id>`: the character page). */
+  params?: string[];
 }) {
   const current = parseSection(section);
+  const group = groupOf(current);
   return (
     <Stack>
       <SegmentedControl
         aria-label={tr.shell.settingsPage.sectionsAria}
-        options={[...SETTINGS_SECTIONS]}
-        value={current}
-        onChange={(v) => navigate('settings', [v])}
+        options={[...SETTINGS_GROUPS]}
+        value={group}
+        onChange={(v) => {
+          if (v !== group) navigate('settings', [v === 'flowConfig' ? 'projects' : v]);
+        }}
       />
+      {group === 'flowConfig' ? (
+        <SegmentedControl
+          aria-label={tr.shell.settingsPage.flowSectionsAria}
+          options={[...FLOW_CONFIG_SECTIONS]}
+          value={current}
+          onChange={(v) => navigate('settings', [v])}
+        />
+      ) : null}
       {current === 'endpoint' ? <EndpointSection agentUrl={agentUrl} onEditEndpoint={onEditEndpoint} /> : null}
-      {current === 'endpoint' ? <LanguageSection /> : null}
-      {current === 'endpoint' && inDesktopShell() ? <ExportFolderSection /> : null}
       {current === 'projects' ? <ProjectsPane /> : null}
-      {current === 'personas' ? <PersonasPane /> : null}
-      {current === 'teams' ? <TeamsPane /> : null}
-      {current === 'commandSets' ? <CommandSetsPane /> : null}
+      {current === 'flows' ? <FlowsTab /> : null}
+      {current === 'personas' ? <PersonasTab params={params} /> : null}
       {current === 'workers' ? <WorkersPane /> : null}
+      {current === 'display' ? <LanguageSection /> : null}
       <div style={{ ...muted, fontSize: 13 }}>
         {tr.shell.settingsPage.groupsNotePrefix}
         <a href={fleetHref('groups')}>{tr.shell.settingsPage.groupsNoteLink}</a>

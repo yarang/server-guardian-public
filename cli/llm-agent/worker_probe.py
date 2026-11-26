@@ -4,6 +4,7 @@
   worker_probe.py evaluate --requirements FILE [--max-jobs N]   facts on stdin -> verdict JSON on stdout
   worker_probe.py table                                        verdict JSON on stdin -> table, exit 1 when not capable
   worker_probe.py record-probe INVENTORY HOST VERDICT_B64      store the verdict as `worker_capable`
+  worker_probe.py record-sandbox INVENTORY HOST VERDICT_B64    store the sandbox verdict as `resident_sandbox`
   worker_probe.py set-worker INVENTORY HOST on|off [INFO_B64]  `worker: true|false`; `on` needs a passed probe
 
 scripts/probe-worker.sh gathers the facts over ssh and calls `evaluate` on the admin machine; the two inventory
@@ -27,6 +28,14 @@ REQUIREMENT_KEYS = {
     "python_min": (str, None),
     "min_free_disk_mib": (int, 1),
     "min_working_cli": (int, 1),
+    # Resident agents (docs/design/resident-agents.md, install step 2): the per-instance and per-turn figures the
+    # registration budget reads (resident_registry). They add no probe condition; the verdict does not depend on them.
+    "resident_memory_mib": (int, 1),
+    "resident_turn_memory_mib": (int, 1),
+    # An open resident instance (docs/design/resident-open-tools.md O2) counts MemoryMax of
+    # deploy/sandbox/guardian-sandbox-run.sh (O1 keeps 2G until O4 measures real turns) instead of
+    # resident_memory_mib; only the registration budget reads it.
+    "resident_open_memory_mib": (int, 1),
 }
 VERSION = re.compile(r"^\d+\.\d+(\.\d+)?$")
 HOST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -144,7 +153,13 @@ def evaluate(facts: Dict[str, Any], req: Dict[str, Any], max_jobs: Optional[int]
     path = str(facts.get("hub_path", "unknown"))
     add("hub_path", path == "ok", {"ok": "the hub reaches the host with the fleet key"}.get(path, f"hub path: {path}"))
 
-    return {"passed": all(c["ok"] for c in conditions), "max_jobs": jobs, "clis": working, "conditions": conditions}
+    verdict: Dict[str, Any] = {"passed": all(c["ok"] for c in conditions), "max_jobs": jobs, "clis": working,
+                               "conditions": conditions}
+    if free is not None:
+        # Recorded by record_probe as worker_capable.memory_free_mib (the resident budget of M2a reads it);
+        # it is not a condition, so the verdict for debate workers does not depend on it.
+        verdict["memory_free_mib"] = free
+    return verdict
 
 
 def format_verdict(verdict: Dict[str, Any]) -> str:
@@ -221,13 +236,28 @@ def edit_inventory(path: str, host: str, change: Callable[[Dict[str, Any]], None
 
 def record_probe(path: str, host: str, verdict: Dict[str, Any], lock_path: Optional[str] = None) -> Dict[str, Any]:
     reasons = [f"{c['name']}: {c['detail']}" for c in verdict["conditions"] if not c["ok"]]
+    free = verdict.get("memory_free_mib")
 
     def change(entry: Dict[str, Any]) -> None:
-        entry["worker_capable"] = {"passed": bool(verdict["passed"]), "checked": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                                   "max_jobs": verdict.get("max_jobs"), "clis": list(verdict.get("clis") or []),
-                                   "reasons": reasons}
+        capable = {"passed": bool(verdict["passed"]), "checked": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                   "max_jobs": verdict.get("max_jobs"), "clis": list(verdict.get("clis") or []),
+                   "reasons": reasons}
+        if isinstance(free, int) and not isinstance(free, bool):
+            capable["memory_free_mib"] = free  # what the resident budget checks against (omitted when unknown)
+        entry["worker_capable"] = capable
         if not verdict["passed"]:
             entry["worker"] = False  # a host that no longer passes stops receiving work
+
+    return edit_inventory(path, host, change, lock_path)
+
+
+def record_sandbox(path: str, host: str, verdict: Dict[str, Any], lock_path: Optional[str] = None) -> Dict[str, Any]:
+    """Stores the O1 sandbox probe verdict as the entry's top-level `resident_sandbox` key.
+
+    Never under `worker_install`: scripts/install-worker.sh replaces that whole object, while this
+    record says whether open resident agents may run on the node at all (docs/design/resident-open-tools.md)."""
+    def change(entry: Dict[str, Any]) -> None:
+        entry["resident_sandbox"] = verdict
 
     return edit_inventory(path, host, change, lock_path)
 
@@ -277,6 +307,10 @@ def main(argv: List[str]) -> int:
     if len(argv) == 4 and argv[0] == "record-probe":
         record_probe(argv[1], argv[2], _decode(argv[3]))
         print(f"{argv[2]}: capability result recorded")
+        return 0
+    if len(argv) == 4 and argv[0] == "record-sandbox":
+        record_sandbox(argv[1], argv[2], _decode(argv[3]))
+        print(f"{argv[2]}: sandbox result recorded")
         return 0
     if len(argv) in (4, 5) and argv[0] == "set-worker" and argv[3] in ("on", "off"):
         set_worker(argv[1], argv[2], argv[3] == "on", _decode(argv[4]) if len(argv) == 5 else None)

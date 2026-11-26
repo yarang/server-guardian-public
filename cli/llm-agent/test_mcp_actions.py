@@ -8,9 +8,11 @@ from unittest.mock import MagicMock, patch
 
 from action_ops import describe_action, record_proposals, reject_action, run_action
 from db_manager import DecisionDBManager
-from debate_engine import DebateEngine
+from debate_engine import (CRITIC_ASK, EXPERT_ASK, JUDGE_ACTIONS_MANUAL, DebateEngine, judge_actions_note,
+                           judge_plan_rules, prompt_kind)
 from llm_runner import LLMResult
 from mcp_client import ActionValidationError, MCPClient, parse_actions
+from project_registry import Project
 
 
 
@@ -258,7 +260,9 @@ class DebateIntegrationTests(unittest.TestCase):
         statuses = [(a["tool"], a["status"]) for a in result["final_decision"]["actions"]]
         self.assertEqual(statuses, [("jev_mcp:run_tests", "PROPOSED"), ("jev_mcp:server_remediation", "INVALID")])
         self.assertIn("jev_mcp:run_tests", prompts[2])
-        self.assertIn("NOT executed automatically", prompts[2])
+        # auto-apply is on by default: the judge is told its file changes skip the approval tab
+        self.assertIn("are applied to the workspace clone WITHOUT a person's review", prompts[2])
+        self.assertNotIn("NOT executed automatically", prompts[2])
         self.assertEqual(len(engine.db.list_actions(result["thread_id"])), 2)
 
     def test_rejected_verdict_records_nothing(self) -> None:
@@ -266,6 +270,65 @@ class DebateIntegrationTests(unittest.TestCase):
         engine, result, _ = self.run_with_judge(text)
         self.assertEqual(result["final_decision"]["actions"], [])
         self.assertEqual(engine.db.list_actions(result["thread_id"]), [])
+
+
+class JudgeExecutionNoteTests(unittest.TestCase):
+    """The judge prompt says which actions run without a person, as action_ops.auto_run_actions does."""
+
+    CODE_TOOLS = ["jev_mcp:apply_patch", "jev_mcp:execute_code_action", "jev_mcp:run_tests"]
+
+    def note(self, project, tools, jev=True, auto="on"):
+        with patch.dict(os.environ, {"GUARDIAN_AUTO_APPLY": auto, "GUARDIAN_UI_ACTIONS": ""}):
+            return judge_actions_note(project, tools, jev)
+
+    def test_code_file_changes_are_announced_as_automatic(self) -> None:
+        text = self.note(Project(id="p"), self.CODE_TOOLS)
+        self.assertIn("passes the jev check", text)
+        self.assertIn("jev_mcp:apply_patch and jev_mcp:execute_code_action", text)
+        self.assertIn("WITHOUT a person's review", text)
+        self.assertIn("Once you approve", self.note(Project(id="p"), self.CODE_TOOLS, jev=False))
+
+    def test_a_person_reviews_when_nothing_runs_on_its_own(self) -> None:
+        self.assertEqual(self.note(Project(id="p"), self.CODE_TOOLS, auto="off"), JUDGE_ACTIONS_MANUAL)
+        self.assertEqual(self.note(Project(id="p"), ["jev_mcp:run_tests"]), JUDGE_ACTIONS_MANUAL)
+        design = Project(id="d", kind="design")
+        self.assertEqual(self.note(design, ["jev_mcp:write_artifact"]), JUDGE_ACTIONS_MANUAL)
+        # an ops project without auto_run, or without a jev gate, runs nothing on its own
+        self.assertEqual(self.note(Project(id="o", kind="ops"), ["ops:apt_clean"]), JUDGE_ACTIONS_MANUAL)
+        ops = Project(id="o", kind="ops", policy={"auto_run": ["ops:apt_clean"], "max_auto_runs_per_day": 2})
+        self.assertEqual(self.note(ops, ["ops:apt_clean"], jev=False), JUDGE_ACTIONS_MANUAL)
+        self.assertEqual(self.note(ops, ["ops:restart_service"]), JUDGE_ACTIONS_MANUAL)  # not the judge's tool
+
+    def test_ops_auto_run_names_the_actions_and_the_cap(self) -> None:
+        ops = Project(id="o", kind="ops", policy={"auto_run": ["ops:apt_clean", "ops:run_script"],
+                                                  "max_auto_runs_per_day": 3})
+        text = self.note(ops, ["ops:apt_clean", "ops:run_script", "ops:restart_service"])
+        self.assertIn("WITHOUT a person when their risk is low: ops:apt_clean (at most 3 a day)", text)
+        self.assertNotIn("ops:run_script", text)  # a script is released by a plan's batch gate, never on its own
+
+    def test_the_plan_rules_without_a_batch_gate_read_as_before(self) -> None:
+        self.assertIn("this one. A plan is never run without a person's approval, every step is simulated",
+                      judge_plan_rules(False))
+        released = judge_plan_rules(True)
+        self.assertNotIn("never run without a person", released)
+        self.assertIn("only when this project's batch gate releases it", released)
+
+
+class TurnTextTests(unittest.TestCase):
+    """Experts and critics of ops and design projects are not sent after architecture, security and performance."""
+
+    def test_only_code_projects_keep_the_original_texts(self) -> None:
+        self.assertIn("architectural proposal", EXPERT_ASK[prompt_kind(Project(id="p"))])
+        self.assertIn("security flaws", CRITIC_ASK[None][2])
+        # a code critic keeps its persona's focus; the security sentence is only the default
+        self.assertIn("Stay within the focus your instructions give you", CRITIC_ASK[None][2])
+        for kind in ("ops", "design"):
+            key = prompt_kind(Project(id="x", kind=kind))
+            self.assertEqual(key, kind)
+            self.assertNotIn("architectural", EXPERT_ASK[key])
+            self.assertNotIn("security flaws", CRITIC_ASK[key][2])
+            self.assertNotIn("rigorously", CRITIC_ASK[key][0] + CRITIC_ASK[key][1])
+            self.assertIn("proposal", EXPERT_ASK[key])  # llm_runner's no-LLM notice finds the role by this word
 
 
 class SelfWorkspaceTests(unittest.TestCase):

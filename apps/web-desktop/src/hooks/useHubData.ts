@@ -17,6 +17,13 @@ export interface HubDataState<T> {
 export interface HubDataOptions {
   /** Poll interval in ms; omitted means fetch once per refresh token / reload. */
   pollMs?: number;
+  /**
+   * Pause the poll while the document is hidden (a background tab): the interval skips its fetch,
+   * and one `visibilitychange` back to visible fetches immediately and resumes polling. Meant for
+   * polls that cost the hub a process spawn (the resident monitor); defaults to false so existing
+   * callers keep polling in background tabs.
+   */
+  pauseWhenHidden?: boolean;
 }
 
 /**
@@ -24,7 +31,7 @@ export interface HubDataOptions {
  * (ignores) in-flight results on unmount, and surfaces failures as `error` instead of fake data.
  */
 export function useHubData<T>(fetcher: (signal: AbortSignal) => Promise<T>, options: HubDataOptions = {}): HubDataState<T> {
-  const { pollMs } = options;
+  const { pollMs, pauseWhenHidden } = options;
   const refreshToken = useRefreshToken();
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
@@ -56,13 +63,25 @@ export function useHubData<T>(fetcher: (signal: AbortSignal) => Promise<T>, opti
       }
     };
 
+    // A hidden tab skips every interval tick; coming back fetches once right away.
+    const hidden = () => pauseWhenHidden && document.visibilityState === 'hidden';
+    const onVisibility = () => {
+      if (!hidden()) void load();
+    };
+
     void load();
-    const timer = pollMs ? window.setInterval(() => void load(), pollMs) : undefined;
+    const timer = pollMs
+      ? window.setInterval(() => {
+          if (!hidden()) void load();
+        }, pollMs)
+      : undefined;
+    if (pollMs && pauseWhenHidden) document.addEventListener('visibilitychange', onVisibility);
     return () => {
       controller.abort();
       if (timer !== undefined) window.clearInterval(timer);
+      if (pollMs && pauseWhenHidden) document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [refreshToken, manual, pollMs]);
+  }, [refreshToken, manual, pollMs, pauseWhenHidden]);
 
   const reload = useCallback(() => setManual((n) => n + 1), []);
   return { data, error, loading, reload };

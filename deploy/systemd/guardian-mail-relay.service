@@ -1,0 +1,44 @@
+[Unit]
+Description=Server Guardian resident mail relay (one ssh stream per node with declared resident agents)
+Documentation=https://git.example.com/owner/server-guardian
+# docs/design/resident-agents.md, M2. With no agent declared it stays idle: no stream, no store file. It reaches the
+# nodes like the agent does, through the fleet ssh-agent socket (~/.ssh/guardian_fleet.conf, IdentityAgent).
+Wants=network-online.target guardian-fleet-agent.service
+After=network-online.target tailscaled.service guardian-fleet-agent.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/.guardian/current/cli/llm-agent
+# GUARDIAN_DATA_DIR (mailbox store, declarations) and GUARDIAN_SERVERS_FILE as the agent sees them.
+EnvironmentFile=-/home/ubuntu/.guardian/agent.env
+ExecStart=/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --mail-relay
+# SIGTERM stops the runner and its node threads; the default control-group kill takes the ssh children with it.
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+# ~/.ssh stays readable (config, known_hosts); the private keys and the LLM keys do not. The fleet key is only usable
+# through the ssh-agent socket.
+InaccessiblePaths=-/etc/guardian -/home/ubuntu/.ssh/guardian_fleet -/home/ubuntu/.ssh/id_ed25519 -/home/ubuntu/.ssh/id_rsa -/home/ubuntu/.guardian/llm.env -/home/ubuntu/.guardian/backup.env -/home/ubuntu/.config/headscale
+ProtectSystem=full
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

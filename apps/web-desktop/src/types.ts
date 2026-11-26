@@ -410,16 +410,77 @@ export interface BatchNodeState {
   durationMs?: number;
 }
 
+/** Seats a character (format 2) may take (agent-characters.md 2.1): the debate seats plus `solo` for the solo runner. */
+export type CharacterSeat = 'expert' | 'proposer' | 'critic' | 'verifier' | 'judge' | 'stage' | 'side' | 'solo';
+
+/** The `persona` block of a character file: the only part sent to the model, rendered by one fixed template. */
+export interface CharacterBlock {
+  /** One noun phrase; completes "You are ...". */
+  identity: string;
+  /** 1-4 noun phrases. */
+  expertise: string[];
+  /** What the character optimises and what it trades away. */
+  stance: string;
+  /** Things to look at first, not output instructions. */
+  checks: string[];
+  /** What it leaves to others; may be empty or absent. */
+  boundaries?: string[];
+}
+
 export interface PersonaConfig {
   id: string;
   name: string;
-  role: string;
-  domain: string;
-  system_prompt: string;
+  /** Format 1 only: free-text role label. A character declares its seats in `seats` instead. */
+  role?: string;
+  /** Format 1 only: a character carries its definition field by field in `persona`. */
+  domain?: string;
+  system_prompt?: string;
   focus_areas?: string[];
   critique_focus?: string[];
   mcp_capabilities?: string[];
+  /** The persona's home seat when it opted into the engine's role cards (agent-characters.md, C1). */
+  role_card?: 'expert' | 'critic' | 'judge';
+  /** The kind of role cards it gets with role_card (absent: the code cards). */
+  role_card_kind?: 'ops';
+  /** Shown to people only, never sent to an agent (docs/design/agent-characters.md). */
+  profile?: PersonaProfile;
+  /** `2` marks a character file (agent-characters.md, phase C2); absent is the format 1 free-text persona. */
+  format?: 2;
+  /** Format 2: the seats this character may take (replaces the free-text `role`). */
+  seats?: CharacterSeat[];
+  /** Format 2: project kinds the character is written for; empty means any. */
+  kinds?: ('code' | 'ops' | 'design')[];
+  /** Format 2: the character's field-by-field definition, the only part sent to the model. */
+  persona?: CharacterBlock;
+  /** Format 2: ceiling of tools the character may propose (the judge seat; today's `mcp_capabilities`). */
+  tools?: string[];
+  /** Format 2: the persona text the engine sends, computed by the hub; read-only, never sent back on save. */
+  rendered?: string;
   source?: 'builtin' | 'custom';
+}
+
+export interface PersonaProfile {
+  tagline?: string;
+  look?: string;
+}
+
+export type SuggestSeat = 'expert' | 'proposer' | 'critic' | 'judge';
+export type SuggestKind = 'code' | 'ops' | 'design';
+
+/** POST /api/personas/suggest: one model turn drafts a persona and its profile; nothing is saved. */
+export interface PersonaSuggestRequest {
+  brief: string;
+  seat: SuggestSeat;
+  kind: SuggestKind;
+  provider?: string;
+  current?: Partial<PersonaConfig>;
+}
+
+export interface PersonaSuggestResult {
+  suggestion: PersonaConfig;
+  warnings: string[];
+  provider: string;
+  examples: string[];
 }
 
 export interface PersonaList {
@@ -473,7 +534,7 @@ export interface CommandSetList {
 
 // --- Debate teams -----------------------------------------------------------
 
-/** How a member reads repository code: `mcp` = MCP tools (claude and codex); absent = engine-mediated repo blocks. */
+/** How a member reads repository code: `mcp` = MCP tools (claude, codex or opencode); absent = engine-mediated repo blocks. */
 export type CodeTools = 'mcp';
 
 export interface TeamMemberData {
@@ -565,6 +626,174 @@ export interface TeamList {
   catalog: TeamCatalog;
 }
 
+// --- Flow templates ---------------------------------------------------------
+
+export type FlowParamType = 'string' | 'text' | 'int' | 'enum';
+
+export interface FlowParamSpec {
+  type: FlowParamType;
+  label?: string;
+  max?: number;
+  min?: number;
+  values?: string[];
+  default?: string | number;
+}
+
+/** One step of a template: an alias of a flow kind (T1) or a custom step (T3a: `draft`, `blind_draft`, `critique` + `mode`). */
+export interface FlowStep {
+  kind: string;
+  mode?: string;
+}
+
+/** A template file as stored (docs/design/flow-templates.md): one alias step of a flow kind, or custom steps. */
+export interface FlowTemplateData {
+  id: string;
+  name: string;
+  category?: string;
+  projects: Array<'code' | 'ops' | 'design'>;
+  team?: string;
+  steps: FlowStep[];
+  params?: Record<string, FlowParamSpec>;
+  task: string;
+  stances?: Record<string, string>;
+  max_rounds?: number;
+  reviewed?: string;
+  [key: string]: unknown;
+}
+
+export interface FlowTemplateEntry {
+  id: string;
+  name: string;
+  source: 'builtin' | 'custom';
+  data: FlowTemplateData;
+  /** `{kind, hash, team}` once the file validates; null while it has errors. */
+  resolved: { kind: string; hash: string; team?: string } | null;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface FlowTemplateList {
+  custom_dir?: string;
+  templates: FlowTemplateEntry[];
+  catalog: FlowTemplateCatalog;
+}
+
+export interface FlowTemplateCatalog {
+  /** The flow kinds a one-step alias may name. */
+  step_kinds: string[];
+  /** The custom steps of T3a; absent on a hub from before T3a. */
+  custom_step_kinds?: string[];
+  critique_modes?: string[];
+  limits?: { steps?: number; params?: number; task_chars?: number; stance_chars?: number; max_rounds?: number };
+  param_types: string[];
+  project_kinds: string[];
+  categories: string[];
+}
+
+// --- Flow graphs (docs/design/flow-graph.md) ---------------------------------
+
+export type FlowJob = 'write' | 'critique' | 'rewrite' | 'rebut' | 'summarise';
+export type FlowInputMode = 'raw' | 'condensed' | 'structured' | 'latest';
+
+/** A seat (자리): one character doing one job. A summariser has no character. */
+export interface FlowSeat {
+  id: string;
+  job: FlowJob;
+  character?: string;
+  providers?: string[];
+  code_tools?: string | null;
+  host?: string | null;
+  /** critique only: `object` (objections) or `checklist`. */
+  mode?: string;
+  /** rebut only: the position this side defends (a person's sentence or ${PARAM}). */
+  stance?: string;
+  input?: FlowInputMode;
+  history?: string;
+  /** summarise only: an instruction that replaces the generated one. */
+  instruction?: string;
+  focus?: string;
+}
+
+/** A bundle (동시 묶음): seats that run in parallel. */
+export interface FlowBundle {
+  id: string;
+  seats: string[];
+  /** A bundle of two rebut seats: how often the sides answer each other. */
+  exchanges?: number;
+}
+
+/** The close (마감): the Judge and the shared close. */
+export interface FlowClose {
+  character: string;
+  providers?: string[];
+  code_tools?: string | null;
+  host?: string | null;
+  allowed_tools?: string[];
+  input?: FlowInputMode;
+  history?: string;
+}
+
+/** A link (연결): `to` reads `from`; a look-back link reads the previous round; the close has two exits. */
+export interface FlowLink {
+  from: string;
+  to: string;
+  look_back?: boolean;
+  blocked?: boolean;
+  exit?: 'approved' | 'rejected';
+  max_rounds?: number;
+}
+
+export interface FlowData {
+  id: string;
+  name: string;
+  category?: string;
+  projects?: Array<'code' | 'ops' | 'design'>;
+  params?: Record<string, FlowParamSpec>;
+  task?: string;
+  seats: FlowSeat[];
+  bundles?: FlowBundle[];
+  close: FlowClose;
+  links: FlowLink[];
+  /** Canvas positions only; never changes how the flow runs. */
+  layout?: Record<string, [number, number]>;
+  context?: { paths: string[]; ref?: string };
+  converted_from?: { team?: string; template?: string };
+  [key: string]: unknown;
+}
+
+export interface FlowEntry {
+  id: string;
+  name: string;
+  /** Stored flows are builtin or custom; teams and templates are listed converted. */
+  source: 'builtin' | 'custom' | 'team' | 'template';
+  data: FlowData;
+  hash: string;
+  /** Model calls of a first round; null while the flow has errors. */
+  calls: number | null;
+  /** Whether the engine runs this shape yet; run_error says why not. */
+  runnable: boolean;
+  run_error: string | null;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface FlowCatalog {
+  jobs: FlowJob[];
+  critique_modes: string[];
+  input_modes: FlowInputMode[];
+  history_modes: string[];
+  limits: { seats: number; bundle_seats: number; calls_per_round: number; max_rounds: number; exchanges: number; params: number; task_chars: number; stance_chars: number; focus_chars: number };
+  categories: string[];
+  project_kinds: string[];
+  param_types: string[];
+}
+
+export interface FlowList {
+  custom_dir?: string;
+  flows: FlowEntry[];
+  catalog: FlowCatalog;
+}
+
 // --- Debate jobs ------------------------------------------------------------
 
 export type DebateJobStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
@@ -585,6 +814,12 @@ export interface DebateJob {
   error: string;
   context_paths?: string[];
   context_ref?: string;
+  /** Flow template the job was started from, with the parameter values; `task` is then the rendered text. */
+  template?: string;
+  params?: Record<string, string>;
+  /** Flow the job was started from (docs/design/flow-graph.md) and the characters swapped into its seats. */
+  flow?: string;
+  seats?: Record<string, string>;
   /** List responses only: whether the job wrote an event file (the Agents monitor has data for it). */
   events?: boolean;
   /** The job's thread was closed (status CLOSED): records stay, default lists hide it, a new debate reopens it. */
@@ -605,7 +840,15 @@ export interface DebateJobDetail extends DebateJob {
 export interface DebateStartRequest {
   /** Project id (configs/projects); omitted means the hub default (server-guardian). */
   project?: string;
-  task: string;
+  /** The task text; absent when a flow `template` supplies it. */
+  task?: string;
+  /** Flow template id (docs/design/flow-templates.md): starts a new thread, `params` fill its placeholders. */
+  template?: string;
+  params?: Record<string, string>;
+  /** Flow id (docs/design/flow-graph.md): seats its own characters and starts a new thread; `params` fill its text. */
+  flow?: string;
+  /** Characters swapped into the flow's seats (seat id or `close` -> character id). */
+  seats?: Record<string, string>;
   team?: string;
   thread_id?: string;
   rounds?: number;
@@ -622,6 +865,8 @@ export interface DebateTranscriptItem {
   provider?: string;
   /** Why earlier providers were skipped before `provider` answered. */
   fallbacks?: string[];
+  /** The flow seat that wrote this entry (a run started from a flow; `close` for the Judge). */
+  seat?: string;
 }
 
 export interface DebateAction {
@@ -688,7 +933,8 @@ export interface DebateContext {
 export interface DebateResult {
   context?: DebateContext | null;
   thread_id?: string;
-  team?: string | { id?: string; name?: string } | null;
+  /** The lineup snapshot; `flow_graph` when the run started from a flow (id, hash, the characters seated). */
+  team?: string | { id?: string; name?: string; flow_graph?: { id: string; hash: string; seats?: Record<string, string | null> } } | null;
   task?: string;
   consensus_reached?: boolean;
   final_decision?: DebateFinalDecision | null;
@@ -1215,6 +1461,8 @@ export interface ProjectData {
    * diagrams without a repository (docs/design/design-project.md); absent means 'code'.
    */
   kind?: 'code' | 'ops' | 'design';
+  /** Default flow (or team) of debates started without one (D7 of docs/design/flow-graph.md); the key keeps its old name. */
+  team?: string;
   /** ops projects: node groups and nodes the actions may target (the hub never, unless policy.include_hub). */
   targets?: { all?: boolean; groups?: string[]; nodes?: string[]; exclude?: string[] };
   policy?: {
@@ -1536,4 +1784,458 @@ export interface WorkerReport {
   workers: WorkerRow[];
   /** The inventory could not be read. */
   error?: string;
+}
+
+// --- Solo agent (Quick ask, docs/design/solo-agent.md) -------------------------
+
+/** Body of `POST /api/solo`: one role of a project answers one question alone (read-only, no Judge). */
+export interface SoloStart {
+  question: string;
+  /** General question (no project): general knowledge only, so no project, context paths or ref may be sent. */
+  general?: boolean;
+  project?: string;
+  /** Persona id; empty means the default team's expert (a role that only judges is refused). */
+  role?: string;
+  /** Provider id (`claude`, `codex`, ...); empty means the first available one, with fallback. */
+  provider?: string;
+  /** Answer language; empty means the CLI's default (Korean). */
+  language?: string;
+  context_paths?: string[];
+  context_ref?: string;
+}
+
+/** Response of `POST /api/solo`: the hub answers 202 with the id while the CLI still runs. */
+export interface SoloStartResult {
+  id: string;
+  status: string;
+  label: string;
+  note: string;
+}
+
+/** `result.json` of a solo run, served unchanged by `GET /api/solo/{id}`. */
+export interface SoloResult {
+  id: string;
+  label: string;
+  note: string;
+  /** Answer mode: `general` answered from general knowledge alone (no project, no sources); absent on older hubs. */
+  mode?: 'code' | 'ops' | 'general';
+  project: string;
+  /** Persona id of the role that answered. */
+  role: string;
+  /** Provider that answered (`claude-cli`, ...; `built-in-expert` when degraded). */
+  provider: string;
+  question: string;
+  /** Markdown; may end with a machine-readable ```findings block the view hides. */
+  answer: string;
+  /** True when every provider failed and the built-in fallback answered. */
+  degraded: boolean;
+  citations: { verified: string[]; unshown: string[]; missing: string[] };
+  summary: string;
+  steps?: number | null;
+  failures: string[];
+  /** RFC 3339 UTC. */
+  created: string;
+  elapsed_s: number;
+}
+
+/** Response of `GET /api/solo/{id}`. */
+export interface SoloView {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  label: string;
+  note: string;
+  /** Answer mode of the run (`general` has no project); absent on older hubs. */
+  mode?: 'code' | 'ops' | 'general';
+  error?: string;
+  result?: SoloResult;
+}
+
+/** One row of `GET /api/solo` (recent solo runs, newest first). */
+export interface SoloListItem {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  label: string;
+  note: string;
+  /** Answer mode (`general` answered from general knowledge); absent on older hubs and running/failed rows. */
+  mode?: 'code' | 'ops' | 'general';
+  error?: string;
+  project?: string;
+  role?: string;
+  provider?: string;
+  question?: string;
+  summary?: string;
+  degraded?: boolean;
+  created?: string;
+  elapsed_s?: number;
+}
+
+// --- Quick review (docs/design/verification-layer.md, V1) ---------------------
+
+/**
+ * Request of `POST /api/reviews`: exactly one change source — `range` (BASE..HEAD), `patch`, `ref` (V2a, branch of
+ * the project's origin; `base` and `expect_sha` only with it) or `action` (V2b, a PROPOSED `jev_mcp:apply_patch`).
+ */
+export interface ReviewStart {
+  project: string;
+  range?: string;
+  /** Unified diff; applied to `patch_base` (default HEAD) in a temporary index on the hub. */
+  patch?: string;
+  patch_base?: string;
+  /** Branch of the project's configured origin; the hub fetches it into a private namespace. */
+  ref?: string;
+  /** Ref expression the branch is compared against; default the merge-base with the project branch. */
+  base?: string;
+  /** 40 lowercase hex; the review refuses to start when the fetched head differs. */
+  expect_sha?: string;
+  /** Decision DB id of the action whose edits are reviewed. */
+  action?: number;
+  /** `session:<workstation>`; stamped by the hub's link entry, never sent by this dashboard. */
+  started_by?: string;
+  /** Persona id; empty means the default team's first critic. */
+  role?: string;
+  provider?: string;
+  language?: string;
+}
+
+export interface ReviewStartResult {
+  id: string;
+  status: string;
+  label: string;
+  note: string;
+}
+
+export type ReviewSeverity = 'high' | 'medium' | 'low';
+
+/** One finding (or note) of a review: verified quote, claim and failure scenario. */
+export interface ReviewFinding {
+  path: string;
+  line: number;
+  quote: string;
+  claim: string;
+  scenario: string;
+  severity: ReviewSeverity;
+  verified: boolean;
+  reason: string;
+}
+
+/**
+ * Which change was reviewed (V2): a `ref` review names the branch, an `action` review the action id; `base`/`head`
+ * are commit shas there. The V1 kinds keep their `change` fields above.
+ */
+export interface ReviewSourceInfo {
+  kind: 'range' | 'patch' | 'ref' | 'action' | string;
+  ref?: string;
+  base?: string;
+  head?: string;
+  /** The `--base` ref as requested; empty when the merge-base was used. */
+  base_ref?: string;
+  action_id?: number;
+}
+
+/** `request.json` the hub stores at start (V2c): what was asked for, never the patch text. */
+export interface ReviewRequest {
+  project: string;
+  source: {
+    kind: 'range' | 'patch' | 'ref' | 'action' | string;
+    range?: string;
+    ref?: string;
+    base?: string;
+    expect_sha?: string;
+    action_id?: number;
+  };
+  /** `session:<workstation>` when a session tool started it; absent when a person did. */
+  started_by?: string;
+}
+
+/** `result.json` of a review, served unchanged by `GET /api/reviews/{id}`. */
+export interface ReviewResult {
+  id: string;
+  label: string;
+  note: string;
+  /** done, bad_format (no readable findings block) or degraded (no provider answered). */
+  state: 'done' | 'bad_format' | 'degraded';
+  project: string;
+  role: string;
+  provider: string;
+  change: { range?: string; patch?: boolean };
+  /** Which change was reviewed (V2); absent on records written before it. */
+  source?: ReviewSourceInfo;
+  base: string;
+  head: string;
+  files: string[];
+  added: number;
+  removed: number;
+  findings: ReviewFinding[];
+  notes: ReviewFinding[];
+  summary: string;
+  /** The answer text when no findings block could be read (masked). */
+  text?: string;
+  degraded: boolean;
+  failures: string[];
+  created: string;
+  elapsed_s: number;
+}
+
+export interface ReviewView {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  label: string;
+  note: string;
+  error?: string;
+  result?: ReviewResult;
+  /** The stored start request (V2c), omitted on records written before it. */
+  request?: ReviewRequest;
+}
+
+export interface ReviewListItem {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  label: string;
+  note: string;
+  error?: string;
+  state?: ReviewResult['state'];
+  project?: string;
+  range?: string;
+  patch?: boolean;
+  head?: string;
+  role?: string;
+  provider?: string;
+  files?: number;
+  summary?: string;
+  counts?: { high: number; medium: number; low: number; notes: number };
+  created?: string;
+  elapsed_s?: number;
+  /** From the stored request (V2c), so they show while the review runs: kind, branch and action id. */
+  source_kind?: 'range' | 'patch' | 'ref' | 'action' | string;
+  ref?: string;
+  action_id?: number;
+  /** `session:<workstation>` when a session tool started it. */
+  started_by?: string;
+}
+
+/** Response of `GET /api/reviews`. */
+export interface ReviewList {
+  runs: ReviewListItem[];
+}
+
+/** Response of `GET /api/solo`. */
+export interface SoloList {
+  runs: SoloListItem[];
+}
+
+// --- Resident agent monitor (docs/design/resident-monitor.md) -------------------
+// One read-only snapshot of the mail store (`GET /api/residents/monitor`). Every store field may
+// be null (a store older or newer than the hub still renders); only identity fields are fixed.
+
+/** The open incarnation of a resident agent, if any. */
+export interface ResidentIncarnation {
+  epoch: number | null;
+  started: string | null;
+  pane: string | null;
+  pid: number | null;
+}
+
+/** The agent's open turn (a turn with no `ended`), if any. */
+export interface ResidentOpenTurn {
+  id: string | null;
+  kind: string | null;
+  started: string | null;
+  hop_in: number | null;
+}
+
+/** Counts of open mail to one agent (`queued` / `delivered` / `retrieved` states). */
+export interface ResidentMailOpen {
+  queued: number | null;
+  delivered: number | null;
+  retrieved: number | null;
+}
+
+/** One resident agent: the store row joined with the declaration-file entry. */
+export interface ResidentAgent {
+  address: string;
+  name: string | null;
+  node: string | null;
+  provider: string | null;
+  driver: string | null;
+  /** `closed` or `open`, from the declaration file. */
+  tools: string | null;
+  state: string | null;
+  epoch: number | null;
+  not_ready_since: string | null;
+  bind_failures: number | null;
+  bind_started: string | null;
+  modified: string | null;
+  incarnation: ResidentIncarnation | null;
+  turn: ResidentOpenTurn | null;
+  mail_open: ResidentMailOpen;
+  tasks_held: number | null;
+  session_ready?: boolean;
+  queries_pending?: number;
+  /** True when the declaration file names the agent. */
+  declared: boolean;
+  /** True when the store holds a row for it. */
+  in_store: boolean;
+}
+
+/** One turn of one agent; `ended` is null while it runs. */
+export interface ResidentTurn {
+  id: string | null;
+  epoch: number | null;
+  kind: string | null;
+  started: string | null;
+  ended: string | null;
+  end_reason: string | null;
+  hop_in: number | null;
+  inputs: number | null;
+}
+
+/** One mail row: metadata and size only; the body is read on demand. */
+export interface ResidentMail {
+  id: string;
+  thread: string | null;
+  sender: string | null;
+  recipient: string | null;
+  kind: string | null;
+  subject: string | null;
+  task: string | null;
+  reply_to: string | null;
+  hop: number | null;
+  state: string | null;
+  created: string | null;
+  expires: string | null;
+  redelivered: number | null;
+  bytes: number | null;
+}
+
+/** One task of the board; patch and call log are reduced to sizes and counts. */
+export interface ResidentTask {
+  id: string;
+  title: string | null;
+  creator: string | null;
+  assignee: string | null;
+  owner: string | null;
+  status: string | null;
+  project: string | null;
+  sha: string | null;
+  hop: number | null;
+  generation: number | null;
+  blocked_by: Array<string | null>;
+  patch_bytes: number | null;
+  /** Decision-DB id of the action the patch became; joins the Approvals screen's action list. */
+  patch_action: number | null;
+  calls: number | null;
+  reason: string | null;
+  created: string | null;
+  modified: string | null;
+  expires: string | null;
+}
+
+/** One store event; `detail` holds writer-defined ids, counts, states and reasons (never a body). */
+export interface ResidentEvent {
+  id: number | null;
+  at: string | null;
+  kind: string | null;
+  agent: string | null;
+  detail: Record<string, unknown> | null;
+}
+
+/** One published resident artifact metadata record (PD4). */
+export interface ResidentArtifact {
+  id: string;
+  agent: string;
+  task: string | null;
+  title: string;
+  filename: string;
+  rel_path: string;
+  mime: string;
+  sha256: string;
+  size_bytes: number;
+  summary: string;
+  pinned: boolean;
+  created: string;
+  expires: string;
+}
+
+/** One direct resident session query metadata record (resident-session-query.md, QD1-QD5; resident-multi-session.md). */
+export interface ResidentQuery {
+  id: string;
+  address: string;
+  project: string;
+  project_kind: string;
+  session_key?: string;
+  task: string | null;
+  epoch: number;
+  session_id: string;
+  caller: string;
+  caller_kind: string;
+  mode: string;
+  status: string;
+  turn_id: string | null;
+  answer_truncated: boolean;
+  error: string | null;
+  timeout_sec: number;
+  created: string;
+  started: string | null;
+  completed: string | null;
+  expires: string;
+}
+
+/** One direct resident session query with secret-masked prompt and answer (`GET /api/residents/queries/{id}`). */
+export interface ResidentQueryDetail extends ResidentQuery {
+  prompt: string | null;
+  answer: string | null;
+}
+
+/** Response of `POST /api/residents/queries` (202 Accepted). */
+export interface ResidentQuerySubmit {
+  ok: boolean;
+  id: string;
+  address: string;
+  project: string;
+  project_kind: string;
+  session_key?: string;
+  epoch: number;
+  session_id: string;
+  mode?: string;
+  status: string;
+}
+
+/** One scoped provider session row (`agent_sessions`, resident-multi-session.md). */
+export interface ResidentScopedSession {
+  address: string;
+  epoch: number;
+  session_key: string;
+  project: string | null;
+  label: string | null;
+  provider_session_id: string | null;
+  session_ready: boolean;
+  status: string;
+  turns: number;
+  created: string;
+  last_used: string | null;
+  closed: string | null;
+}
+
+/** Response of `GET /api/residents/monitor`. */
+export interface ResidentMonitor {
+  generated: string | null;
+  store: { exists: boolean; schema: number | null; path_kind: string | null };
+  agents: ResidentAgent[];
+  /** Recent turns per agent address. */
+  turns: Record<string, ResidentTurn[]>;
+  mail: ResidentMail[];
+  tasks: ResidentTask[];
+  events: ResidentEvent[];
+  artifacts?: ResidentArtifact[];
+  queries?: ResidentQuery[];
+  sessions?: ResidentScopedSession[];
+  problems: string[];
+}
+
+/** Response of `GET /api/residents/mail/{id}`: the body, secrets masked on the hub. */
+export interface ResidentMailBody {
+  id: string;
+  body: string | null;
+  bytes: number | null;
+  masked: boolean | null;
 }

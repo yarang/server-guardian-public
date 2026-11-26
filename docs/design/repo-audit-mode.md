@@ -282,3 +282,19 @@ Implements the three points of the A4 second run's decision (`docs/analysis/2026
   re-check state, `audit_finished` the notes total, and a new `audit_recheck_started` event (`shard, candidates`) marks the second session.
 - Recall risk to watch in the re-measurement: a seeded defect reported as `low` (dead branches are a candidate) now lands in `notes`.
   The grading should count `notes` separately, so that a loss of recall through the floor or the re-check is visible.
+
+### Answer format, prompt version 4 (2026-10-30)
+
+- **A broken block is not a clean part.** `evidence.parse_findings` turned an invalid JSON block into an empty list,
+  which the audit reads as "checked every unit, found nothing", so a trailing comma or a cut answer passed as a clean
+  shard without a re-ask. `parse_audit_findings` tells the two apart: a block that cannot be read is asked for once more
+  with the reason, and a second broken block fails the shard as `bad_format`. A readable first block is never replaced
+  by a broken second one.
+- **Cap.** One answer holds at most 200 findings (`MAX_AUDIT_FINDINGS`; the debate's 50 was used before and cut
+  silently). The format states the cap and asks for the most severe first; a cut is stored as `findings_cut` on the
+  shard and emitted as `audit_findings_cut`.
+- **One format.** Audit sessions no longer get the debate's optional findings paragraph in the retrieval protocol
+  (`DebateEngine._findings_rules`), which contradicted `FINDINGS_FORMAT` (optional, four fields, 50 items). Debate
+  prompts are byte-identical.
+- `low` now reads "a real instance but harmless in practice". Plans of version 3 must be planned again; the
+  re-measurement on `sg-audit2` runs on version 4.

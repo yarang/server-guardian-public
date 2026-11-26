@@ -13,7 +13,7 @@
 #   web     design system (typecheck, tests, build) and dashboard (build, tests)
 #   tauri   desktop app: release build of apps/web-desktop/src-tauri (no installer bundles) and its Rust tests
 #   shell   bash -n and shellcheck for scripts/*.sh, scripts/lib/*.sh and deploy/*/*.sh
-#   config  JSON syntax of configs/, personas/teams validated by guardian.py, and the bilingual documents
+#   config  JSON syntax of configs/, personas/teams and flow templates validated by guardian.py, and the bilingual documents
 #           (every name.md has name.ko.md, language lines, relative links resolve)
 #
 # In CI (CI=true) a missing tool is an error; locally it is a skipped check with a warning.
@@ -108,6 +108,8 @@ run_python() {
         # GUARDIAN_DATA_DIR keeps tests away from ~/.guardian. GUARDIAN_LLM_PROVIDERS=none means no
         # provider CLI is ever called (tests that need one mock it), so CI makes no real LLM calls.
         GUARDIAN_DATA_DIR="${data_dir}" GUARDIAN_LLM_PROVIDERS=none python3 -m unittest discover -p 'test_*.py' -q
+        # Persona form guide (docs/design/agent-characters.md, C0): warning only, never fails CI.
+        python3 persona_lint.py | grep -E '^(warn|persona lint:)' || true
         # Helpers next to the shell scripts (credential bundle crypto).
         python3 -m unittest discover -s ../../scripts -p 'test_*.py' -q
     )
@@ -284,6 +286,44 @@ for item in out.get("stale", []):
           "\"reviewed\"" % (item["id"], item["reviewed"], item["age_days"], out["max_age_days"]), file=sys.stderr)
 sys.exit(0 if out.get("ok") else 1)'
     checked $? "config: command sets" || true
+    # The builtin verdict sources (configs/verdicts) must validate; one not reviewed for 180 days
+    # (GUARDIAN_VERDICT_SOURCE_MAX_AGE_DAYS) is only a warning. The data dir is not touched.
+    GUARDIAN_DATA_DIR="$(mktemp -d)" python3 cli/llm-agent/guardian.py --verdict-sources | python3 -c '
+import json, sys
+out = json.load(sys.stdin)
+if not out.get("ok"):
+    print("  verdict sources: " + str(out.get("error")), file=sys.stderr)
+for item in out.get("stale", []):
+    print("  WARNING: verdict source %s was last reviewed %s (%d days ago, limit %d): check its settings, then update "
+          "\"reviewed\"" % (item["id"], item["reviewed"], item["age_days"], out["max_age_days"]), file=sys.stderr)
+sys.exit(0 if out.get("ok") else 1)'
+    checked $? "config: verdict sources" || true
+    # The builtin flow templates (configs/flow-templates, may be empty) must validate against the builtin teams; one not
+    # reviewed for 180 days (GUARDIAN_FLOW_TEMPLATE_MAX_AGE_DAYS) is only a warning. The data dir is not touched.
+    GUARDIAN_DATA_DIR="$(mktemp -d)" python3 cli/llm-agent/guardian.py --flow-templates --json | python3 -c '
+import json, sys
+templates = json.load(sys.stdin)["templates"]
+bad = False
+for t in templates:
+    for error in t["errors"]:
+        bad = True
+        print("  flow template %s: %s" % (t["id"], error), file=sys.stderr)
+    for warning in t["warnings"]:
+        print("  WARNING: flow template %s: %s" % (t["id"], warning), file=sys.stderr)
+sys.exit(1 if bad else 0)'
+    checked $? "config: flow templates" || true
+    # Every builtin team and flow template must convert into a flow that validates (docs/design/flow-graph.md, G1),
+    # and so must the builtin flows (configs/flows, may be missing). The data dir is not touched.
+    GUARDIAN_DATA_DIR="$(mktemp -d)" python3 cli/llm-agent/guardian.py --flows | python3 -c '
+import json, sys
+flows = json.load(sys.stdin)["flows"]
+bad = False
+for f in flows:
+    for error in f["errors"]:
+        bad = True
+        print("  flow %s (%s): %s" % (f["id"], f["source"], error), file=sys.stderr)
+sys.exit(1 if bad else 0)'
+    checked $? "config: flows" || true
 }
 
 sections=("$@")

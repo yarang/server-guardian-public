@@ -220,3 +220,26 @@ state in `apps/web-desktop/src/router.ts`, `App.tsx` and `pages/FleetPage.tsx`:
 - **Badges**: Fleet shows "Running" while a group or fleet run is in progress, Approvals shows the
   number of actions waiting (plus "Running" during an Execute), Debates shows "Running" during a
   Publish.
+
+### Five destinations (2026-10-29)
+
+The menu was reorganised again after the sitemap in the design board (menu, terminology, flows). Scope: menu and
+terminology only. Flow kinds (templates, `flow-templates.md`), the Settings keys section (`agent-seats-keys.md`),
+an Approvals history and richer Overview cards are **not built**, and no placeholder pages exist for them.
+Implemented by z.ai agents (`scripts/zai-agent.sh`), checked by an independent reviewer, deployed 2026-10-29 as `4f8380a` and looked at in a real browser by the operator.
+
+- **Five destinations**: Overview, Nodes, Workflows, Approvals, Settings (sidebar and the five-tab mobile bar).
+  The route ids stay `fleet` (Nodes), `debates` (Workflows), `approvals`, `settings` on purpose (89 call sites in
+  `src`, about 290 `#/...` strings in tests); only `overview` is new and is the default route. Icons: `grid`
+  (Overview), `server` (Nodes), `flow` (Workflows), `check` (Approvals), `gear` (Settings); the three new ones are in
+  `packages/guardian-ui` `Icon.tsx`.
+- **Overview** (`#/overview`) is the former Fleet summary page. Fleet tabs are now Nodes, Groups, SSH audit, Commands
+  and Command sets (`#/fleet/commandSets`, moved from Settings). The Nodes sidebar entry links to `#/fleet/nodes`.
+- **Settings groups**: Hub connection (`endpoint`), Flow setup (`flowConfig`: Projects, Teams, Personas under a second
+  switcher; `#/settings/flowConfig` opens Projects), Execution environments (`workers`, the former Workers) and Display
+  (`display`: language and export folder, moved out of Hub connection).
+- **Legacy hashes**: bare `#/fleet` and `#/fleet/summary` -> Overview (they no longer open the node list);
+  `#/overview`, `#/assistant`, `#/more` -> Overview; `#/settings/commandSets` -> Fleet Command sets;
+  `#/settings/groups` -> Fleet Groups (query kept); all other aliases of the previous section are unchanged, and
+  unknown hashes fall back to Overview.
+- **Words**: Fleet -> Nodes, Debates -> Workflows in navigation copy; see `glossary.md` (Navigation).

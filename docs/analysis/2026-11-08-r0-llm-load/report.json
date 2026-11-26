@@ -1,0 +1,52 @@
+{
+  "samples": 120958,
+  "busy_samples": 2238,
+  "rule": {
+    "min_busy_samples": 360,
+    "cpu_util_p95": 0.7,
+    "mem_available_min": 0.15,
+    "psi_cpu_some_p95": 20.0,
+    "psi_mem_some_p95": 10.0,
+    "llm_cpu_share": 0.5,
+    "llm_mem_share_p95": 0.5
+  },
+  "span": [
+    "2026-10-30T07:19:11Z",
+    "2026-11-06T07:19:06Z"
+  ],
+  "cpu_util": {
+    "p50": 0.038171782607818214,
+    "p95": 0.21923372064217136,
+    "max": 0.998998998998999
+  },
+  "cpu_share": {
+    "llm": 0.5149685064073172,
+    "retrieval": 0.001816009846272655,
+    "engine": 0.156689673480223,
+    "other": 0.43549243429784973,
+    "unattributed": 0.0
+  },
+  "mem_share_p95": {
+    "llm": 0.3662161692636082,
+    "retrieval": 0.013452892684736178,
+    "engine": 0.12021500660412404,
+    "other": 1.1395471924263123
+  },
+  "llm_rss_max": 1071001600,
+  "mem_available_min": 0.860527253645415,
+  "psi_p95": {
+    "cpu_some": 2.961500000000001,
+    "mem_some": 0.0,
+    "mem_full": 0.0
+  },
+  "llm_turns": {
+    "p50": 1.0,
+    "p95": 2.0,
+    "max": 4
+  },
+  "verdict": "not-needed",
+  "reasons": [
+    "no pressure criterion met",
+    "LLM CLI CPU share 51% >= 50%"
+  ]
+}

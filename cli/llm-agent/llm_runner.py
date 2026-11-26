@@ -2,22 +2,31 @@
 
 Provider CLIs are used with their own subscription login (claude, codex, agy, ...).
 Providers are tried in order and the next one is used when a call fails.
+exaone has no CLI: it calls the EXAONE API over HTTP (urllib, stdlib only) and is ready when its key is set.
+opencode runs K-EXAONE through the opencode 2.x CLI (docs/design/opencode-exaone.md).
 """
 
+import http.client
 import json
 import logging
 import os
+import random
 import re
 import shutil
+import signal
+import socket
 import subprocess
 import tempfile
 import threading
+import time
+import urllib.error
+import urllib.request
 import uuid
 from dataclasses import dataclass, field
 
 from env_policy import provider_env
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +35,40 @@ BUILTIN_PROVIDER = "built-in-expert"
 # Every built-in reply starts with this line, so nobody mistakes it for a model's analysis.
 BUILTIN_BANNER = "⚠️ [LLM 응답 없음] 모든 LLM CLI 호출이 실패해 내장 엔진이 답했습니다. 분석·판단·제안은 하지 않습니다"
 
+# Every provider a seat, a team member or Quick ask may name: validation, the editor catalog, installed_providers.
+KNOWN_PROVIDERS = ["claude", "codex", "agy", "zai", "exaone", "opencode", "ollama", "llm"]
+# The chain used when neither a seat nor GUARDIAN_LLM_PROVIDERS names one. opencode (K-EXAONE through the
+# opencode 2.x CLI) took exaone's place (docs/design/opencode-exaone.md, decision 4 of 2026-11-11); exaone
+# stays a known provider that an explicit pick can still choose.
 DEFAULT_PROVIDER_ORDER = ["claude", "codex", "agy", "zai", "opencode", "ollama", "llm"]
 # Providers that run another provider's binary under their own identity (own credentials, config dir and labels).
 # zai is the claude CLI against z.ai's Anthropic-compatible endpoint (GLM models, Coding Plan key in ZAI_API_KEY).
 PROVIDER_BINARIES = {"zai": "claude"}
 ZAI_DEFAULT_BASE_URL = "https://api.z.ai/api/anthropic"
 ZAI_TIERS = ("OPUS", "SONNET", "HAIKU")
+# --- exaone: the EXAONE API over plain HTTP, no binary, no session (docs/design/exaone-provider.md) ---
+EXAONE_DEFAULT_BASE_URL = "https://api.exaone.ai/v1"
+EXAONE_DEFAULT_MODEL = "k-exaone_v2.5"
+# Reasoning is always on; the API's own default is "max", its docs suggest "high" for coding (operator chose high).
+EXAONE_DEFAULT_EFFORT = "high"
+# An unknown EXAONE_REASONING_EFFORT falls back to the default.
+EXAONE_EFFORTS = ("low", "high", "max")
+# max_tokens counts reasoning too; 65536 leaves a long answer room inside the 512 Ki-token context.
+EXAONE_DEFAULT_MAX_TOKENS = 65536
+# Replay turns grow: above this prompt byte cap the call fails before sending, so the next provider gets the turn.
+EXAONE_DEFAULT_MAX_PROMPT_BYTES = 1536 * 1024
+# The operator's key allows one request per second (measured 2026-11-09); request starts are spaced at least this far.
+EXAONE_MIN_INTERVAL = 1.1
+# A retry-after above this many seconds is a minute/day limit: fail at once instead of waiting out the turn timeout.
+EXAONE_MAX_RETRY_AFTER = 30.0
+EXAONE_MAX_RETRIES = 5
+# SSE streaming is the default (EXAONE_STREAM=0 turns it off, kept for diagnosis): the service cuts a request that
+# sends no byte for 600 s, while a streamed answer keeps sending chunks (production-like trial 2026-11-10,
+# docs/design/exaone-provider.md "Streaming"). While a stream is read this is the socket timeout (no byte for this
+# long fails the turn); the total deadline stays EXAONE_TIMEOUT.
+EXAONE_DEFAULT_IDLE_TIMEOUT = 120.0
+# Tests may point the provider at a local http.server fake by accepting loopback http; no env variable turns this on.
+_EXAONE_ALLOW_LOOPBACK_HTTP = False
 DEFAULT_TIMEOUT_SECONDS = 300.0
 # Reasoning effort for claude calls (--effort). Judge calls at the default effort twice spent 32000
 # output tokens thinking without an answer until the 600s timeout; MAX_THINKING_TOKENS is ignored by
@@ -106,6 +143,8 @@ _CAPS_LOCK = threading.Lock()
 # codex features switched off for repo-MCP runs. shell_tool removes exec_command and write_stdin (codex's only shell),
 # view_image the local-file image reader, apps/plugins/browser_use/computer_use the bundled app tools and web__run.
 # apply_patch has no switch in codex 0.160.0; it cannot write under --sandbox read-only and never echoes file content.
+# Keep code_mode_host on: the functions.exec tool it adds is the code-mode host, has no file API, and carries the MCP
+# calls themselves (disabling it breaks MCP; checked on 0.160.0 and 0.163.0, 2026-11-15).
 CODEX_MCP_DISABLED_FEATURES = (
     "shell_tool", "unified_exec", "view_image", "multi_agent", "multi_agent_v2", "image_generation", "goals",
     "apps", "plugins", "browser_use", "computer_use", "skill_search", "tool_suggest", "hooks",
@@ -129,6 +168,9 @@ class LLMResult:
     failures: List[str] = field(default_factory=list)
     # Fleet host id the call ran on ('' = this machine); set by remote_agents, a session id is only valid there.
     host: str = ""
+    # Timing and token usage of the successful turn, set only by exaone and opencode ({} for every other
+    # provider and for a fallback answer). Never holds the key, the prompt or the answer text.
+    stats: Dict[str, Any] = field(default_factory=dict)
 
 
 def provider_binary(name: str) -> str:
@@ -152,6 +194,419 @@ def zai_claude_env(source: Dict[str, str]) -> Dict[str, str]:
         if model:
             env[f"ANTHROPIC_DEFAULT_{tier}_MODEL"] = model
     return env
+
+
+# Pacing state of the exaone provider: one process-wide lock spaces request starts, so the parallel agents of one
+# debate queue for a moment instead of colliding on the key's one-request-per-second limit. The lock is never held
+# while a request runs; other processes (a second debate, a worker host with the same key) are covered by the 429 rule.
+_EXAONE_PACE_LOCK = threading.Lock()
+_EXAONE_NEXT_START = 0.0
+
+
+def _exaone_pace() -> None:
+    """Waits until the next exaone request may start: sleep under the module lock, reserve the slot, release, return.
+    time.monotonic/time.sleep go through the module reference so tests can patch them."""
+    global _EXAONE_NEXT_START
+    with _EXAONE_PACE_LOCK:
+        wait = _EXAONE_NEXT_START - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _EXAONE_NEXT_START = time.monotonic() + EXAONE_MIN_INTERVAL
+
+
+def _exaone_base_url(source: Dict[str, str]) -> str:
+    """Validated EXAONE_BASE_URL with a trailing "/" stripped: https only, plus a loopback http URL when tests allow."""
+    base = (source.get("EXAONE_BASE_URL") or EXAONE_DEFAULT_BASE_URL).strip().rstrip("/")
+    loopback = base.startswith(("http://127.0.0.1:", "http://localhost:"))
+    if not base.startswith("https://") and not (_EXAONE_ALLOW_LOOPBACK_HTTP and loopback):
+        raise RuntimeError(f"EXAONE_BASE_URL must start with https:// (got {base})")
+    return base
+
+
+def _int_setting(source: Dict[str, str], name: str, default: int) -> int:
+    """int value of an env-file setting; the default when the setting is absent or not an integer."""
+    try:
+        return int(str(source[name]).strip())
+    except (KeyError, TypeError, ValueError):
+        return default
+
+
+def _positive_float_setting(source: Dict[str, str], name: str, default: float) -> float:
+    """Positive float value of an env-file setting; the default when it is absent, not numeric or not positive."""
+    try:
+        value = float(str(source[name]).strip())
+    except (KeyError, TypeError, ValueError):
+        return default
+    return value if value > 0.0 else default
+
+
+def _exaone_stream_flag(source: Dict[str, str]) -> bool:
+    """Streaming is on by default: only EXAONE_STREAM set to 0/false/no/off (case-insensitive, stripped) turns it
+    off. Unset, empty and any other value leave it on. EXAONE_STREAM=0 is the diagnosis switch back to the JSON
+    path, whose request stays byte for byte as before."""
+    return str(source.get("EXAONE_STREAM") or "").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _exaone_retry_seconds(headers: Any) -> Optional[float]:
+    """Seconds to wait from retry-after-ms (milliseconds) or retry-after (seconds, numeric only); None when absent."""
+    for name, scale in (("retry-after-ms", 0.001), ("retry-after", 1.0)):
+        value = headers.get(name) if headers else None
+        if value is None:
+            continue
+        try:
+            return float(str(value).strip()) * scale
+        except ValueError:
+            continue
+    return None
+
+
+def _exaone_error_message(status: int, headers: Any, body: bytes, key: str) -> str:
+    """`HTTP <status> (x-request-id <id>): <first 200 chars of the body>`; server text can never echo the key back.
+    The key is redacted before the 200-char cut, so a key straddling the cut cannot leave its prefix behind."""
+    request_id = str((headers.get("x-request-id") if headers else None) or "-").replace(key, "<redacted>")
+    text = body.decode("utf-8", "replace").replace(key, "<redacted>")[:200]
+    return f"HTTP {status} (x-request-id {request_id}): {text}"
+
+
+# max_tokens counts reasoning: the model spent the whole budget thinking, so raise it instead of a retry.
+# One text for both the JSON answer and the streamed answer, so the failure reads the same either way.
+EXAONE_LENGTH_ERROR = "exaone: reasoning used max_tokens (finish_reason length); raise EXAONE_MAX_TOKENS"
+
+
+def _exaone_answer(payload: Any) -> str:
+    """The turn text: choices[0].message.content, stripped. reasoning_content is dropped, never returned or stored."""
+    try:
+        choice = payload["choices"][0]
+        content = choice["message"]["content"]
+        finish_reason = choice.get("finish_reason")
+    except (KeyError, IndexError, TypeError, AttributeError) as exc:
+        raise RuntimeError(f"malformed answer: {str(payload)[:200]}") from exc
+    if finish_reason == "length":
+        raise RuntimeError(EXAONE_LENGTH_ERROR)
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("empty answer")
+    return content.strip()
+
+
+def _exaone_json_body(response: Any) -> Any:
+    """Read callback of a non-streamed turn: the whole body, parsed as JSON."""
+    raw = response.read().decode("utf-8")
+    try:
+        return json.loads(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"answer is not JSON: {raw[:200]}") from exc
+
+
+def _exaone_usage_fields(usage: Any) -> Dict[str, int]:
+    """The token counts of a usage object (a JSON answer's or a stream chunk's): only prompt_tokens,
+    completion_tokens and reasoning_tokens, each only when it is an int. reasoning_tokens falls back to
+    completion_tokens_details.reasoning_tokens. Anything else in the object is dropped."""
+    if not isinstance(usage, dict):
+        return {}
+    fields: Dict[str, int] = {}
+    for name in ("prompt_tokens", "completion_tokens", "reasoning_tokens"):
+        value = usage.get(name)
+        if isinstance(value, int) and not isinstance(value, bool):
+            fields[name] = value
+    if "reasoning_tokens" not in fields:
+        details = usage.get("completion_tokens_details")
+        value = details.get("reasoning_tokens") if isinstance(details, dict) else None
+        if isinstance(value, int) and not isinstance(value, bool):
+            fields["reasoning_tokens"] = value
+    return fields
+
+
+def _exaone_stream_chunk(payload: str, parts: List[str], key: str,
+                         info: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """One SSE data payload (not [DONE]): appends delta.content to parts, returns the chunk's finish_reason.
+
+    Raises RuntimeError for a payload that is not a JSON object or carries an error object; both redact the key
+    before the 200-char cut, so a key straddling the cut cannot leave its prefix behind. delta.reasoning_content
+    is dropped (never stored, never returned), exactly like message.reasoning_content of a JSON answer. Only a
+    non-empty string counts as a finish_reason: "" (sent on non-final chunks) and non-strings read as None.
+
+    info (optional, mutable) receives the usage counts of any chunk that carries a usage object: the final
+    chunk sends one with empty choices, so it is read before the choices handling below could return early.
+    """
+    try:
+        chunk = json.loads(payload)
+    except ValueError:
+        chunk = None
+    if not isinstance(chunk, dict):
+        raise RuntimeError(f"malformed stream chunk: {payload}".replace(key, "<redacted>")[:200]) from None
+    if "error" in chunk:
+        error = chunk["error"]
+        if isinstance(error, dict):
+            error = error.get("message") or json.dumps(error, ensure_ascii=False)
+        raise RuntimeError(f"stream error: {str(error)}".replace(key, "<redacted>")[:200]) from None
+    if info is not None:
+        fields = _exaone_usage_fields(chunk.get("usage"))
+        if fields:
+            info.update(fields)
+    choices = chunk.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return None
+    delta = choices[0].get("delta")
+    content = delta.get("content") if isinstance(delta, dict) else None
+    if isinstance(content, str):
+        parts.append(content)
+    reason = choices[0].get("finish_reason")
+    return reason if isinstance(reason, str) and reason else None
+
+
+def _exaone_deadline_text(total: float, source: str) -> str:
+    """The one total-deadline failure text of a streamed turn; source names where the limit came from:
+    "(EXAONE_TIMEOUT)" when the provider env set it, otherwise "(turn timeout)" for the runner's own limit."""
+    return f"exaone: stream passed the total deadline of {total:g} s ({source})"
+
+
+def _exaone_read_stream(lines: Iterable[bytes], deadline: float, idle: float, key: str,
+                        deadline_text: str, info: Optional[Dict[str, Any]] = None) -> str:
+    """Joins a streamed EXAONE answer (SSE) into the turn text; every failure is a RuntimeError.
+
+    lines are the raw byte lines of the body, deadline the absolute time.monotonic() total deadline (deadline_text
+    is its ready failure text) and idle the idle timeout in seconds. A payload that is not JSON or carries an
+    error, a stream that ends without [DONE] or without a finish_reason, an idle read and the total deadline all
+    fail the turn: partial text is never returned, because a cut-off critique would read as a whole one.
+
+    info (optional, mutable) collects what the stats of a successful turn need: the time of the first data line
+    ("first_line_at", absolute time.monotonic()), the finish_reason and the usage token counts. It is only read
+    by the caller after this function returned, so a failed turn's half-filled info is simply discarded.
+    """
+    parts: List[str] = []
+    finish_reason: Optional[str] = None
+    done = False
+    try:
+        for raw in lines:
+            if time.monotonic() > deadline:
+                raise RuntimeError(deadline_text)
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue  # blank lines, comment lines (":"), event:/id:/retry: lines and any other non-data line
+            if info is not None and "first_line_at" not in info:
+                info["first_line_at"] = time.monotonic()
+            payload = line[len("data:"):].strip()
+            if payload == "[DONE]":
+                done = True
+                break
+            reason = _exaone_stream_chunk(payload, parts, key, info)
+            if reason is not None:
+                finish_reason = reason
+    except (TimeoutError, socket.timeout):
+        # The response was opened with the idle timeout as its socket timeout: no byte arrived for idle seconds.
+        raise RuntimeError(f"exaone: no data for {idle:g} s (EXAONE_IDLE_TIMEOUT)") from None
+    if not done or finish_reason is None:
+        raise RuntimeError("exaone: stream ended early (no [DONE] or finish_reason)")
+    if finish_reason == "length":
+        raise RuntimeError(EXAONE_LENGTH_ERROR)
+    text = "".join(parts)
+    if not text.strip():
+        raise RuntimeError("empty answer")
+    if info is not None:
+        info["finish_reason"] = finish_reason
+    return text.strip()
+
+
+def _exaone_stream_body(response: Any, deadline: float, idle: float, key: str, deadline_text: str,
+                        info: Optional[Dict[str, Any]] = None) -> str:
+    """Read callback of a streamed turn: thin glue that feeds response.readline() lines into _exaone_read_stream."""
+
+    def lines() -> Iterator[bytes]:
+        while True:
+            raw = response.readline()
+            if not raw:
+                return  # end of the body
+            yield raw
+
+    return _exaone_read_stream(lines(), deadline, idle, key, deadline_text, info)
+
+
+# --- opencode: K-EXAONE through the opencode 2.x CLI, no sessions (docs/design/opencode-exaone.md) ---
+OPENCODE_EXAONE_BASE_URL = "https://api.exaone.ai/v1"
+# The whole process gets this deadline: opencode waits forever on a stalled stream, and its internal retries
+# (11 requests on a 500) already cost 82-84 s. The HTTP provider needed 1200 s (longest request 1129 s).
+OPENCODE_DEFAULT_TIMEOUT = 1200.0
+# Read by the runner, never handed to the CLI itself.
+OPENCODE_GUARDIAN_SETTINGS = ("OPENCODE_BIN", "OPENCODE_TIMEOUT", "OPENCODE_EXAONE_EFFORT", "OPENCODE_EXAONE_MODEL")
+# Removes everything local (project config, the claude-code bridge, updates, model fetches) so a turn depends
+# only on the passed config and the model flag.
+OPENCODE_DISABLE_FLAGS = (
+    "OPENCODE_DISABLE_PROJECT_CONFIG", "OPENCODE_DISABLE_CLAUDE_CODE", "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS",
+    "OPENCODE_DISABLE_AUTOUPDATE", "OPENCODE_DISABLE_MODELS_FETCH", "OPENCODE_DISABLE_FREE_MODELS",
+)
+# EXAONE-side overload (429, provider.rate-limit) is retried: opencode already retries ~84 s inside itself, but
+# the service's concurrent-request cap outlives that. All attempts together share the one OPENCODE_TIMEOUT
+# deadline; each pause also carries random.uniform(0, 5) seconds of jitter.
+OPENCODE_MAX_RETRIES = 2
+OPENCODE_RETRY_BACKOFF = (30.0, 60.0)
+# Readiness cache: `<bin> --version` runs once per binary path and modification time, so building runner
+# after runner (one LLMRunner probes every known provider twice) never re-runs the binary.
+_OPENCODE_2X_CACHE: Dict[Tuple[str, float], bool] = {}
+
+
+def _opencode_major(version_output: str) -> Optional[int]:
+    """Major version from `opencode --version`: the v2 line prints `opencode v2.2.7`, the Homebrew 1.x line a
+    bare `1.19.5`. None when the output has neither shape."""
+    match = re.match(r"\s*(?:opencode\s+)?v?(\d+)\.\d+", version_output)
+    return int(match.group(1)) if match else None
+
+
+def _opencode_timeout_source(source: Dict[str, str]) -> str:
+    """"OPENCODE_TIMEOUT" when the provider env holds the value in use (a positive number), else "default": an
+    invalid value falls back to OPENCODE_DEFAULT_TIMEOUT, so it is the default that bounds the turn."""
+    try:
+        value = float(str(source.get("OPENCODE_TIMEOUT") or "").strip())
+    except ValueError:
+        return "default"
+    return "OPENCODE_TIMEOUT" if value > 0.0 else "default"
+
+
+def _opencode_scratch_env(env: Dict[str, str], scratch: str) -> Dict[str, str]:
+    """A copy of env whose XDG config, data and state dirs sit inside scratch (removed by the caller), so
+    opencode keeps no session, prompt copy or log line after the call. XDG_CACHE_HOME is left as given."""
+    env = dict(env)
+    for kind in ("CONFIG", "DATA", "STATE"):
+        xdg_dir = Path(scratch) / kind.lower()
+        xdg_dir.mkdir(parents=True, exist_ok=True)
+        env[f"XDG_{kind}_HOME"] = str(xdg_dir)
+    return env
+
+
+def _opencode_config(model: str, effort: str, repo_mcp: Optional[Dict[str, Any]] = None,
+                     env: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """The v2 config handed over as OPENCODE_CONFIG_CONTENT: the EXAONE guide's shape with Guardian's
+    deviations (tools off, permission deny, the HTTP provider's effort and output limit). apiKey is the
+    literal `{env:OPENCODE_EXAONE_API_KEY}` string, which opencode expands itself: the key never enters the
+    config, the argv or the environment.
+
+    With repo_mcp ({"workspace", "sha", "log", "limits"}) the read-only repo_* MCP tools are attached
+    instead: the model offers tools, the local server "repo" runs with codemode off (else opencode routes
+    every tool call through an execute interpreter) and a 60 s timeout, and the permission allows exactly
+    the repo tools (repo_repo_read, ...). opencode passes its whole environment to the MCP child, the key
+    and OPENCODE_CONFIG_CONTENT included, so the command starts with `/usr/bin/env -i` and rebuilds a clean
+    environment from env's PATH, HOME, LANG and LC_ALL (the same names as server_env in _claude_mcp_config,
+    each only when set); nothing else is handed to the server."""
+    config: Dict[str, Any] = {
+        "$schema": "https://opencode.ai/config.json",
+        "model": f"exaone/{model}",
+        "providers": {"exaone": {
+            "package": "@opencode/ai/providers/openai-compatible",
+            "name": "EXAONE",
+            "settings": {"baseURL": OPENCODE_EXAONE_BASE_URL, "apiKey": "{env:OPENCODE_EXAONE_API_KEY}"},
+            "models": {model: {
+                "name": "K-EXAONE 2.5",
+                "capabilities": {"tools": False, "input": ["text"], "output": ["text"], "temperature": True,
+                                 "reasoning": {"supported": True}},
+                "compatibility": {"reasoningField": "reasoning_content"},
+                "body": {"reasoning_effort": effort, "temperature": 1.0, "top_p": 0.95},
+                "limit": {"context": 524288, "output": EXAONE_DEFAULT_MAX_TOKENS},
+            }},
+        }},
+        "permission": {"*": "deny"},
+    }
+    if repo_mcp:
+        import sys
+
+        from repo_mcp import SERVER_KEY, opencode_tool_names
+
+        command = ["/usr/bin/env", "-i",
+                   *(f"{name}={env[name]}" for name in ("PATH", "HOME", "LANG", "LC_ALL") if name in (env or {})),
+                   sys.executable, *LLMRunner._repo_mcp_server_args(repo_mcp)]
+        config["providers"]["exaone"]["models"][model]["capabilities"]["tools"] = True
+        config["mcp"] = {SERVER_KEY: {"type": "local", "command": command, "enabled": True,
+                                      "codemode": False, "timeout": 60000}}
+        permission: Dict[str, Any] = {"*": "deny"}
+        permission.update({name: "allow" for name in opencode_tool_names(bool(repo_mcp.get("no_index")))})
+        config["permission"] = permission
+    return config
+
+
+def _opencode_error_text(error: Any) -> str:
+    """`error <type>: <message> (status <status>, request <x-request-id>)` from an opencode error event; the
+    status and the request id only when present, the id only from error.response.headers when that field is a
+    dict (case-insensitive key). Nothing else survives: no headers, no response or request body, never the key."""
+    detail = error if isinstance(error, dict) else {}
+    text = f"error {detail.get('type') or 'unknown'}: {str(detail.get('message') or '').strip()}".rstrip()
+    extras = []
+    if detail.get("status") is not None:
+        extras.append(f"status {detail['status']}")
+    response = detail.get("response")
+    headers = response.get("headers") if isinstance(response, dict) else None
+    if isinstance(headers, dict):
+        for name, value in headers.items():
+            if str(name).lower() == "x-request-id" and value:
+                extras.append(f"request {value}")
+                break
+    return f"{text} ({', '.join(extras)})" if extras else text
+
+
+def _opencode_parse(stdout: str) -> Tuple[str, Optional[str], int, int]:
+    """(answer of the last step, failure text or None, served tool calls, refused tool calls) from `--format
+    json` event lines.
+
+    Blank and non-JSON lines are ignored (unknown event shapes too). A step_start begins a new step and drops
+    the texts of earlier ones: after a tool call opencode continues in a new step, and only the last step is
+    the answer. A tool_use counts as served when its part's state completed, and as refused otherwise (an
+    error status is opencode denying the call). An error event and a last step_finish with reason "length"
+    each produce their own failure text; the caller checks the exit code and the emptiness of the answer.
+    """
+    texts: List[str] = []
+    finish_reason: Optional[str] = None
+    failure: Optional[str] = None
+    served = refused = 0
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        kind = event.get("type")
+        if kind == "error":
+            failure = _opencode_error_text(event.get("error"))
+        elif kind == "step_start":
+            texts = []
+            finish_reason = None
+        elif kind == "text":
+            part = event.get("part")
+            if isinstance(part, dict) and isinstance(part.get("text"), str):
+                texts.append(part["text"])
+        elif kind == "tool_use":
+            part = event.get("part")
+            state = part.get("state") if isinstance(part, dict) else None
+            status = state.get("status") if isinstance(state, dict) else None
+            if status == "completed":
+                served += 1
+            else:
+                refused += 1
+        elif kind == "step_finish":
+            part = event.get("part")
+            finish_reason = part.get("reason") if isinstance(part, dict) else None
+    if failure is not None:
+        return "", failure, served, refused
+    if finish_reason == "length":
+        return "", "answer cut at the output limit (reason length)", served, refused
+    return "".join(texts).strip(), None, served, refused
+
+
+def _opencode_rate_limited(stdout: str) -> bool:
+    """True when the LAST error event in the JSON lines is EXAONE overload: error type provider.rate-limit or
+    status 429 (int or numeric string). The English message text is never matched."""
+    detail: Dict[str, Any] = {}
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict) and event.get("type") == "error":
+            error = event.get("error")
+            detail = error if isinstance(error, dict) else {}
+    if detail.get("type") == "provider.rate-limit":
+        return True
+    try:
+        return float(detail.get("status")) == 429.0
+    except (TypeError, ValueError):
+        return False
 
 
 def llm_env_path() -> Path:
@@ -238,17 +693,54 @@ class LLMRunner:
         search_path = self.base_env.get("PATH")
         self.available_providers = [name for name in order if self._installed(name, search_path)]
         # Every known provider installed here; a team member may pick one outside the host's default order.
-        self.installed_providers = [name for name in DEFAULT_PROVIDER_ORDER if self._installed(name, search_path)]
+        self.installed_providers = [name for name in KNOWN_PROVIDERS if self._installed(name, search_path)]
         self.detected_cli = self.available_providers[0] if self.available_providers else None
         self.timeout = self._timeout_from_env()
         # Reason the most recent external CLI call failed, if it did.
         self.last_error: Optional[str] = None
+        # Per-turn stats of the provider attempt running on THIS thread: the runner is shared by the parallel
+        # agents of one debate, so a plain instance attribute would leak one agent's turn into another's event.
+        # run_session_prompt resets it at the start of each provider attempt; exaone and opencode fill it on
+        # success. Never a plain attribute; see _copy_turn_stats.
+        self._turn = threading.local()
 
     def _installed(self, name: str, search_path: Optional[str]) -> bool:
-        """The provider's binary is on PATH and, for zai, its own key is present (claude's login does not count)."""
+        """The provider's binary is on PATH and, for zai, its own key is present (claude's login does not count).
+        exaone has no binary: it is installed when EXAONE_API_KEY is set (no which lookup runs for it).
+        opencode is installed when its key is set and OPENCODE_BIN is an opencode 2.x binary."""
+        if name == "exaone":
+            return bool(self.base_env.get("EXAONE_API_KEY"))
+        if name == "opencode":
+            # The key first: without it the provider is never ready, so no binary runs (decision: the build
+            # changes nothing until a key is placed).
+            return bool(self.base_env.get("OPENCODE_EXAONE_API_KEY")) and self._opencode_2x(search_path)
         if shutil.which(provider_binary(name), path=search_path) is None:
             return False
         return name != "zai" or bool(self.base_env.get("ZAI_API_KEY"))
+
+    def _opencode_2x(self, search_path: Optional[str]) -> bool:
+        """True when OPENCODE_BIN resolves to an opencode 2.x binary: the config schema and --standalone are
+        the v2 line the EXAONE guide documents, while the Homebrew 1.x line knows neither. `--version` runs
+        once per binary path and modification time; any error counts as not installed."""
+        binary = shutil.which(self.base_env.get("OPENCODE_BIN") or "opencode", path=search_path)
+        if binary is None:
+            return False
+        try:
+            cache_key = (binary, os.stat(binary).st_mtime)
+        except OSError:
+            return False
+        if cache_key in _OPENCODE_2X_CACHE:
+            return _OPENCODE_2X_CACHE[cache_key]
+        try:
+            # Even --version writes a log line under XDG_DATA_HOME: the probe gets throwaway XDG dirs too.
+            with tempfile.TemporaryDirectory(prefix="guardian_opencode_") as scratch:
+                env = _opencode_scratch_env(self._provider_env("opencode"), scratch)
+                proc = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=15, env=env)
+            ready = _opencode_major(proc.stdout or "") == 2
+        except (OSError, subprocess.SubprocessError):
+            ready = False
+        _OPENCODE_2X_CACHE[cache_key] = ready
+        return ready
 
     @staticmethod
     def _provider_order_from_env() -> List[str]:
@@ -505,14 +997,266 @@ class LLMRunner:
         )
         return self._check(name, proc)
 
+    # --- opencode: one stateless EXAONE turn through the opencode 2.x CLI ---
+
+    def _opencode_settings(self) -> Tuple[str, float, str, str, Dict[str, str]]:
+        """(binary, timeout, effort, model, process env) from the opencode provider env (env_policy passes
+        OPENCODE_* only). The four Guardian-only settings are consumed here and removed from the env."""
+        source = self._provider_env("opencode")
+        if not source.get("OPENCODE_EXAONE_API_KEY"):
+            raise RuntimeError("OPENCODE_EXAONE_API_KEY is not set")
+        binary = source.get("OPENCODE_BIN") or "opencode"
+        timeout = _positive_float_setting(source, "OPENCODE_TIMEOUT", OPENCODE_DEFAULT_TIMEOUT)
+        effort = str(source.get("OPENCODE_EXAONE_EFFORT") or EXAONE_DEFAULT_EFFORT).strip().lower()
+        effort = effort if effort in EXAONE_EFFORTS else EXAONE_DEFAULT_EFFORT
+        model = source.get("OPENCODE_EXAONE_MODEL") or EXAONE_DEFAULT_MODEL
+        env = {k: v for k, v in source.items() if k not in OPENCODE_GUARDIAN_SETTINGS}
+        return binary, timeout, effort, model, env
+
+    def _opencode_invocation(self, repo_mcp: Optional[Dict[str, Any]] = None) -> Tuple[List[str], Dict[str, str], float]:
+        """argv, environment (still without the per-call XDG dirs) and timeout of one opencode turn. The
+        config travels in OPENCODE_CONFIG_CONTENT, the model in -m: opencode never runs without both, so it
+        cannot fall back to a free model. With repo_mcp the config also attaches the repo_* MCP tools
+        (_opencode_config)."""
+        binary, timeout, effort, model, env = self._opencode_settings()
+        env["OPENCODE_CONFIG_CONTENT"] = json.dumps(_opencode_config(model, effort, repo_mcp=repo_mcp, env=env))
+        for flag in OPENCODE_DISABLE_FLAGS:
+            env[flag] = "1"
+        args = [binary, "run", "--standalone", "--format", "json", "--title", "guardian", "-m", f"exaone/{model}"]
+        return args, env, timeout
+
+    @staticmethod
+    def _opencode_communicate(proc: subprocess.Popen, prompt: str, timeout: float) -> Tuple[str, str]:
+        """Sends the prompt on stdin and waits for the turn, with a deadline on the whole process. On expiry
+        the whole process GROUP dies: opencode waits forever on a stalled stream, and its children (a live
+        provider bridge) hold the stdout pipe open, so killing only the direct child would hang the reap."""
+        try:
+            return proc.communicate(input=prompt, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.communicate()
+            raise RuntimeError(f"timed out after {timeout:.0f}s (OPENCODE_TIMEOUT)") from None
+
+    def _run_opencode(self, prompt: str, workdir: str, repo_mcp: Optional[Dict[str, Any]] = None) -> str:
+        """One EXAONE turn through `opencode run` (stateless, no session, label opencode-cli).
+
+        The prompt travels on stdin, never in argv (turns reach hundreds of KB). Sessions and prompt copies
+        stay inside a scratch XDG dir removed after the call; the package cache persists under HOME. The
+        answer is the text of the LAST step (a refused skill tool call makes opencode ask again); an error
+        event, a cut answer (reason length), a non-zero exit or an empty answer fails the turn. With repo_mcp
+        the turn offers the repo_* MCP tools through the config (_opencode_config); served and refused tool
+        calls are counted and logged separately.
+
+        An EXAONE rate limit is retried (_opencode_rate_limited): at most OPENCODE_MAX_RETRIES extra attempts,
+        one scratch dir and one pacing slot each, with OPENCODE_RETRY_BACKOFF pauses. All attempts together
+        never exceed OPENCODE_TIMEOUT: every attempt gets only the time that remains of it, and a pause that
+        would pass the deadline fails with the original error instead of sleeping.
+
+        On success the thread's turn stats hold the elapsed time, the timeout and where it came from (no token
+        counts: the CLI reports none in the shape we read), so a debate event can carry the deadline margin.
+        """
+        started = time.monotonic()
+        args, env, timeout = self._opencode_invocation(repo_mcp)
+        timeout_source = _opencode_timeout_source(self._provider_env("opencode"))
+        cache_home = Path(env.get("HOME") or os.path.expanduser("~")) / ".cache" / "guardian-opencode"
+        cache_home.mkdir(parents=True, exist_ok=True)
+        env["XDG_CACHE_HOME"] = str(cache_home)
+        deadline = time.monotonic() + timeout
+        attempt = 0
+        while True:
+            with tempfile.TemporaryDirectory(prefix="guardian_opencode_") as scratch:
+                attempt_env = _opencode_scratch_env(env, scratch)
+                _exaone_pace()
+                proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        text=True, start_new_session=True, cwd=workdir, env=attempt_env)
+                stdout, stderr = self._opencode_communicate(proc, prompt, max(0.0, deadline - time.monotonic()))
+            answer, failure, served, refused = _opencode_parse(stdout)
+            if served or refused:
+                logger.info("opencode: %d tool call(s) served, %d refused", served, refused)
+            if failure is None and proc.returncode != 0:
+                detail = (stderr or "").strip()[-300:]  # stderr only: stdout holds no answer here and echoes the prompt
+                failure = f"exited with code {proc.returncode}" + (f": {detail}" if detail else "")
+            if failure is None and not answer:
+                failure = "empty answer"
+            if failure is None:
+                self._turn.stats = {"elapsed_s": round(time.monotonic() - started, 1),
+                                    "timeout_s": timeout, "timeout_source": timeout_source}
+                return answer
+            if attempt >= OPENCODE_MAX_RETRIES or not _opencode_rate_limited(stdout):
+                raise RuntimeError(failure)
+            pause = OPENCODE_RETRY_BACKOFF[attempt] + random.uniform(0, 5)
+            if time.monotonic() + pause > deadline:
+                raise RuntimeError(failure) from None  # the pause no longer fits the turn's own deadline
+            logger.info("opencode: EXAONE rate limit on attempt %d, retrying in %.0f s", attempt + 1, pause)
+            attempt += 1
+            time.sleep(pause)
+
+    # --- exaone: one stateless HTTP turn per call ---
+
+    def _exaone_config(self) -> Tuple[str, str, Dict[str, Any]]:
+        """(key, base url, request parameters) from the exaone provider env (env_policy), never from os.environ."""
+        source = self._provider_env("exaone")
+        key = source.get("EXAONE_API_KEY")
+        if not key:
+            raise RuntimeError("EXAONE_API_KEY is not set")
+        effort = str(source.get("EXAONE_REASONING_EFFORT") or EXAONE_DEFAULT_EFFORT).strip().lower()
+        timeout_source = "turn timeout"  # the runner's own limit (GUARDIAN_LLM_TIMEOUT), not EXAONE_TIMEOUT
+        try:
+            timeout = float(source["EXAONE_TIMEOUT"])
+            timeout_source = "EXAONE_TIMEOUT"
+        except (KeyError, TypeError, ValueError):
+            timeout = self.timeout
+        params = {
+            "model": source.get("EXAONE_MODEL") or EXAONE_DEFAULT_MODEL,
+            "effort": effort if effort in EXAONE_EFFORTS else EXAONE_DEFAULT_EFFORT,
+            "max_tokens": _int_setting(source, "EXAONE_MAX_TOKENS", EXAONE_DEFAULT_MAX_TOKENS),
+            "max_prompt_bytes": _int_setting(source, "EXAONE_MAX_PROMPT_BYTES", EXAONE_DEFAULT_MAX_PROMPT_BYTES),
+            "timeout": timeout,
+            "timeout_source": timeout_source,
+            "stream": _exaone_stream_flag(source),
+            "idle_timeout": _positive_float_setting(source, "EXAONE_IDLE_TIMEOUT", EXAONE_DEFAULT_IDLE_TIMEOUT),
+        }
+        return key, _exaone_base_url(source), params
+
+    def _invoke_exaone(self, prompt: str) -> str:
+        """One EXAONE turn: POST {base}/chat/completions with the combined prompt as a single user message.
+
+        Retrieval stays in the prompt (```repo blocks): the request carries no tools and no chat_template_kwargs.
+        Streaming is the default: the request asks for SSE, read line by line. EXAONE_STREAM=0 turns it off for
+        diagnosis and asks for one JSON answer instead, a request unchanged byte for byte.
+
+        On success the thread's turn stats hold the elapsed time (pacing and retries included, which is what the
+        total deadline measures), the timeout and its source, the effort, the stream flag, the retry count, the
+        first byte and the finish reason of the successful attempt, the prompt size and the token counts when the
+        server sent usage (docs/design/exaone-provider.md, "Deadline margin"): the margin is read from events
+        instead of inferred from event gaps. Never the key, the prompt or the answer text.
+        """
+        key, base, params = self._exaone_config()
+        size = len(prompt.encode("utf-8"))
+        if size > params["max_prompt_bytes"]:
+            raise RuntimeError(f"prompt is {size} bytes, above EXAONE_MAX_PROMPT_BYTES ({params['max_prompt_bytes']})")
+        body = json.dumps({
+            "model": params["model"],
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "reasoning_effort": params["effort"],
+            "max_tokens": params["max_tokens"],
+            "stream": params["stream"],
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            f"{base}/chat/completions", data=body, method="POST",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                     "Accept": "text/event-stream" if params["stream"] else "application/json"})
+        started = time.monotonic()
+        info: Dict[str, Any] = {}
+        if params["stream"]:
+            text = self._exaone_stream_turn(request, params, key, info)
+        else:
+            payload = self._exaone_send(request, params["timeout"], key, _exaone_json_body, info=info)
+            if isinstance(payload, dict):
+                info.update(_exaone_usage_fields(payload.get("usage")))
+                try:
+                    reason = payload["choices"][0].get("finish_reason")
+                except (KeyError, IndexError, TypeError, AttributeError):
+                    reason = None
+                if isinstance(reason, str) and reason:
+                    info["finish_reason"] = reason
+            text = _exaone_answer(payload)
+        stats: Dict[str, Any] = {
+            "elapsed_s": round(time.monotonic() - started, 1),
+            "timeout_s": params["timeout"],
+            "timeout_source": params["timeout_source"],
+            "effort": params["effort"],
+            "stream": bool(params["stream"]),
+            "retries": int(info.get("retries") or 0),
+            "prompt_bytes": size,
+        }
+        if isinstance(info.get("finish_reason"), str) and info["finish_reason"]:
+            stats["finish_reason"] = info["finish_reason"]
+        first_line, attempt_at = info.get("first_line_at"), info.get("attempt_at")
+        if first_line is not None and attempt_at is not None:
+            stats["first_byte_s"] = round(first_line - attempt_at, 1)
+        stats.update({name: info[name] for name in ("prompt_tokens", "completion_tokens", "reasoning_tokens")
+                      if name in info})
+        self._turn.stats = stats
+        return text
+
+    def _exaone_stream_turn(self, request: urllib.request.Request, params: Dict[str, Any], key: str,
+                            info: Optional[Dict[str, Any]] = None) -> str:
+        """One streamed turn: urlopen gets the idle timeout as its socket timeout, while params["timeout"] is the
+        total deadline of the whole turn (connection, retries and reading included), so a stream cannot outlive it.
+        _exaone_send enforces the deadline across retries, the read callback while the body streams. info (see
+        _invoke_exaone) collects the facts of the successful attempt for the turn stats."""
+        deadline = time.monotonic() + params["timeout"]
+        text = _exaone_deadline_text(params["timeout"], params["timeout_source"])
+        return self._exaone_send(
+            request, params["idle_timeout"], key,
+            lambda response: _exaone_stream_body(response, deadline, params["idle_timeout"], key, text, info),
+            (deadline, text), info)
+
+    def _exaone_send(self, request: urllib.request.Request, timeout: float, key: str,
+                     read: Callable[[Any], Any],
+                     deadline: Optional[Tuple[float, str]] = None,
+                     info: Optional[Dict[str, Any]] = None) -> Any:
+        """Sends one paced request per attempt; a 429/5xx with a retry-after of at most EXAONE_MAX_RETRY_AFTER seconds
+        is retried (at most EXAONE_MAX_RETRIES times, with jitter), every other error fails at once so the fallback
+        chain moves on instead of waiting out the turn timeout. read consumes the open response and runs inside the
+        try, so only an HTTPError raised before the body starts is retried: a failure while reading the body (a
+        broken, malformed or cut-off stream) propagates at once and fails the turn without another attempt.
+        Streamed turns pass deadline as (absolute time.monotonic() limit, failure text): once the limit is past, or
+        a retry sleep would pass it, the turn fails with that text, so retries cannot outlive the total deadline.
+        info (optional, mutable) receives the start time of each attempt ("attempt_at") and, when a retry is taken,
+        its count ("retries"); the caller reads it only after a success."""
+        retries = 0
+        while True:
+            if info is not None:
+                info["attempt_at"] = time.monotonic()
+            if deadline is not None and time.monotonic() > deadline[0]:
+                raise RuntimeError(deadline[1]) from None
+            _exaone_pace()
+            try:
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    return read(response)
+            except urllib.error.HTTPError as exc:
+                try:
+                    body = exc.read()
+                finally:
+                    exc.close()  # the error holds the open response; free the socket now
+                retriable = exc.code == 429 or exc.code >= 500
+                wait = _exaone_retry_seconds(exc.headers) if retriable else None
+                if wait is not None and wait <= EXAONE_MAX_RETRY_AFTER and retries < EXAONE_MAX_RETRIES:
+                    pause = wait + random.uniform(0, 0.25)
+                    if deadline is not None and time.monotonic() + pause > deadline[0]:
+                        raise RuntimeError(deadline[1]) from None
+                    retries += 1
+                    if info is not None:
+                        info["retries"] = retries
+                    time.sleep(pause)
+                    continue
+                raise RuntimeError(_exaone_error_message(exc.code, exc.headers, body, key)) from None
+            except (OSError, http.client.HTTPException) as exc:
+                # Network errors (URLError, socket.timeout/TimeoutError, a reset connection, a broken response)
+                # fail the turn as a RuntimeError, which the run_* loops catch and move the chain on.
+                raise RuntimeError(f"request failed: {exc}") from exc
+
+    @staticmethod
+    def _label(name: str) -> str:
+        """Result label of a provider: binary providers answer as <name>-cli; exaone calls an API (exaone-api)."""
+        return "exaone-api" if name == "exaone" else f"{name}-cli"
+
     def _invoker(self, name: str) -> Optional[Callable[[str, str], str]]:
         simple = {
-            "opencode": lambda p, d: self._run_simple("opencode", ["opencode", "run", p], d),
             "ollama": lambda p, d: self._run_simple("ollama", ["ollama", "run", "llama3", p], d),
             "llm": lambda p, d: self._run_simple("llm", ["llm", p], d),
         }
         runners = {"claude": self._run_claude, "codex": self._run_codex, "agy": self._run_agy,
-                   "zai": lambda p, d: self._run_claude(p, d, "zai")}
+                   "zai": lambda p, d: self._run_claude(p, d, "zai"),
+                   "exaone": lambda p, d: self._invoke_exaone(p),
+                   "opencode": self._run_opencode}
         return runners.get(name) or simple.get(name)
 
     # --- Session-aware invocations: return (text, session_id) or raise RuntimeError ---
@@ -772,6 +1516,13 @@ class LLMRunner:
         logger.warning("All LLM CLIs failed, using built-in fallback: %s", self.last_error)
         return f"{BUILTIN_BANNER} (원인: {self.last_error})\n{self._expert_reasoning(prompt, context or {})}"
 
+    def _copy_turn_stats(self) -> Dict[str, Any]:
+        """A copy of this thread's stats of the provider attempt that just succeeded ({} when it set none).
+
+        The stats live in a threading.local, so the parallel agents of one debate (which share this runner) never
+        read another thread's turn; the copy keeps the LLMResult independent of what the next attempt overwrites."""
+        return dict(getattr(self._turn, "stats", None) or {})
+
     def run_session_prompt(
         self,
         prompt: str,
@@ -793,8 +1544,8 @@ class LLMRunner:
         providers restricts the call to those providers, in that order (a team member's preference),
         even when GUARDIAN_LLM_PROVIDERS leaves them out; when none is installed the built-in
         fallback answers.
-        repo_mcp (see _session_claude, _session_codex) attaches the read-only repo tools, but only when claude, zai or
-        codex is the provider that actually runs; every other provider ignores it.
+        repo_mcp (see _session_claude, _session_codex, _opencode_config) attaches the read-only repo tools, but only
+        when claude, zai, codex or opencode is the provider that actually runs; every other provider ignores it.
         system (see _build_prompt) replaces the default "Linux & SSH Security Engineer" role line, which would
         otherwise tell every session, on every turn, that it is an SSH engineer. A turn that resumes a session
         is sent as it is: the session already has its role, and repeating the header would restate (or, with the
@@ -823,6 +1574,9 @@ class LLMRunner:
         workdir = str(session_workdir())
 
         for name in order:
+            # A fresh stats holder per attempt: only exaone and opencode fill it, and only the attempt that
+            # succeeds hands its numbers on to the result (a fallback answer carries none of them).
+            self._turn.stats = {}
             resume_id = session_id if (session_id and name == provider) else None
             turn_prompt = resumed_prompt if resume_id else full_prompt
             try:
@@ -835,14 +1589,24 @@ class LLMRunner:
                     text, sid = self._session_codex(turn_prompt, resume_id, workdir, repo_mcp=repo_mcp)
                 elif name == "agy":
                     text, sid = self._session_agy(turn_prompt, resume_id, workdir)
+                elif name == "opencode":
+                    # Stateless (no session id to resume or store), but repo_mcp applies: the repo_* tools
+                    # travel in the config, exactly as the generic path runs the turn.
+                    with tempfile.TemporaryDirectory(prefix="guardian_llm_") as scratch:
+                        return LLMResult(self._label(name), self._run_opencode(full_prompt, scratch, repo_mcp=repo_mcp),
+                                         failures=list(errors), stats=self._copy_turn_stats())
                 else:
                     invoke = self._invoker(name)
                     if invoke is None:
                         errors.append(f"{name}: unsupported provider")
                         continue
                     with tempfile.TemporaryDirectory(prefix="guardian_llm_") as scratch:
-                        return LLMResult(f"{name}-cli", invoke(full_prompt, scratch), failures=list(errors))
-                return LLMResult(f"{name}-cli", text, sid, resumed=resume_id is not None, failures=list(errors))
+                        # exaone and opencode record their turn stats; every other provider leaves them empty.
+                        # Copy them only after the turn ran: the invoker is what fills them.
+                        answer = invoke(full_prompt, scratch)
+                        stats = self._copy_turn_stats() if name in ("exaone", "opencode") else {}
+                        return LLMResult(self._label(name), answer, failures=list(errors), stats=stats)
+                return LLMResult(self._label(name), text, sid, resumed=resume_id is not None, failures=list(errors))
             except subprocess.TimeoutExpired:
                 errors.append(f"{name}: timed out after {self.timeout:.0f}s")
             except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
@@ -853,12 +1617,15 @@ class LLMRunner:
 
     # @MX:ANCHOR: Routes analysis prompts to the selected provider CLI.
     # @MX:REASON: Diagnostic, security and debate agents share this external integration boundary.
-    def run_prompt(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+    def run_prompt(self, prompt: str, context: Optional[Dict[str, Any]] = None,
+                   system: Optional[str] = None) -> Tuple[str, str]:
         """
         Runs the prompt with the first provider CLI that succeeds, else the built-in engine.
+        system replaces the default role line and leaves the context out of the model's prompt (see _build_prompt); the
+        built-in fallback still reads the context.
         Returns: (provider_name, response_text)
         """
-        full_prompt = self._build_prompt(prompt, context)
+        full_prompt = self._build_prompt(prompt, context, system)
         self.last_error = None
         errors: List[str] = []
         # Run in an empty directory so agentic CLIs cannot read or modify the repository.
@@ -869,7 +1636,7 @@ class LLMRunner:
                     errors.append(f"{name}: unsupported provider")
                     continue
                 try:
-                    return f"{name}-cli", invoke(full_prompt, workdir)
+                    return self._label(name), invoke(full_prompt, workdir)
                 except subprocess.TimeoutExpired:
                     errors.append(f"{name}: timed out after {self.timeout:.0f}s")
                 except (OSError, RuntimeError, subprocess.SubprocessError) as exc:

@@ -246,6 +246,11 @@ def import_stream(root: Path, key: str, source: BinaryIO, limit: int = MAX_STREA
                 errfile.seek(0)
                 raise SnapshotError("git fast-import failed: " + errfile.read().decode(errors="replace").strip()[-200:])
         commit = _run_git(["--git-dir", str(repo), "rev-parse", "--verify", SNAPSHOT_REF]).strip()
+        names = _run_git(["--git-dir", str(repo), "ls-tree", "-r", "-z", "--name-only", SNAPSHOT_REF]).split("\0")
+        for name in names:
+            problem = unsafe_path(name) if name else None
+            if problem:
+                raise SnapshotError(f"the snapshot holds an unsafe path {name[:120]!r}: {problem}")
         (repo / COMMIT_FILE).write_text(commit + "\n", encoding="ascii")
         try:
             os.rename(repo, final)
@@ -255,6 +260,20 @@ def import_stream(root: Path, key: str, source: BinaryIO, limit: int = MAX_STREA
         return snapshot_commit(root, key) or commit
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def unsafe_path(name: str) -> Optional[str]:
+    """Why a tree path of an uploaded snapshot is refused, or None. git fast-import checks this itself only in some
+    versions (2.43 stores `../escape.txt` as it is), so the worker checks every path after the import: a snapshot the
+    hub builds holds only RepoTools.readable_paths(), which never has such a path."""
+    parts = name.split("/")
+    if any(part == "" for part in parts):
+        return "an empty component (a leading, trailing or double slash)"
+    if any(part in (".", "..") for part in parts):
+        return "a . or .. component"
+    if any(part.lower() == ".git" for part in parts):
+        return "a .git component"
+    return None
 
 
 def _run_git(args: List[str]) -> str:
@@ -268,9 +287,10 @@ def _run_git(args: List[str]) -> str:
 
 
 def prune_snapshots(root: Path, ttl_seconds: float = DEFAULT_TTL_SECONDS, keep: int = DEFAULT_KEEP,
-                    now: Optional[float] = None) -> List[str]:
+                    now: Optional[float] = None, pinned: frozenset = frozenset()) -> List[str]:
     """Removes snapshots not used for ttl_seconds, then the least recently used beyond `keep`; returns their keys.
-    Leftovers of an interrupted import (.incoming-*) older than an hour go too."""
+    A pinned key (an owned resident task reads it, M2e) is never removed and does not count against
+    `keep`. Leftovers of an interrupted import (.incoming-*) older than an hour go too."""
     root = Path(root)
     now = time.time() if now is None else now
     removed: List[str] = []
@@ -296,8 +316,10 @@ def prune_snapshots(root: Path, ttl_seconds: float = DEFAULT_TTL_SECONDS, keep: 
             stamp = 0.0  # an incomplete snapshot is never reused
         used.append((stamp, name))
     used.sort()
-    stale = [item for item in used if now - item[0] > ttl_seconds]
-    fresh = [item for item in used if item not in stale]
+    # Pinned snapshots stay whatever their age, and they do not take a `keep` slot from the others.
+    candidates = [item for item in used if item[1] not in pinned]
+    stale = [item for item in candidates if now - item[0] > ttl_seconds]
+    fresh = [item for item in candidates if item not in stale]
     surplus = fresh[:max(0, len(fresh) - max(keep, 0))]
     for _stamp, name in stale + surplus:
         shutil.rmtree(root / name, ignore_errors=True)

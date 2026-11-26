@@ -65,6 +65,19 @@ class ParseProjectTests(unittest.TestCase):
             with self.assertRaises(ProjectValidationError, msg=json.dumps(data)):
                 parse_project(data)
 
+    def test_a_trailing_newline_is_refused_in_every_checked_field(self) -> None:
+        # "$" also matches just before a trailing newline, so only fullmatch refuses "svc\n"
+        # (which would otherwise name a file "svc\n.json").
+        bad = [
+            {**VALID, "id": "svc\n"},
+            {**VALID, "branch": "main\n"},
+            {**VALID, "repo": "https://git.example.com/me/x.git\n"},
+            {**VALID, "tests": {"commands": [{"prefix": "cargo test", "flags": {"--release\n": True}}]}},
+        ]
+        for data in bad:
+            with self.assertRaises(ProjectValidationError, msg=json.dumps(data)):
+                parse_project(data)
+
     def test_project_test_commands_extend_the_allow_list(self) -> None:
         p = parse_project({**VALID, "tests": {"default": "cargo test --release",
                                               "commands": [{"prefix": "cargo test", "flags": {"--release": False, "-p": True}}]}})
@@ -127,6 +140,12 @@ class ManagerTests(unittest.TestCase):
     def test_unknown_project_is_an_error(self) -> None:
         with self.assertRaises(ProjectValidationError):
             self.mgr.load("nope")
+
+    def test_an_id_with_a_trailing_newline_is_not_a_lookup(self) -> None:
+        self.mgr.save({**VALID, "name": "custom"})
+        self.assertEqual(self.mgr.load("svc").name, "custom")
+        self.assertIsNone(self.mgr.get_raw("svc\n"))
+        self.assertFalse(self.mgr.is_custom("svc\n"))
 
     def test_config_ops_report_and_save(self) -> None:
         code, payload = config_ops.save_project(self.mgr, json.dumps({**VALID, "id": "other"}))

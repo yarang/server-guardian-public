@@ -4,13 +4,11 @@ import { tr } from '../../i18n';
 import { Ago } from '../../components/Ago';
 import { Card } from '../../components/Card';
 import { DataGate } from '../../components/DataGate';
-import { useExportAction } from '../../components/ExportButton';
 import { Notice } from '../../components/Notice';
 import { ProjectSwitcher } from '../../components/ProjectSwitcher';
 import { Stack, mono, muted } from '../../components/layout';
 import { useHubData } from '../../hooks/useHubData';
 import { decisionText, decisionWordStatus, parseTime } from '../../lib/debate';
-import { exportProject, exportThread } from '../../lib/exportThread';
 import { parseResultsRoute, resultsParams } from '../../lib/results';
 import { hrefFor } from '../../router';
 import { useProjectStore } from '../../state/projectStore';
@@ -64,24 +62,11 @@ function ItemMeta({ item }: { item: ResultItem }) {
   );
 }
 
-/** What an item contributes to the export folder: its report and/or its stored artifact versions. */
-const wantOf = (item: ResultItem) => ({ report: item.has_report, artifacts: item.artifact_versions > 0 });
-
 function ResultList({ project, items, total }: { project: string; items: ResultItem[]; total: number }) {
-  // Threads that left neither a report nor artifacts have nothing to write.
-  const exp = useExportAction((progress) =>
-    exportProject(
-      project,
-      items.map((i) => ({ thread: i.thread_id, ...wantOf(i) })).filter((i) => i.report || i.artifacts),
-      progress,
-    ),
-  );
   if (items.length === 0) return <Notice tone="info">{tr.results.empty}</Notice>;
   return (
     <nav aria-label={tr.results.listAria} style={{ display: 'grid', gap: 'var(--sg-s-3)' }}>
       <strong style={{ fontSize: 13 }}>{tr.results.listTitle(total)}</strong>
-      {exp.button(tr.shell.exportFolder.saveAll)}
-      {exp.notice}
       {total > items.length ? <Notice tone="info">{tr.results.capped(items.length, total)}</Notice> : null}
       {items.map((item) => (
         <a key={item.thread_id} href={href(item.thread_id)} aria-label={tr.results.openThread(item.title)} style={rowStyle}>
@@ -107,9 +92,6 @@ function ResultDetail({
   project: string;
   item?: ResultItem;
 }) {
-  // An item missing from the list (older than the cap) still tries the report, which answers 404 when there is none.
-  const want = item ? wantOf(item) : { report: true, artifacts: false };
-  const exp = useExportAction(async () => ({ ...(await exportThread(project, thread, want)) }));
   return (
     <Stack gap="var(--sg-s-5)">
       <div>
@@ -119,8 +101,6 @@ function ResultDetail({
         <strong style={{ overflowWrap: 'anywhere' }}>{tr.results.detailTitle(item?.title ?? thread)}</strong>
         <span style={{ ...mono, ...muted, fontSize: 11 }}>{tr.results.threadId(thread)}</span>
         {item ? <ItemMeta item={item} /> : null}
-        {want.report || want.artifacts ? exp.button(tr.shell.exportFolder.saveResult) : null}
-        {exp.notice}
         {item && item.artifact_versions > 0 ? (
           <div>
             <a href={hrefFor('debates', ['artifacts', thread])} title={tr.results.openArtifactsTitle(thread)}>
@@ -129,7 +109,7 @@ function ResultDetail({
           </div>
         ) : null}
       </Card>
-      {item && !item.has_report ? <Notice tone="info">{tr.results.reportMissing}</Notice> : <ReportView thread={thread} project={project} exportable={false} />}
+      {item && !item.has_report ? <Notice tone="info">{tr.results.reportMissing}</Notice> : <ReportView thread={thread} project={project} />}
     </Stack>
   );
 }

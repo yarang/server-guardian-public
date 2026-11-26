@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { OpsScope } from '../lib/project';
 
 /**
- * Hand-off from other pages (e.g. the Fleet summary "Debate this") to the New debate form on the Debates page.
+ * Hand-off from other pages (e.g. the Overview page "Debate this") to the New debate form on the Debates page.
  *
  * Producer:  setDebatePrefill(task, source); navigate('debate');
  * Consumer:  const prefill = useDebatePrefill();

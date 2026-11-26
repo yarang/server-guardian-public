@@ -329,8 +329,17 @@ func (h *debateHub) wikiBuild(w http.ResponseWriter, r *http.Request) {
 // wikiBuildError extracts the CLI's {"ok": false, "error": ...} line from the job log, falling back
 // to the log tail.
 func wikiBuildError(logPath string, exit int) string {
-	text := strings.TrimSpace(readTail(logPath, errLogTailBytes))
-	found := ""
+	found, text := logErrorLine(logPath)
+	if found != "" {
+		return found
+	}
+	return joinErr("code wiki build exited with code "+strconv.Itoa(exit), tailString(text, errLogTailBytes))
+}
+
+// logErrorLine returns the last {"ok": false, "error": ...} message in the log tail ("" when there is
+// none) and the trimmed tail itself.
+func logErrorLine(logPath string) (found, text string) {
+	text = strings.TrimSpace(readTail(logPath, errLogTailBytes))
 	for _, line := range strings.Split(text, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "{") {
@@ -343,8 +352,5 @@ func wikiBuildError(logPath string, exit int) string {
 			found = out.Error
 		}
 	}
-	if found != "" {
-		return found
-	}
-	return joinErr("code wiki build exited with code "+strconv.Itoa(exit), tailString(text, errLogTailBytes))
+	return found, text
 }

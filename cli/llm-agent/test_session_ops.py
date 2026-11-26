@@ -91,7 +91,9 @@ def _args(**overrides) -> Namespace:
                 personas=False, persona_save=False, persona_delete=None, team_save=False, team_delete=None,
                 actions=None, show_action=None, run_action=None, reject_action=None, yes=False,
                 jev_status=None, jev_recheck=None, projects=False, project_save=False, project_delete=None,
-                project_sync=None, groups=False, group_save=False, group_delete=None, group_preview=False)
+                project_sync=None, groups=False, group_save=False, group_delete=None, group_preview=False,
+                flow_templates=False, flow_template_save=False, flow_template_delete=None, flow_template=None,
+                param=None)
     base.update(overrides)
     return Namespace(**base)
 

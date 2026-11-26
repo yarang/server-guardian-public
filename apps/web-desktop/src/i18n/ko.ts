@@ -12,6 +12,10 @@
  *   wiki     code wiki tab
  *   artifacts design project artifacts tab
  *   results   project results tab (debate reports and artifacts of every project kind)
+ *   ask      quick ask tab (solo agent: one role answers, no Judge)
+ *   review   quick review tab (one reviewer checks one change, no Judge)
+ *   flows    flow gallery, diagram editor and read view (docs/design/flow-graph.md)
+ *   residents resident agents monitor tab (read-only snapshot of the mail store)
  *
  * RAW-VALUE RULE (applies everywhere)
  *   1. Data stays raw. Status / kind / enum values that come from the API or are compared in code
@@ -53,7 +57,11 @@ import { wiki } from './ko/wiki';
 import { artifacts } from './ko/artifacts';
 import { personas } from './ko/personas';
 import { results } from './ko/results';
+import { ask } from './ko/ask';
+import { review } from './ko/review';
+import { flows } from './ko/flows';
+import { residents } from './ko/residents';
 
-export const ko = { common, shell, ops, fleet, debate, agents, wiki, artifacts, personas, results } as const;
+export const ko = { common, shell, ops, fleet, debate, agents, wiki, artifacts, personas, results, ask, review, flows, residents } as const;
 
 export type Catalog = typeof ko;

@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional
 
 from mcp_stdio import PROTOCOL_VERSION, StdioMCPClient
-from repo_mcp import RepoMcpServer, allowed_tool_names
+from repo_mcp import RepoMcpServer, allowed_tool_names, opencode_tool_names
 from repo_tools import RepoTools
 from test_repo_tools import git, make_repo
 
@@ -57,6 +57,7 @@ class ProtocolTests(ServerCase):
             self.assertEqual(tool["inputSchema"]["type"], "object")
         self.assertEqual(next(t for t in tools if t["name"] == "repo_grep")["inputSchema"]["required"], ["pattern"])
         self.assertEqual(allowed_tool_names()[0], "mcp__repo__repo_list")
+        self.assertEqual(opencode_tool_names()[0], "repo_repo_list")  # opencode prefixes one name only
 
     def test_unknown_method_tool_and_bad_json(self) -> None:
         server = self.server()

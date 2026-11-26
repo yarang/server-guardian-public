@@ -95,32 +95,14 @@ describe('Debate console', () => {
     expect(mocked.startDebate).not.toHaveBeenCalled();
   });
 
-  it('prefills the reference code from the team default until the user edits it', async () => {
+  it('names the lineup that runs without a chosen flow and sends no team (the team picker is gone)', async () => {
     mocked.startDebate.mockResolvedValue(runningJob);
     await mount();
-    const team = screen.getByLabelText(D.start.team) as HTMLSelectElement;
-    expect(Array.from(team.options).find((o) => o.value === 'broken')?.disabled).toBe(true);
-
-    change(team, 'cross-review');
-    const paths = screen.getByLabelText(new RegExp('^' + D.result.refCode)) as HTMLTextAreaElement;
-    expect(paths.value).toBe('apps/agent/*.go\ncli/**/*.py');
-    expect((screen.getByLabelText('Ref') as HTMLInputElement).value).toBe('main');
-    expect(screen.getByText(D.start.teamDefault)).toBeTruthy();
-
+    expect(screen.getByText(D.start.projectFlowNone)).toBeTruthy();
     change(taskBox(), 'Harden sshd');
     start();
     await settle();
-    expect(mocked.startDebate).toHaveBeenCalledWith({
-      task: 'Harden sshd',
-      project: 'server-guardian',
-      team: 'cross-review',
-      context_paths: ['apps/agent/*.go', 'cli/**/*.py'],
-      context_ref: 'main',
-    });
-
-    change(paths, 'only/this.go');
-    change(team, '');
-    expect(paths.value).toBe('only/this.go');
+    expect(mocked.startDebate).toHaveBeenCalledWith({ task: 'Harden sshd', project: 'server-guardian' });
   });
 
   it('starts a debate, follows it in the live monitor and swaps in the result when it finishes', async () => {
@@ -330,7 +312,6 @@ describe('Debate start form', () => {
     for (const label of [D.start.rounds, D.start.continueThread, D.start.refCode, 'Ref']) {
       expect(advanced().contains(screen.getByLabelText(label))).toBe(true);
     }
-    expect(advanced().contains(screen.getByLabelText(D.start.team))).toBe(false);
     expect(screen.getByText(D.start.refCodeHint)).toBeTruthy();
   });
 
@@ -806,6 +787,19 @@ describe('Debate result', () => {
   });
 
   describe('run again', () => {
+    beforeEach(() => {
+      // The hub lists every team converted into a flow of the same id.
+      mocked.fetchFlows.mockResolvedValue({
+        flows: [{
+          id: 'cross-review', name: 'Cross review', source: 'team', hash: 'h', calls: 3, runnable: true, run_error: null, errors: [], warnings: [],
+          data: { id: 'cross-review', name: 'Cross review', seats: [], close: { character: 'judge' }, links: [] },
+        }],
+        catalog: {} as never,
+      });
+    });
+    afterEach(() => {
+      mocked.fetchFlows.mockResolvedValue({ flows: [], catalog: {} as never });
+    });
     const openJob = async (job: DebateJobDetail) => {
       mocked.fetchDebates.mockResolvedValue([job]);
       mocked.fetchDebate.mockResolvedValue(job);
@@ -816,15 +810,16 @@ describe('Debate result', () => {
       await settle();
     };
 
-    it('fills the form with the task, team, rounds and reference code of a failed debate that left no result', async () => {
+    it('fills the form with the task, the flow of its team, rounds and reference code of a failed debate that left no result', async () => {
       await openJob({ ...doneJob, status: 'failed', exit_code: 1, error: 'boom', result: null });
       fireEvent.click(screen.getByRole('button', { name: D.job.runAgain }));
       expect((screen.getByLabelText(D.start.task) as HTMLTextAreaElement).value).toBe('Harden sshd');
-      expect((screen.getByLabelText(D.start.team) as HTMLSelectElement).value).toBe('cross-review');
+      // Teams are listed as flows: run again picks the flow of the team it ran with.
+      expect((screen.getByLabelText(ko.flows.start.label) as HTMLSelectElement).value).toBe('cross-review');
       expect((screen.getByLabelText(D.start.rounds) as HTMLInputElement).value).toBe('3');
       expect((screen.getByLabelText(new RegExp('^' + D.result.refCode)) as HTMLTextAreaElement).value).toBe('apps/agent/*.go');
-      // A fresh run: the old thread is not carried over (continuing it is the other button).
-      expect((screen.getByLabelText(D.start.continueThread) as HTMLInputElement).value).toBe('');
+      // A fresh run: a flow always starts a new thread, so there is no thread field (continuing is the other button).
+      expect(screen.queryByLabelText(D.start.continueThread)).toBeNull();
     });
 
     it('is offered for a closed debate too, and starts a new job with the same inputs', async () => {
@@ -834,7 +829,7 @@ describe('Debate result', () => {
       fireEvent.click(screen.getByRole('button', { name: D.start.start }));
       await settle();
       expect(mocked.startDebate).toHaveBeenCalledWith(
-        expect.objectContaining({ task: 'Harden sshd', team: 'cross-review', rounds: 3, context_paths: ['apps/agent/*.go'] })
+        expect.objectContaining({ flow: 'cross-review', task: 'Harden sshd', rounds: 3, context_paths: ['apps/agent/*.go'] })
       );
       expect(mocked.startDebate.mock.calls[0][0].thread_id).toBeUndefined();
     });
@@ -857,14 +852,13 @@ describe('Debate result', () => {
 
 
 describe('Debate page layout', () => {
-  it('is the list, the detail and the New debate form only, with a link to manage teams and personas in Settings', async () => {
+  it('is the list, the detail and the New debate form only', async () => {
     await mount();
     expect(screen.getByRole('region', { name: D.page.newDebate })).toBeTruthy();
     expect(screen.getByRole('region', { name: new RegExp('^' + D.page.listTitle + ' \\(') })).toBeTruthy();
-    for (const gone of [D.project.section, D.persona.section, D.team.section, ko.ops.overview.approvals.what]) {
+    for (const gone of [D.project.section, D.persona.section, ko.ops.overview.approvals.what]) {
       expect(screen.queryByRole('region', { name: new RegExp(`^${gone}`) })).toBeNull();
     }
-    expect(screen.getByRole('link', { name: D.page.manageTeams }).getAttribute('href')).toBe('#/settings/teams');
     expect(screen.getByLabelText(ko.shell.projectSwitcher.label)).toBeTruthy();
     expect(mocked.listActions).toHaveBeenCalledTimes(1);
   });

@@ -7,7 +7,7 @@
 - Render check: playwright 1.50.1 in `.ds-sync/` matches the cached chromium build 1155; `chromium-headless-shell` 1155 had to be installed separately (`npx playwright install chromium-headless-shell` from `.ds-sync/`).
 
 ## Gotchas found during verification
-- Every component needs `GuardianRoot` around it for the dark ground and fonts → `cfg.provider = GuardianRoot`.
+- Every component needs `GuardianRoot` around it for the warm paper ground and fonts → `cfg.provider = GuardianRoot`.
 - Meter fill was a `<span>` without `display:block`, so its width/height were ignored and bars looked empty. Fixed in `src/styles/components.css`. jsdom tests cannot catch this class of bug — only screenshots do.
 - NodeTable rows need ~940px; the default 900x700 capture viewport clipped the SSH column → `overrides.NodeTable = {cardMode: column, viewport: 1040x460}`; inner `min-width` raised to 940px; per-cell meter labels are screen-reader-only inside table rows.
 - `guidelinesGlob: []` — the per-component `docs/*.md` were otherwise also copied into `guidelines/` (they already ship as `.prompt.md`).

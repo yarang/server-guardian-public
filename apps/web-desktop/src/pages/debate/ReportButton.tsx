@@ -6,12 +6,9 @@ import { AuthRequiredError, HubError, fetchThreadReport, fetchThreadReportAsset,
 import { MarkdownDoc } from '../../components/MarkdownDoc';
 import { Modal } from '../../components/Modal';
 import { Notice } from '../../components/Notice';
-import { useExportAction } from '../../components/ExportButton';
 import { Row, muted } from '../../components/layout';
 import { tr } from '../../i18n';
 import { hrefFor } from '../../router';
-import { countResults, exportSave } from '../../lib/exportFolder';
-import { reportFile } from '../../lib/exportThread';
 import { useProjectKind } from '../../state/projectStore';
 import { errorText } from '../../lib/format';
 import { buildStandaloneMarkdown } from '../../lib/report';
@@ -45,8 +42,7 @@ export async function saveTextFile(fileName: string, text: string, type = 'text/
  * A thread's Markdown result, fetched on mount: download button, load states and the rendered document.
  * `actions` sits at the right end of the toolbar (the dialog puts its close button there). Used by the report
  * dialog of a finished debate and inline by the Results tab. With `project` set, a report that belongs to another
- * project is not shown (the report route finds a thread by id across all projects). In the desktop shell a second
- * button saves the report into the export folder; `exportable: false` leaves it out where the caller offers its own.
+ * project is not shown (the report route finds a thread by id across all projects).
  * "Keep as document" stores the report as an artifact version (docs/design/office-export.md); `keepable: false` leaves it
  * out when the caller knows better; a design project (whose documents are its artifacts, the hub refuses them) is
  * recognised from the project list, so the report dialog hides the button too.
@@ -55,13 +51,11 @@ export function ReportView({
   thread,
   project,
   actions,
-  exportable = true,
   keepable = true,
 }: {
   thread: string;
   project?: string;
   actions?: ReactNode;
-  exportable?: boolean;
   keepable?: boolean;
 }) {
   const [state, setState] = useState<Load>({ phase: 'loading' });
@@ -86,12 +80,6 @@ export function ReportView({
   const reportProject = state.phase === 'ready' ? state.report.project : project;
   const design = useProjectKind(reportProject) === 'design';
   const foreign = state.phase === 'ready' && project !== undefined && state.report.project !== project;
-
-  const exp = useExportAction(async () => {
-    if (state.phase !== 'ready') throw new Error(tr.debate.report.loading);
-    const file = await reportFile(state.report, thread);
-    return countResults(await exportSave(state.report.project, thread, [file]));
-  });
 
   const download = async (report: ThreadReport) => {
     setSaving(true);
@@ -158,11 +146,9 @@ export function ReportView({
               {keeping ? tr.debate.report.keeping : tr.debate.report.keep}
             </Button>
           ) : null}
-          {exportable ? exp.button(tr.shell.exportFolder.saveReport, state.phase !== 'ready' || foreign || !state.report.project) : null}
         </Row>
         {actions}
       </Row>
-      {exportable ? exp.notice : null}
       {kept ? (
         <Notice tone={kept.tone}>
           {kept.text}

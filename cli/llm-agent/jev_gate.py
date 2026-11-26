@@ -23,9 +23,12 @@ from mcp_stdio import MCPError, StdioMCPClient
 PASSED, DISPUTED, PENDING = "PASSED", "DISPUTED", "PENDING"
 ADOPT, REVISE = "adopt", "revise"
 MAX_CONSTRAINTS = 10
+# The last resort when neither the judge nor the critique gives a constraint; worded for every project kind.
 FALLBACK_CONSTRAINT = (
-    "The approach resolves the red-team critique's security, edge-case and performance concerns."
+    "The decision answers the critics' blocking concerns it accepted, and the evidence it cites supports it."
 )
+# Graded critiques (the ops and provisioning critics): only a blocking objection may become a constraint.
+BLOCKING_MARK, ADVICE_MARK = "[차단]", "[권고]"
 
 CATEGORY_KEYWORDS = [
     ("security", ("ssh", "auth", "token", "보안", "인증", "security", "key", "firewall", "acl", "tls")),
@@ -52,7 +55,21 @@ def _clip(text: str, limit: int) -> str:
 
 
 def critique_points(critique: str, limit: int = MAX_CONSTRAINTS) -> List[str]:
-    """Numbered or bulleted points of the critique, as fallback verification constraints."""
+    """Numbered or bulleted points of the critique, as fallback verification constraints.
+
+    A critique that grades its objections ([차단]/[권고]) gives only its [차단] lines (bulleted or not): advice must not
+    hold a decision back, which a constraint the decision does not answer would do."""
+    if BLOCKING_MARK in critique or ADVICE_MARK in critique:
+        blocking = []
+        for line in critique.splitlines():
+            if BLOCKING_MARK not in line:
+                continue
+            text = re.sub(r"[*_`#]+", "", line.split(BLOCKING_MARK, 1)[1]).strip(" :-")
+            if len(text) >= 15:
+                blocking.append(f"The approach addresses this concern: {_clip(text, 250)}")
+            if len(blocking) >= limit:
+                break
+        return blocking
     points = []
     for line in critique.splitlines():
         match = re.match(r"^\s*(?:\d+[.)]|[-*•])\s+(.*\S)", line)
@@ -111,7 +128,7 @@ def build_decision(project_id: str, thread_id: str, task: str, proposal: str, cr
         "title": _clip(f"[{project_id}] {task}", 120),
         "context": _clip(
             f"{code_line}Task: {task}\n\nOriginal proposal:\n{_clip(proposal, 1500)}\n\n"
-            f"Red-team critique:\n{_clip(critique, 1200)}{changes}",
+            f"Critique:\n{_clip(critique, 1200)}{changes}",
             4500,
         ),
         "category": infer_category(f"{task}\n{proposal}"),

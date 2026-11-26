@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Button, TextField } from '@server-guardian/ui';
-import { AuthRequiredError, deleteProject, saveProject } from '../../api';
+import { AuthRequiredError, deleteProject, fetchFlows, saveProject } from '../../api';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { Modal } from '../../components/Modal';
 import { Notice } from '../../components/Notice';
 import { TextAreaField } from '../../components/TextAreaField';
 import { SelectField } from '../../components/SelectField';
 import { Stack } from '../../components/layout';
+import { useHubData } from '../../hooks/useHubData';
 import { errorText } from '../../lib/format';
-import type { ProjectData, ProjectEntry, ProjectTestCommand, SaveResult } from '../../types';
+import type { FlowEntry, ProjectData, ProjectEntry, ProjectTestCommand, SaveResult } from '../../types';
 import { OpsProjectFields, opsDataOf, opsFormOf } from './OpsProjectFields';
 import { tr } from '../../i18n';
 
@@ -39,6 +40,16 @@ export function parseTestCommands(text: string): ProjectTestCommand[] {
     });
 }
 
+/**
+ * Flows a project may name as its default (`team` key, D7 of docs/design/flow-graph.md): runnable, allowed for the
+ * kind, and without a task text of their own (the default flow takes the task the person writes).
+ */
+export function defaultFlowChoices(flows: FlowEntry[], kind: 'code' | 'ops'): FlowEntry[] {
+  return flows.filter(
+    (f) => f.runnable && !f.data.task?.trim() && (!f.data.projects?.length || f.data.projects.includes(kind)),
+  );
+}
+
 /** Create / edit / delete a project. The hub validates everything again (URL, paths, test commands). */
 export function ProjectDialog({
   entry,
@@ -67,6 +78,16 @@ export function ProjectDialog({
   // The kind of a saved project is fixed: an ops project has no repository to add, a code project no targets.
   const [kind, setKind] = useState<'code' | 'ops'>(data.kind === 'ops' ? 'ops' : 'code');
   const [opsForm, setOpsForm] = useState(() => opsFormOf(data));
+  // The project's default flow; saving keeps it (the form used to drop the key).
+  const [flow, setFlow] = useState(data.team ?? '');
+  const flows = useHubData(fetchFlows);
+  const choices = defaultFlowChoices(flows.data?.flows ?? [], kind);
+  const flowOptions = [
+    { value: '', label: tr.debate.project.flowNone },
+    ...choices.map((f) => ({ value: f.id, label: f.name && f.name !== f.id ? `${f.name} (${f.id})` : f.id })),
+    // A value the list does not offer (another kind, not runnable, an older hub) stays selectable so it is not lost.
+    ...(flow && !choices.some((f) => f.id === flow) ? [{ value: flow, label: tr.debate.project.flowUnlisted(flow) }] : []),
+  ];
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -81,6 +102,7 @@ export function ProjectDialog({
       description: description.trim() || undefined,
       kind: 'ops',
       ...opsDataOf(opsForm),
+      team: flow || undefined,
     } : {
       id: id.trim(),
       name: name.trim() || undefined,
@@ -90,6 +112,7 @@ export function ProjectDialog({
       workspace: workspace.trim() || undefined,
       tests: defaultTest.trim() || commands.length ? { default: defaultTest.trim() || undefined, commands } : undefined,
       context: paths.length ? { paths } : undefined,
+      team: flow || undefined,
     };
     setBusy(true);
     setError(null);
@@ -136,6 +159,7 @@ export function ProjectDialog({
           <TextField label={tr.debate.project.id} mono value={id} readOnly={!isNew} onChange={(e) => setId(e.target.value)} />
           <TextField label={tr.debate.persona.name} value={name} onChange={(e) => setName(e.target.value)} />
           <TextField label={tr.debate.project.description} value={description} onChange={(e) => setDescription(e.target.value)} />
+          <SelectField label={tr.debate.project.flow} value={flow} options={flowOptions} onChange={(e) => setFlow(e.target.value)} />
           {kind === 'ops' ? <OpsProjectFields form={opsForm} onChange={setOpsForm} /> : null}
           {kind === 'ops' ? null : <>
           <TextField

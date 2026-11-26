@@ -189,3 +189,23 @@ Settings로 옮기고, Nodes는 그룹으로 필터만 한다.
   (`#/agents?run=<id>`는 그 토론을 선택한다). 모르는 해시는 Fleet 요약으로 간다.
 - **배지**: Fleet은 그룹이나 fleet 실행이 진행 중이면 "Running", Approvals는 기다리는 액션 수(Execute 중에는 "Running"도),
   Debates는 Publish 중에 "Running"을 보인다.
+
+### 목적지 다섯 개 (2026-10-29)
+
+디자인 보드의 사이트맵(메뉴, 용어, 흐름)에 맞춰 메뉴를 다시 정리했다. 범위는 메뉴와 용어뿐이다. 흐름 종류(템플릿,
+`flow-templates.ko.md`), 설정의 키 섹션(`agent-seats-keys.ko.md`), 승인 기록, 더 풍부한 현황 카드는 **만들지 않았고**
+그 자리 표시용 빈 페이지도 없다. 구현은 z.ai 에이전트(`scripts/zai-agent.sh`)가 했고 독립 검토자가 확인했다. 2026-10-29에 `4f8380a`로
+배포했고 운영자가 실제 브라우저에서 확인했다.
+
+- **목적지 다섯 개**: 현황, 노드, 업무 흐름, 승인, 설정(사이드바와 탭 다섯 개의 모바일 막대). 라우트 id는 일부러
+  `fleet`(노드), `debates`(업무 흐름), `approvals`, `settings` 그대로다(`src`의 호출 지점 89곳, 테스트의 `#/...` 문자열 약
+  290개). 새 id는 `overview`뿐이고 기본 라우트다. 아이콘: `grid`(현황), `server`(노드), `flow`(업무 흐름), `check`(승인),
+  `gear`(설정); 새 셋은 `packages/guardian-ui`의 `Icon.tsx`에 있다.
+- **현황**(`#/overview`)은 예전 Fleet 요약 페이지다. Fleet 탭은 이제 노드, 그룹, SSH 감사, 명령, 명령 세트
+  (`#/fleet/commandSets`, 설정에서 옮겨 왔다). 사이드바의 노드 항목은 `#/fleet/nodes`로 링크한다.
+- **설정 묶음**: 허브 연결(`endpoint`), 흐름 구성(`flowConfig`: 프로젝트, 팀, 페르소나를 둘째 전환기로; `#/settings/flowConfig`는
+  프로젝트를 연다), 실행 환경(`workers`, 예전 워커), 화면(`display`: 언어와 내보내기 폴더, 허브 연결에서 옮겨 왔다).
+- **예전 해시**: 맨 `#/fleet`와 `#/fleet/summary` -> 현황(더 이상 노드 목록이 아니다). `#/overview`, `#/assistant`, `#/more` -> 현황.
+  `#/settings/commandSets` -> Fleet 명령 세트. `#/settings/groups` -> Fleet 그룹(쿼리 유지). 앞 절의 다른 별칭은 그대로이고
+  모르는 해시는 현황으로 간다.
+- **용어**: 내비게이션 문구에서 Fleet -> 노드, Debates -> 업무 흐름. `glossary.ko.md`(내비게이션)를 본다.

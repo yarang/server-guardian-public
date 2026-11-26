@@ -230,6 +230,11 @@ def allowed_tool_names(no_index: bool = False) -> List[str]:
     return [f"mcp__{SERVER_KEY}__{name}" for name in tool_names(no_index)]
 
 
+def opencode_tool_names(no_index: bool = False) -> List[str]:
+    """The names opencode sees (repo_repo_list, ...), for its permission config."""
+    return [f"{SERVER_KEY}_{name}" for name in tool_names(no_index)]
+
+
 def _env_limit(name: str) -> Optional[int]:
     try:
         value = int(os.environ.get(name, "").strip())

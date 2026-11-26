@@ -32,7 +32,11 @@ from pathlib import Path
 from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple
 
 # Bump when the request or reply shape changes; a worker with another protocol is refused (the call runs on the hub).
-PROTOCOL = 2
+PROTOCOL = 3
+# Protocols the hub still serves for the debate ops (ping, run, cancel, snapshot_has): workers installed before
+# protocol 3 (resident agents, docs/design/resident-agents.md) answer 2 and must keep serving debate seats. A worker
+# that answers anything else is refused; requests to a worker that answered 2 carry 2 (it refuses 3), others PROTOCOL.
+COMPATIBLE_PROTOCOLS = (2, 3)
 # Placement labels of builtin teams (no real host names in git); resolved among the usable workers once per thread.
 LABEL_ANY = "worker:any"
 LABEL_OTHER = "worker:other"
@@ -42,8 +46,9 @@ HOST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 # This is the file set installed on a worker (deploy/worker/files.txt; test_worker_install.py keeps the two equal).
 VERSION_FILES = (
     "code_context.py", "code_index.py", "code_select.py", "code_wiki.py", "env_policy.py", "evidence.py", "go_facts.py",
-    "go_ops.py", "llm_runner.py", "mcp_stdio.py", "remote_agents.py", "repo_map.py", "repo_mcp.py", "repo_snapshot.py",
-    "repo_tools.py", "worker.py",
+    "go_ops.py", "llm_runner.py", "mailbox_mcp.py", "mcp_stdio.py", "remote_agents.py", "repo_map.py", "repo_mcp.py",
+    "repo_snapshot.py", "repo_tools.py", "resident_driver.py", "resident_node.py", "resident_open.py",
+    "resident_repo_mcp.py", "resident_tasks.py", "worker.py",
 )
 WORKER_REMOTE_COMMAND = "python3 ~/.guardian/worker/worker.py client"
 # Largest request or reply line (a prompt with its history is a few hundred KiB).
@@ -73,6 +78,19 @@ class HubSideError(WorkerError):
 
 def is_label(host: Optional[str]) -> bool:
     return host in LABELS
+
+
+def compatible_protocol(value: Any) -> Optional[int]:
+    """The protocol a worker answered with, when the hub still serves it (else None)."""
+    if isinstance(value, int) and not isinstance(value, bool) and value in COMPATIBLE_PROTOCOLS:
+        return value
+    return None
+
+
+def request_protocol(reply: Dict[str, Any]) -> int:
+    """The protocol to address the worker that sent `reply`: an old worker (2) refuses the hub's protocol."""
+    answered = compatible_protocol(reply.get("protocol"))
+    return min(PROTOCOL, answered) if answered is not None else PROTOCOL
 
 
 def host_syntax_error(host: Any) -> Optional[str]:
@@ -207,15 +225,27 @@ def log_totals(path: str) -> Tuple[int, int]:
 REPORT_PING_SECONDS = 10.0
 
 
+def _ping_once(transport: Transport, host: str, timeout: float) -> Dict[str, Any]:
+    """One ping at the hub's protocol, stepped down once to an old worker's own when it refuses it (it answers 2)."""
+    reply = transport.call(host, {"op": "ping", "protocol": PROTOCOL}, timeout=timeout)
+    if not reply.get("ok"):
+        old = compatible_protocol(reply.get("protocol"))
+        if old is not None and old != PROTOCOL:
+            reply = transport.call(host, {"op": "ping", "protocol": old}, timeout=timeout)
+    return reply
+
+
 def _worker_state(host: str, transport: Transport, current: str) -> Dict[str, Any]:
-    """One fresh ping for the report: {state, error, version, current, protocol, free_slots, max_jobs, providers, git}."""
+    """One fresh ping for the report: {state, error, version, current, protocol, free_slots, max_jobs, providers, git}.
+    A worker that answers a compatible protocol is up whatever its version (an old worker keeps serving debates)."""
     try:
-        reply = transport.call(host, {"op": "ping", "protocol": PROTOCOL}, timeout=REPORT_PING_SECONDS)
+        reply = _ping_once(transport, host, REPORT_PING_SECONDS)
     except WorkerError as exc:
         return {"state": "down", "error": str(exc)[:300]}
-    if not reply.get("ok") or reply.get("protocol") != PROTOCOL:
+    answered = {"protocol": reply.get("protocol")} if "protocol" in reply else {}
+    if not reply.get("ok") or compatible_protocol(reply.get("protocol")) is None:
         problem = reply.get("error") or f"worker speaks protocol {reply.get('protocol')}, the hub {PROTOCOL}; update the worker"
-        return {"state": "down", "error": str(problem)[:300]}
+        return {"state": "down", "error": str(problem)[:300], **answered}
     return {"state": "up", "error": None, "version": reply.get("version"), "current": reply.get("version") == current,
             "protocol": reply.get("protocol"), "free_slots": reply.get("free_slots"), "max_jobs": reply.get("max_jobs"),
             "providers": [str(p) for p in reply.get("providers") or []], "git": reply.get("git")}
@@ -271,6 +301,7 @@ class RemoteRouter:
         self.transport = transport or SshTransport()
         self._lock = threading.Lock()
         self._pings: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._protocols: Dict[str, int] = {}  # per host, from the ping reply: 2 for an old worker, else PROTOCOL
         self._down: Dict[str, Tuple[float, str]] = {}
         # Repository snapshots: built once per (workspace, commit) in a private temp dir that goes with the router;
         # _present remembers which worker holds which key, so the next member of the thread skips the round trip.
@@ -285,6 +316,7 @@ class RemoteRouter:
         with self._lock:
             self._down[host] = (time.monotonic() + DOWN_TTL_SECONDS, reason)
             self._pings.pop(host, None)
+            self._protocols.pop(host, None)
             self._present = {item for item in self._present if item[0] != host}
 
     def _down_reason(self, host: str) -> Optional[str]:
@@ -297,7 +329,7 @@ class RemoteRouter:
 
     def ping(self, host: str) -> Dict[str, Any]:
         """The worker's ping reply (protocol, code version, free slots, installed providers), cached briefly.
-        Raises WorkerError when the host is down, speaks another protocol or does not answer."""
+        Raises WorkerError when the host is down, speaks a protocol the hub does not serve or does not answer."""
         reason = self._down_reason(host)
         if reason is not None:
             raise WorkerError(reason)
@@ -306,17 +338,23 @@ class RemoteRouter:
             if cached and cached[0] > time.monotonic():
                 return cached[1]
         try:
-            reply = self.transport.call(host, {"op": "ping", "protocol": PROTOCOL}, timeout=15.0)
+            reply = _ping_once(self.transport, host, 15.0)
             if not reply.get("ok"):
                 raise WorkerError(str(reply.get("error") or "ping refused"))
-            if reply.get("protocol") != PROTOCOL:
+            if compatible_protocol(reply.get("protocol")) is None:
                 raise WorkerError(f"worker speaks protocol {reply.get('protocol')}, the hub {PROTOCOL}; update the worker")
         except WorkerError as exc:
             self._mark_down(host, str(exc))
             raise
         with self._lock:
             self._pings[host] = (time.monotonic() + PING_TTL_SECONDS, reply)
+            self._protocols[host] = request_protocol(reply)
         return reply
+
+    def _protocol_for(self, host: str) -> int:
+        """The protocol this worker was last heard speaking (the hub's own before the first ping)."""
+        with self._lock:
+            return self._protocols.get(host, PROTOCOL)
 
     def pick(self, label: str, in_use: Optional[Set[str]] = None) -> Optional[str]:
         """Resolves a placement label to a usable worker id, or None (the role then runs on the hub).
@@ -416,8 +454,8 @@ class RemoteRouter:
         with self._lock:
             known = (host, snapshot.key) in self._present
         if not known:
-            reply = self.transport.call(host, {"op": "snapshot_has", "protocol": PROTOCOL, "key": snapshot.key},
-                                        timeout=15.0)
+            reply = self.transport.call(host, {"op": "snapshot_has", "protocol": request_protocol(info),
+                                               "key": snapshot.key}, timeout=15.0)
             if not reply.get("ok"):
                 raise WorkerError(str(reply.get("error") or "the worker refused the snapshot check"))
             if not reply.get("present"):
@@ -472,7 +510,7 @@ class RemoteRouter:
         providers = kwargs.get("providers") or []
         per_call = float(info.get("provider_timeout") or 300.0)
         return {
-            "op": "run", "protocol": PROTOCOL, "job": job, "prompt": prompt, "context": context or {},
+            "op": "run", "protocol": request_protocol(info), "job": job, "prompt": prompt, "context": context or {},
             "session_id": kwargs.get("session_id"), "provider": kwargs.get("provider"), "providers": list(providers),
             "system": kwargs.get("system"), "plain_prompt": kwargs.get("plain_prompt"),
             "instructions": ({"static": instructions.static, "dynamic": instructions.dynamic} if instructions else None),
@@ -482,7 +520,7 @@ class RemoteRouter:
 
     def _cancel(self, host: str, job: str) -> None:
         try:
-            self.transport.call(host, {"op": "cancel", "protocol": PROTOCOL, "job": job}, timeout=10.0)
+            self.transport.call(host, {"op": "cancel", "protocol": self._protocol_for(host), "job": job}, timeout=10.0)
         except WorkerError:
             pass  # unreachable: the worker notices the closed connection or its own timeout
 

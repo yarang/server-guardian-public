@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    participant O as operator
+    participant H as hub (relay + mail store)
+    participant D as worker daemon (node-1)
+    participant S as resident supervisor (node-1)
+    participant C as claude@node-1 (CLI)
+
+    O->>H: --resident-add claude --node node-1 --provider claude
+    H->>H: check name, node worker protocol 3, M0 table, character, peers, budget
+    alt check failed
+        H-->>O: refused with reason
+    else accepted
+        H->>H: write resident-agents.json atomically
+        H->>D: agents frame (entries of node-1, version)
+        D-->>H: version applied
+        D->>S: agent added
+        S->>D: new incarnation for claude
+        D->>H: bind_begin
+        H->>H: epoch + 1, state binding (mail waits, no wake)
+        H-->>D: epoch
+        D->>D: open e<epoch>.sock, close the previous epoch's socket and connections
+        alt fresh conversation
+            S->>S: write MCP config and hooks with e<epoch>.sock, start card into the system-prompt slot
+            S->>C: tmux new-window -P (claude: new --session-id, codex and agy: id read after start)
+        else resume
+            S->>C: tmux new-window -P with the stored session id
+        end
+        S->>S: record pane id and pid
+        S->>D: bind_complete (session id, pane, pid)
+        D->>H: bind_complete
+        alt within 60 s
+            H->>H: record incarnation, state ready
+            Note over H,D: resumed with a new session id: end with resume_new_session, treat as a fresh start
+            C->>D: first turn: mail_agents, then mail_inbox (on e<epoch>.sock)
+            D->>H: mail_agents
+            H-->>C: peers and their states
+        else no bind_complete in 60 s
+            H->>H: state bind_failed, supervisor retries (at most 3)
+        end
+    end
+    Note over D,C: every later signal: current socket and matching session id, else signal_mismatch
+    Note over D,C: every wake: pane pid equals the bound pid, else no wake and a new incarnation

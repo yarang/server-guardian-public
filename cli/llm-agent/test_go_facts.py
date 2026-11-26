@@ -243,7 +243,8 @@ class ExtractionCase(unittest.TestCase):
         patches = [
             patch.dict(os.environ, {"GUARDIAN_GOINDEX_BIN": str(self.helper), "GUARDIAN_DATA_DIR": str(self.data),
                                     "AGENT_TOKEN": "tok-secret", "OPENAI_API_KEY": "key-secret",
-                                    "GUARDIAN_GOINDEX_TIMEOUT": "30", "GUARDIAN_GOINDEX_WAIT": "30"}),
+                                    "GUARDIAN_GOINDEX_TIMEOUT": "30", "GUARDIAN_GOINDEX_WAIT": "30",
+                                    "GUARDIAN_LLM_PROVIDERS": "none"}),
             patch.object(go_facts, "go_binary", return_value=str(self.fake_go)),
             patch.dict(go_facts._GO_VERSIONS, clear=True),
         ]
@@ -882,7 +883,7 @@ class EngineEventsTests(EngineHarness, ExtractionCase):
                          [("callers", "types"), ("callees", "types"), ("refs", "types")])
         index = result["context"]["index"]
         self.assertEqual(index["go"], {"version": GOINDEX_VERSION, "go": GO_VERSION, "status": "built", "packages": 3})
-        self.assertEqual(index["prompt_version"], "2026-10-23.p20")
+        self.assertEqual(index["prompt_version"], "2026-11-11.p29")
         self.assert_clean()
 
     def test_cached_facts_are_used_by_the_first_prompt_map(self) -> None:

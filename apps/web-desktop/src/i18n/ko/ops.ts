@@ -56,10 +56,14 @@ export const ops = {
       open: '승인 열기',
     },
     debates: {
-      title: '최근 토론',
+      title: '최근 검증',
       what: '토론',
       none: '아직 토론이 없어요',
       open: '토론 열기',
+      reviewsHeading: '빠른 리뷰',
+      debatesHeading: '토론',
+      reviewsWhat: '빠른 리뷰',
+      openReviews: '빠른 리뷰 열기',
     },
   },
   approvals: {

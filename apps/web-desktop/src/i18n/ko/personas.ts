@@ -1,15 +1,11 @@
-// Korean copy: persona page (`#/debates/personas`): list, full-page editor, starter templates, "used by". Rules and glossary: see ../ko.ts.
+// Korean copy: persona page (`#/settings/personas`): list, full-page editor, starter templates, "used by". Rules and glossary: see ../ko.ts.
 export const personas = {
   title: '페르소나',
-  /** Link text next to "manage teams" on the Debates page. */
-  link: '페르소나',
-  /** Link in the Settings -> Personas section. */
-  openPage: '페르소나 페이지 열기',
   backToList: '← 페르소나 목록',
   backToDebates: '← 토론',
   listTitle: (shown: number, total: number) => (shown === total ? `페르소나 (${total})` : `페르소나 (${shown} / ${total})`),
   what: '페르소나',
-  intro: '토론에서 전문가, 비평가, 판정자로 일하는 에이전트의 성격과 지시문을 만들고 고쳐요. 팀 편집기에서 이 페르소나를 골라 써요.',
+  intro: '토론에서 전문가, 비평가, 판정자로 일하는 에이전트의 성격과 지시문을 만들고 고쳐요. 흐름 편집기에서 이 페르소나를 자리에 앉혀요.',
   search: '검색 (이름, ID, 전문 분야)',
   roleFilter: '역할',
   allRoles: '모든 역할',
@@ -18,6 +14,8 @@ export const personas = {
   noMatch: '조건에 맞는 페르소나가 없어요.',
   edit: '편집',
   editAria: (name: string) => `페르소나 편집: ${name}`,
+  /** Opens the read-only page of a character (format 2) from the list. */
+  view: '보기',
   newTitle: '새 페르소나',
   editTitle: (name: string) => `페르소나 편집: ${name}`,
   notFound: (id: string) => `페르소나 "${id}"를 찾을 수 없어요. 삭제됐거나 ID가 잘못됐을 수 있어요.`,
@@ -54,17 +52,41 @@ export const personas = {
   fields: {
     id: '페르소나 ID',
     idHint: '영문 소문자, 숫자, -, _ (최대 64자). 저장한 뒤에는 바꿀 수 없어요.',
+    /** Inline error of a create form whose typed id belongs to a character (format 2). */
+    idTakenByCharacter: '이 ID는 캐릭터가 쓰고 있습니다. 다른 ID를 고르세요.',
     name: '이름',
     role: '역할',
     roleHint: '목록에서 고르거나 직접 입력하세요. 기본은 전문가, 비평가, 판정자 세 가지예요.',
     domain: '전문 분야',
     systemPrompt: '시스템 프롬프트',
+    roleCardHint: (seat: string) =>
+      `엔진이 이 글 뒤에 ${seat} 자리 규칙(역할 카드: 인용 형식, 심각도, 승인 기준)을 붙여요. 그 규칙은 여기에 다시 쓰지 마세요.`,
     focusAreas: '집중 영역 (한 줄에 하나)',
     critiqueFocus: '비평 초점 (한 줄에 하나)',
     linesHint: '한 줄에 항목 하나, 항목당 500자까지.',
     tools: '도구 (mcp_capabilities)',
     toolsHint: '이 페르소나가 제안할 수 있는 도구예요. 팀의 허용 도구가 다시 좁혀요.',
     toolsUnavailable: '허브의 도구 목록을 불러오지 못해 이 페르소나에 저장된 도구만 보여요.',
+    tagline: '한 줄 소개 (프로필)',
+    taglineHint: '사람에게만 보이고 에이전트에는 보내지 않아요. 120자까지.',
+    look: '외모 (프로필 사진용)',
+    lookHint: '가상 인물의 모습을 적어요. 실존 인물, 브랜드, 그림 속 글자는 쓰지 않아요. 200자까지.',
+  },
+  suggest: {
+    title: 'AI로 제안',
+    intro: '어떤 캐릭터인지 몇 마디로 적으면 AI가 페르소나와 프로필 초안을 채워요. 아무것도 저장하지 않으니 읽고 고친 뒤 저장하세요.',
+    brief: '어떤 캐릭터인가요?',
+    briefPlaceholder: '예: 배포 전에 되돌리는 방법부터 묻는 깐깐한 릴리스 검토자',
+    seat: '자리',
+    kind: '프로젝트 종류',
+    kinds: { code: '코드', ops: '서버 운영', design: '디자인 문서' },
+    provider: '모델',
+    providerAuto: '자동 (허브 기본 순서)',
+    button: '제안 받기',
+    busy: 'AI가 초안을 쓰는 중이에요. 1-2분 걸릴 수 있어요.',
+    applied: (provider: string) => `${provider}의 초안을 채웠어요. 저장하기 전에 확인하세요.`,
+    replaceNote: '지금 폼의 이름, 분야, 시스템 프롬프트, 집중 영역, 프로필을 덮어써요. 도구와 기존 ID는 그대로예요.',
+    warnings: '가이드 경고',
   },
   usedBy: '사용하는 팀',
   usedByNone: '이 페르소나를 쓰는 팀이 없어요.',
@@ -75,6 +97,35 @@ export const personas = {
     proposer: '제안자',
     critic: '비평가',
     judge: '판정자',
+    /** The four character-only seats of agent-characters.md 2.1 (team flows and the solo runner). */
+    verifier: '검증자',
+    stage: '단계',
+    side: '입장',
+    solo: '단독',
+  },
+  /** Characters (format 2 persona files, agent-characters.md C2): chips and the read-only view until the C4 editor. */
+  character: {
+    /** Chip beside the source chip of a format 2 card. */
+    chip: '캐릭터',
+    /** Chip beside the source chip of a format 1 card. */
+    legacyChip: '기존 형식',
+    legacyChipTitle: '형식 1(자유 시스템 프롬프트)이고, 캐릭터(형식 2)는 필드별로 정의돼요.',
+    title: (name: string) => `캐릭터: ${name}`,
+    readOnlyNotice: '캐릭터(형식 2)는 지금 읽기만 할 수 있어요. 캐릭터 편집기는 이후 단계(C4)에 만들어요.',
+    seats: '자리',
+    kinds: '프로젝트 종류',
+    /** A character with no `kinds` fits every project kind. */
+    kindsAny: '모든 종류',
+    identity: '정체',
+    expertise: '전문 분야',
+    stance: '관점',
+    checks: '먼저 확인할 것',
+    boundaries: '당신의 일이 아닌 것',
+    tools: '도구',
+    roleCard: '역할 카드',
+    /** Shown for an empty tools list or a persona without a role card. */
+    none: '없음',
+    rendered: '엔진이 보내는 페르소나',
   },
   createButton: '페르소나 만들기',
 };

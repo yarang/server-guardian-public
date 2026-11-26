@@ -28,6 +28,7 @@ PROVIDER_PREFIXES: Dict[str, Tuple[str, ...]] = {
     "codex": ("OPENAI_", "CODEX_"),
     "agy": ("GEMINI_", "GOOGLE_", "ANTIGRAVITY_", "AGY_"),
     "zai": ("ZAI_",),
+    "exaone": ("EXAONE_",),
     "opencode": ("OPENCODE_",),
     "ollama": ("OLLAMA_",),
     "llm": ("LLM_", "OPENAI_"),

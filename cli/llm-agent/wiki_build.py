@@ -76,13 +76,16 @@ WRITER_SYSTEM = (
 )
 
 # Bump when the writer's prompt changes: --stale also selects LLM pages written with another version.
-WIKI_PROMPT_VERSION = "2026-10-16.wiki6"
+WIKI_PROMPT_VERSION = "2026-10-30.wiki7"
 DEFAULT_LANGUAGE = "Korean"
 MAX_DEFAULT_PAGES = 20
 MIN_PAGE_FILES = 2  # a directory with fewer code files (tests and previews do not count) gets no default page
 SCOPE_MAP_BYTES = 12 * 1024
 MAX_EXISTING_BYTES = 64 * 1024
 MAX_EVENT_UNVERIFIED = 20
+# Page ids offered for [[id]] links: the page's own family (overview and group pages) first, then the rest. The old
+# alphabetical first 60 left later pages unlinkable once a wiki had more pages (the writer must not invent ids).
+MAX_LINK_IDS = 300
 
 HEADINGS = {
     "Korean": ("역할", "흐름", "주의점", "관련 페이지"),
@@ -475,6 +478,15 @@ _SHARED_RULES = (
 )
 
 
+def link_candidates(page_id: str, known_ids: List[str]) -> List[str]:
+    """The other page ids a page may link, its own family first (the overview `x` and the groups `x--...`), then the
+    rest in their order; build_prompt offers the first MAX_LINK_IDS of them."""
+    family = page_id.split(GROUP_SEPARATOR, 1)[0]
+    others = [i for i in known_ids if i != page_id]
+    near = [i for i in others if i == family or i.startswith(family + GROUP_SEPARATOR)]
+    return near + [i for i in others if i not in near]
+
+
 def build_prompt(project_id: str, sha: str, target: Target, tools: Any, other_ids: List[str], rule: str,
                  headings: Tuple[str, ...], details: Optional[Dict[str, Any]], language_name: str) -> str:
     """The task of one page session (the retrieval protocol and the repository map come from the engine's intro)."""
@@ -506,7 +518,7 @@ def build_prompt(project_id: str, sha: str, target: Target, tools: Any, other_id
     parts += target.context
     if other_ids:
         parts.append("Other pages of this wiki (link them as [[id]] in the last section; do not invent ids): "
-                     + ", ".join(other_ids[:60]))
+                     + ", ".join(other_ids[:MAX_LINK_IDS]))
     if target.existing is not None and target.existing.kind != target.kind:
         target = dataclasses.replace(target, existing=None)  # another kind of page now (a split directory): afresh
     if target.existing is not None:
@@ -550,8 +562,9 @@ def build_prompt(project_id: str, sha: str, target: Target, tools: Any, other_id
         "# <short title, at most 80 characters, no path>",
         *(f"## {h}" for h in headings),
         f"Under each heading write short paragraphs or bullets in {language_name}; under `## {headings[-1]}` list "
-        "related pages as `[[id]]` with a one-line reason (or say there are none). Keep the page under about 6000 "
-        "characters.",
+        "related pages as `[[id]]` with a one-line reason (or say there are none). Keep the page under about "
+        f"{4000 if target.kind == 'overview' else 6000} characters. A ```findings block after the page is allowed; it "
+        "is checked and then removed from the page.",
         rule,
     ]
     return "\n\n".join(parts)
@@ -617,7 +630,7 @@ class WikiBuilder:
             raise BuildError(f"{self.workspace} is not a git repository with a commit")
         self.engine.mcp = MCPClient(workspace=self.workspace, project=self.project)
         self.engine._wiki_exposure = False
-        self.engine._language_rule = answer_language_rule(self.language_name)
+        self.engine._language_rule = answer_language_rule(self.language_name, debate=False)
         self.engine._system_prompt = WRITER_SYSTEM
 
     def run(self, page_ids: Optional[List[str]] = None, stale: bool = False, everything: bool = False,
@@ -684,7 +697,7 @@ class WikiBuilder:
             self.engine._map_bytes = len(guide.encode("utf-8"))
             self.engine._set_retrieval_text(self.sha, repo.readable_paths(), False, guide)
         target = dataclasses.replace(target, context=self._context(target))
-        prompt = build_prompt(self.project.id, self.sha, target, repo, [i for i in known_ids if i != target.id],
+        prompt = build_prompt(self.project.id, self.sha, target, repo, link_candidates(target.id, known_ids),
                               self.engine._language_rule, headings_for(self.language_name, target.kind), details,
                               self.language_name)
         return repo, prompt

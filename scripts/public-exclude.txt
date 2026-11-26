@@ -14,3 +14,8 @@ CLAUDE.local.md
 # evaluation results (decided 2026-10-23: not public)
 docs/analysis/*-eval*/**
 docs/analysis/*-audit-*/**
+
+# z.ai code-editing agent and its design (decided 2026-10-29: operator-specific, not general-purpose, not published)
+scripts/zai-agent.sh
+docs/design/zai-provider.md
+docs/design/zai-provider.ko.md

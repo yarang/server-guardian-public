@@ -30,7 +30,7 @@ Invocation: `python3 cli/llm-agent/guardian.py <options>`. stdout is a single JS
      "errors": [], "warnings": []}
   ],
   "catalog": {
-    "providers": ["claude", "codex", "agy", "opencode", "ollama", "llm"],
+    "providers": ["claude", "codex", "agy", "zai", "exaone", "opencode", "ollama", "llm"],
     "installed": ["claude", "codex", "agy"],
     "tools": [{"name": "jev_mcp:run_tests", "risk": "low", "description": "..."}],
     "max_critics": 4, "max_proposers": 2, "max_rounds": 10,

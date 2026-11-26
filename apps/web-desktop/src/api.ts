@@ -43,6 +43,8 @@ import {
   NodeWriteResult,
   PackageRoleList,
   PersonaConfig,
+  PersonaSuggestRequest,
+  PersonaSuggestResult,
   PersonaList,
   ProjectData,
   ProjectList,
@@ -62,6 +64,8 @@ import {
   DebateJob,
   DebateJobDetail,
   DebateStartRequest,
+  FlowData,
+  FlowList,
   DebateEvent,
   DebateEventsPage,
   DebatePrompt,
@@ -73,6 +77,21 @@ import {
   WikiPageDetail,
   WikiSaveRequest,
   WikiSaveResult,
+  SoloListItem,
+  SoloList,
+  SoloStart,
+  SoloStartResult,
+  SoloView,
+  ReviewList,
+  ReviewListItem,
+  ReviewStart,
+  ReviewStartResult,
+  ReviewView,
+  ResidentMonitor,
+  ResidentMailBody,
+  ResidentQuery,
+  ResidentQueryDetail,
+  ResidentQuerySubmit,
 } from './types';
 
 
@@ -521,6 +540,11 @@ export function savePersona(persona: PersonaConfig): Promise<SaveResult> {
   }).then((r) => ({ id: r.id, warnings: r.warnings || [] }));
 }
 
+/** One model turn on the hub (up to 5 minutes); the draft is only returned, never saved. */
+export function suggestPersona(request: PersonaSuggestRequest): Promise<PersonaSuggestResult> {
+  return hubRequest<PersonaSuggestResult>('/api/personas/suggest', { method: 'POST', body: JSON.stringify(request) }, 330000);
+}
+
 export function deletePersona(id: string): Promise<void> {
   return hubRequest<unknown>(`/api/personas/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(() => undefined);
 }
@@ -529,8 +553,94 @@ export function fetchTeams(): Promise<TeamList> {
   return hubRequest<TeamList>('/api/teams');
 }
 
+export function fetchFlows(): Promise<FlowList> {
+  return hubRequest<FlowList>('/api/flows');
+}
+
+export function saveFlow(flow: FlowData): Promise<SaveResult> {
+  return hubRequest<{ ok: boolean; id: string; warnings?: string[] }>('/api/flows', {
+    method: 'POST',
+    body: JSON.stringify(flow),
+  }).then((r) => ({ id: r.id, warnings: r.warnings || [] }));
+}
+
+export function deleteFlow(id: string): Promise<void> {
+  return hubRequest<unknown>(`/api/flows/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(() => undefined);
+}
+
 export function fetchWorkers(): Promise<WorkerReport> {
   return hubRequest<WorkerReport>('/api/workers');
+}
+
+// --- Resident agent monitor (docs/design/resident-monitor.md) --------------------
+// Read-only: the snapshot of the mail store, and one mail body on demand.
+
+/** The resident snapshot (agents, turns, mail, tasks, events, problems); no writes anywhere. */
+export function fetchResidentMonitor(): Promise<ResidentMonitor> {
+  return hubRequest<ResidentMonitor>('/api/residents/monitor');
+}
+
+/** The body of one mail (`m-20261121-0001`-style id), secrets masked on the hub side. */
+export function fetchResidentMailBody(id: string): Promise<ResidentMailBody> {
+  return hubRequest<ResidentMailBody>(`/api/residents/mail/${encodeURIComponent(id)}`);
+}
+
+/** Submit a project-scoped direct query to an active resident session (202 Accepted). */
+export function submitResidentQuery(body: {
+  address: string;
+  project: string;
+  prompt: string;
+  session_key?: string;
+  mode?: 'in_place' | 'fork';
+  task?: string;
+  timeout_sec?: number;
+}): Promise<ResidentQuerySubmit> {
+  return hubRequest<ResidentQuerySubmit>('/api/residents/queries', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** List recent direct resident session queries (metadata only). */
+export function fetchResidentQueries(params?: {
+  project?: string;
+  agent?: string;
+  session_key?: string;
+  limit?: number;
+}): Promise<{ queries: ResidentQuery[] }> {
+  const qs = new URLSearchParams();
+  if (params?.project) qs.set('project', params.project);
+  if (params?.agent) qs.set('agent', params.agent);
+  if (params?.session_key) qs.set('session_key', params.session_key);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return hubRequest<{ queries: ResidentQuery[] }>(`/api/residents/queries${suffix}`);
+}
+
+/** Fetch one direct resident session query with secret-masked prompt and answer. */
+export function fetchResidentQuery(id: string): Promise<ResidentQueryDetail> {
+  return hubRequest<ResidentQueryDetail>(`/api/residents/queries/${encodeURIComponent(id)}`);
+}
+
+/** Cancel a queued or dispatched direct resident session query. */
+export function cancelResidentQuery(id: string): Promise<{ ok: boolean; id: string; status: string }> {
+  return hubRequest<{ ok: boolean; id: string; status: string }>(`/api/residents/queries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Archive/reset one scoped session on a resident agent (never resets `main`). */
+export function resetResidentSession(body: {
+  address: string;
+  session_key: string;
+}): Promise<{ ok: boolean; address: string; epoch: number; session_key: string; status: string }> {
+  return hubRequest<{ ok: boolean; address: string; epoch: number; session_key: string; status: string }>(
+    '/api/residents/sessions/reset',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export function saveTeam(team: TeamData): Promise<SaveResult> {
@@ -571,6 +681,48 @@ export async function fetchDebates(project?: string): Promise<DebateJob[]> {
   const q = project ? `?project=${encodeURIComponent(project)}` : '';
   const r = await hubRequest<{ debates: DebateJob[] | null }>(`/api/debates${q}`);
   return r.debates || [];
+}
+
+// --- Solo agent (Quick ask) ----------------------------------------------------
+// One role answers one question alone: no Judge, no round, no thread (docs/design/solo-agent.md).
+
+/** Starts a solo run; the hub answers 202 with the id while the CLI runs. 400/429 carry the hub's message. */
+export function startSolo(req: SoloStart): Promise<SoloStartResult> {
+  return hubRequest<SoloStartResult>('/api/solo', { method: 'POST', body: JSON.stringify(req) }, 30000);
+}
+
+export function fetchSolo(id: string): Promise<SoloView> {
+  return hubRequest<SoloView>(`/api/solo/${encodeURIComponent(id)}`);
+}
+
+/** Recent solo runs, newest first (records expire after 30 days on the hub). */
+export async function fetchSoloList(): Promise<SoloListItem[]> {
+  const r = await hubRequest<SoloList>('/api/solo');
+  return r.runs || [];
+}
+
+// --- Quick review (docs/design/verification-layer.md, V1) ---------------------
+
+/** Starts a quick review; the hub answers 202 with the id while the CLI runs. 400/429 carry the hub's message. */
+export function startReview(req: ReviewStart): Promise<ReviewStartResult> {
+  return hubRequest<ReviewStartResult>('/api/reviews', { method: 'POST', body: JSON.stringify(req) }, 30000);
+}
+
+export function fetchReview(id: string): Promise<ReviewView> {
+  return hubRequest<ReviewView>(`/api/reviews/${encodeURIComponent(id)}`);
+}
+
+/**
+ * Recent reviews, newest first; with a project, only that project's, with an action id only that action's reviews
+ * (V2, `GET /api/reviews?action=ID`, combinable with `?project=`).
+ */
+export async function fetchReviewList(project?: string, action?: number): Promise<ReviewListItem[]> {
+  const query = new URLSearchParams();
+  if (project) query.set('project', project);
+  if (action !== undefined) query.set('action', String(action));
+  const qs = query.toString();
+  const r = await hubRequest<ReviewList>(`/api/reviews${qs ? `?${qs}` : ''}`);
+  return r.runs || [];
 }
 
 export function fetchProjects(): Promise<ProjectList> {

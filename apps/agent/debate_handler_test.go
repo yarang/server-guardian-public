@@ -22,19 +22,34 @@ import (
 const fakeCLI = `#!/bin/sh
 dir=$(dirname "$0")
 printf '%s\n' "$@" > "$dir/last-args.txt"
+printf '%s\n' "$*" >> "$dir/calls.log"
 mode=""; rf=""; thread=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --personas) mode=personas ;;
+    --persona-suggest) mode=suggest ;;
     --teams) mode=teams ;;
+    --flow-templates) mode=templates ;;
+    --flows) mode=flows ;;
     --workers) mode=workers ;;
+    --resident-monitor) mode=monitor ;;
+    --resident-mail-body) mode=mailbody; shift; id="$1" ;;
+    --resident-artifacts) mode=rartifacts ;;
+    --resident-artifact-get) mode=rartifactget; shift; id="$1" ;;
+    --resident-query) mode=rquery; shift; id="$1" ;;
+    --resident-queries) mode=rqueries ;;
+    --resident-query-get) mode=rqueryget; shift; id="$1" ;;
+    --resident-query-cancel) mode=rquerycancel; shift; id="$1" ;;
     --projects) mode=projects ;;
     --project-sync) mode=sync; shift; id="$1" ;;
     --groups) mode=groups ;;
     --command-sets) mode=commandsets ;;
-    --persona-save|--team-save|--project-save|--group-save|--group-preview|--command-set-save) mode=save ;;
-    --persona-delete|--team-delete|--project-delete|--group-delete|--command-set-delete|--command-set-confirm) mode=delete; shift; id="$1" ;;
+    --verdict-sources) mode=verdictsources ;;
+    --persona-save|--team-save|--flow-template-save|--flow-save|--project-save|--group-save|--group-preview|--command-set-save) mode=save ;;
+    --persona-delete|--team-delete|--flow-template-delete|--flow-delete|--project-delete|--group-delete|--command-set-delete|--command-set-confirm) mode=delete; shift; id="$1" ;;
     --debate=*) mode=debate; task="${1#--debate=}" ;;
+    --flow-template=*) tpl="${1#--flow-template=}" ;;
+    --flow=*) tpl="${1#--flow=}" ;;
     --result-file) shift; rf="$1" ;;
     --thread) shift; thread="$1" ;;
     --actions) mode=actions ;;
@@ -62,14 +77,45 @@ while [ $# -gt 0 ]; do
 done
 case "$mode" in
   personas) echo '{"personas":[{"id":"p1","source":"builtin"}],"custom_dir":"/x"}' ;;
+  flows) echo '{"custom_dir":"/x","flows":[{"id":"f1","source":"team","errors":[],"warnings":[]}],"catalog":{"jobs":["write"]}}' ;;
+  templates) echo '{"custom_dir":"/x","templates":[{"id":"ft1","source":"builtin","errors":[],"warnings":[]}],"catalog":{"step_kinds":["debate"]}}' ;;
   teams) echo '{"teams":[{"id":"t1","source":"builtin"}],"custom_dir":"/x","catalog":{"max_rounds":10}}' ;;
   workers) echo '{"protocol":2,"code_version":"abc","workers":[{"id":"node-1","enabled":true,"state":"up"}]}' ;;
+  monitor) echo '{"agents":[],"problems":[]}' ;;
+  mailbody)
+    if [ "$id" != "m-20261121-0001" ]; then echo '{"error":"mail not found"}'; exit 3; fi
+    printf '{"id":"%s","body":"x","bytes":1,"masked":true}\n' "$id" ;;
+  rartifacts) echo '{"ok":true,"artifacts":[{"id":"a-0123456789ab","agent":"codex@node-1","filename":"report.md","title":"Audit","bytes":5}]}' ;;
+  rartifactget)
+    if [ "$id" != "a-0123456789ab" ]; then echo '{"error":"artifact not found"}'; exit 3; fi
+    printf '{"id":"%s","agent":"codex@node-1","filename":"report.md","title":"Audit","mime":"text/markdown","bytes":5,"content_b64":"aGVsbG8=","text":"hello","missing":false}\n' "$id" ;;
+  rquery)
+    body=$(cat)
+    case "$body" in
+      *NOACTIVE*) echo '{"ok":false,"error":"no active session","reason":"no_active_session"}'; exit 4 ;;
+    esac
+    printf '{"ok":true,"id":"q-20261122-0001","address":"%s","project":"server-guardian","epoch":1,"session_id":"s-1","status":"queued"}\n' "$id" ;;
+  rqueries) echo '{"queries":[{"id":"q-20261122-0001","address":"codex@node-1","project":"server-guardian","status":"completed"}]}' ;;
+  rqueryget)
+    if [ "$id" != "q-20261122-0001" ]; then echo '{"error":"query not found"}'; exit 3; fi
+    printf '{"id":"%s","address":"codex@node-1","project":"server-guardian","status":"completed","prompt":"hi","answer":"ok","answer_truncated":false}\n' "$id" ;;
+  rquerycancel)
+    if [ "$id" != "q-20261122-0001" ]; then echo '{"error":"query not found"}'; exit 3; fi
+    printf '{"ok":true,"id":"%s","status":"cancelled"}\n' "$id" ;;
   projects) echo '{"projects":[{"id":"server-guardian","source":"builtin","errors":[]}],"custom_dir":"/x"}' ;;
   commandsets) echo '{"ok":true,"sets":[{"id":"s1","source":"builtin"}],"stale":[]}' ;;
+  verdictsources) echo '{"ok":true,"sources":[{"id":"jev","kind":"jev"}],"stale":[],"shadow":{}}' ;;
   groups) printf '{"groups":[{"id":"g1","members":["a"]}],"ungrouped":[],"servers_file":"%s"}\n' "$GUARDIAN_SERVERS_FILE" ;;
   sync)
     if [ "$id" = "missing" ]; then echo '{"ok":false,"error":"no project missing"}'; exit 2; fi
     printf '{"ok":true,"results":[{"id":"%s","ok":true,"action":"updated"}]}\n' "$id" ;;
+  suggest)
+    body=$(cat)
+    case "$body" in
+      *BAD*) echo '{"ok":false,"error":"brief: required"}'; exit 2 ;;
+      *FAIL*) echo '{"ok":false,"error":"no LLM CLI answered"}'; exit 5 ;;
+    esac
+    echo '{"ok":true,"suggestion":{"id":"c1","name":"C"},"warnings":[]}' ;;
   save)
     body=$(cat)
     case "$body" in
@@ -177,7 +223,8 @@ case "$mode" in
       nores*) exit 0 ;;
     esac
     t="${thread:-thread_new1}"
-    printf '{"thread_id":"%s","team":"cross-review","consensus_reached":true,"final_decision":"ok","transcript":[]}\n' "$t" > "$rf"
+    rendered="$task"; [ -n "$tpl" ] && rendered="rendered from $tpl"
+    printf '{"thread_id":"%s","task":"%s","team":"cross-review","consensus_reached":true,"final_decision":"ok","transcript":[]}\n' "$t" "$rendered" > "$rf"
     exit 0 ;;
 esac
 `
@@ -261,10 +308,17 @@ func TestDebateUnavailableWithoutCLI(t *testing.T) {
 		{"GET", "/api/personas", ""},
 		{"POST", "/api/personas", `{"id":"x"}`},
 		{"DELETE", "/api/personas/x", ""},
+		{"POST", "/api/personas/suggest", `{"brief":"x"}`},
 		{"GET", "/api/teams", ""},
 		{"GET", "/api/workers", ""},
 		{"POST", "/api/teams", `{"id":"x"}`},
 		{"DELETE", "/api/teams/x", ""},
+		{"GET", "/api/flow-templates", ""},
+		{"POST", "/api/flow-templates", `{"id":"x"}`},
+		{"DELETE", "/api/flow-templates/x", ""},
+		{"GET", "/api/flows", ""},
+		{"POST", "/api/flows", `{"id":"x"}`},
+		{"DELETE", "/api/flows/x", ""},
 		{"POST", "/api/debates", `{"task":"hi"}`},
 	}
 	for _, rt := range routes {
@@ -337,6 +391,18 @@ func TestWorkersRouteIsReadOnlyPassthrough(t *testing.T) {
 	}
 }
 
+func TestVerdictSourcesRoute(t *testing.T) {
+	th := newTestHub(t, nil)
+	rec := th.call("GET", "/api/verdict-sources", "")
+	if rec.Code != 200 || decode(t, rec)["sources"] == nil {
+		t.Fatalf("list: %d %s", rec.Code, rec.Body.String())
+	}
+	// read-only: no save or delete route
+	if rec = th.call("POST", "/api/verdict-sources", `{"id":"x"}`); rec.Code != 405 && rec.Code != 404 {
+		t.Errorf("post: %d, want 404 or 405", rec.Code)
+	}
+}
+
 func TestCommandSetRoutes(t *testing.T) {
 	th := newTestHub(t, nil)
 	rec := th.call("GET", "/api/command-sets", "")
@@ -398,7 +464,7 @@ func TestConfigSaveAndDelete(t *testing.T) {
 		t.Errorf("delete exit 2: %d %s", rec.Code, rec.Body.String())
 	}
 	// An unknown id is exit 3 -> 404 for every kind; a builtin one stays exit 2 -> 400 (above).
-	for _, kind := range []string{"personas", "teams", "projects", "groups", "command-sets"} {
+	for _, kind := range []string{"personas", "teams", "flow-templates", "flows", "projects", "groups", "command-sets"} {
 		if rec = th.call("DELETE", "/api/"+kind+"/missing", ""); rec.Code != 404 || !strings.Contains(decode(t, rec)["error"].(string), "missing") {
 			t.Errorf("delete unknown %s: %d %s", kind, rec.Code, rec.Body.String())
 		}
@@ -560,6 +626,72 @@ func TestDebateContextArgvAndSummary(t *testing.T) {
 		t.Fatalf("list has %d jobs", len(list))
 	}
 	check(list[0].(map[string]interface{}), "list")
+}
+
+func TestStartDebateTemplateValidation(t *testing.T) {
+	th := newTestHub(t, nil)
+	many := map[string]string{}
+	for i := 0; i < maxTemplateParams+1; i++ {
+		many[fmt.Sprintf("P%d", i)] = "v"
+	}
+	manyJSON, _ := json.Marshal(map[string]interface{}{"template": "ft1", "params": many})
+	longJSON, _ := json.Marshal(map[string]interface{}{"template": "ft1", "params": map[string]string{"TOPIC": strings.Repeat("a", maxTemplateParamChars+1)}})
+	cases := []struct{ name, body, want string }{
+		{"bad template id", `{"template":"Bad Id"}`, "invalid template"},
+		{"template with task", `{"template":"ft1","task":"x"}`, "supplies the task"},
+		{"template with thread", `{"template":"ft1","thread_id":"thread_20261029_010203_abc123"}`, "new thread"},
+		{"params without template", `{"task":"x","params":{"TOPIC":"y"}}`, "params need a template or a flow"},
+		{"lowercase param name", `{"template":"ft1","params":{"topic":"y"}}`, "invalid param name"},
+		{"param name with equals", `{"template":"ft1","params":{"A=B":"y"}}`, "invalid param name"},
+		{"param nul", `{"template":"ft1","params":{"TOPIC":"a\u0000b"}}`, "invalid characters"},
+		{"too many params", string(manyJSON), "at most"},
+		{"param too long", string(longJSON), "at most"},
+	}
+	for _, c := range cases {
+		rec := th.call("POST", "/api/debates", c.body)
+		if rec.Code != 400 {
+			t.Errorf("%s: status %d, want 400 (%s)", c.name, rec.Code, rec.Body.String())
+			continue
+		}
+		if msg, _ := decode(t, rec)["error"].(string); !strings.Contains(msg, c.want) {
+			t.Errorf("%s: error %q does not contain %q", c.name, msg, c.want)
+		}
+	}
+}
+
+func TestDebateTemplateArgvAndSummary(t *testing.T) {
+	th := newTestHub(t, nil)
+	body := `{"template":"ft1","team":"versusteam","params":{"STANCE_B":"two = 2","TOPIC":"-x one\nline","STANCE_A":"one"}}`
+	rec := th.call("POST", "/api/debates", body)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("start: %d %s", rec.Code, rec.Body.String())
+	}
+	started := decode(t, rec)
+	id := started["id"].(string)
+	if started["task"] != "template: ft1" || started["template"] != "ft1" {
+		t.Errorf("running summary = %v", started)
+	}
+	th.waitDone(t, id)
+
+	data, err := os.ReadFile(filepath.Join(th.dir, "debate-args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Every flag and its value is one argv entry, and params come in name order whatever the JSON order was.
+	// (The fake CLI prints one argv entry per line, so the value with a newline spans two lines.)
+	wantArgs := "--debate=-\n--flow-template=ft1\n--param=STANCE_A=one\n--param=STANCE_B=two = 2\n--param=TOPIC=-x one\nline\n--team\nversusteam"
+	if !strings.Contains(string(data), wantArgs) {
+		t.Errorf("argv = %q, want it to contain %q", data, wantArgs)
+	}
+
+	// The finished job carries the task rendered by the CLI, not the placeholder.
+	detail := decode(t, th.call("GET", "/api/debates/"+id, ""))
+	if detail["task"] != "rendered from ft1" || detail["template"] != "ft1" {
+		t.Errorf("finished summary = task %v template %v", detail["task"], detail["template"])
+	}
+	if p, _ := detail["params"].(map[string]interface{}); p["STANCE_A"] != "one" {
+		t.Errorf("params not echoed: %v", detail["params"])
+	}
 }
 
 func TestDebateWithoutContextOmitsFlagsAndFields(t *testing.T) {
@@ -891,7 +1023,7 @@ func TestDebateRoutesRequireAuth(t *testing.T) {
 	h := withAuth(th.h, testToken)
 	for _, rt := range []struct{ method, path string }{
 		{"GET", "/api/personas"}, {"GET", "/api/teams"}, {"POST", "/api/debates"},
-		{"GET", "/api/debates"}, {"DELETE", "/api/teams/x"},
+		{"GET", "/api/debates"}, {"DELETE", "/api/teams/x"}, {"POST", "/api/personas/suggest"},
 	} {
 		if rec := do(h, rt.method, rt.path, `{"task":"x"}`, nil); rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s %s without token: %d", rt.method, rt.path, rec.Code)
@@ -1916,5 +2048,97 @@ func TestUIActionsOffBlocksEveryDecisionRoute(t *testing.T) {
 		if rec := off.call("GET", p, ""); rec.Code != 200 {
 			t.Errorf("off read-only %s: %d %s", p, rec.Code, rec.Body.String())
 		}
+	}
+}
+
+func TestPersonaSuggest(t *testing.T) {
+	th := newTestHub(t, nil)
+	rec := th.call("POST", "/api/personas/suggest", `{"brief":"a careful reviewer","seat":"critic"}`)
+	if rec.Code != 200 {
+		t.Fatalf("suggest: %d %s", rec.Code, rec.Body.String())
+	}
+	if s, _ := decode(t, rec)["suggestion"].(map[string]interface{}); s["id"] != "c1" {
+		t.Errorf("unexpected suggestion: %s", rec.Body.String())
+	}
+	if args := th.lastArgs(t); len(args) != 1 || args[0] != "--persona-suggest" {
+		t.Errorf("args: %v", args)
+	}
+	if rec = th.call("POST", "/api/personas/suggest", `{"brief":"BAD"}`); rec.Code != 400 || decode(t, rec)["error"] != "brief: required" {
+		t.Errorf("bad request: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec = th.call("POST", "/api/personas/suggest", `{"brief":"FAIL"}`); rec.Code != 502 || decode(t, rec)["error"] != "no LLM CLI answered" {
+		t.Errorf("model failure: %d %s", rec.Code, rec.Body.String())
+	}
+	personaSuggestSlot <- struct{}{}
+	rec = th.call("POST", "/api/personas/suggest", `{"brief":"x"}`)
+	<-personaSuggestSlot
+	if rec.Code != 409 {
+		t.Errorf("busy: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestStartDebateFlowValidation(t *testing.T) {
+	th := newTestHub(t, nil)
+	cases := []struct{ name, body, want string }{
+		{"bad flow id", `{"flow":"Bad Id"}`, "invalid flow"},
+		{"flow and template", `{"flow":"f1","template":"ft1"}`, "either a flow or a template"},
+		{"flow and team", `{"flow":"f1","team":"t1"}`, "drop team"},
+		{"flow and thread", `{"flow":"f1","thread_id":"thread_20261029_010203_abc123"}`, "new thread"},
+		{"seats without flow", `{"task":"x","seats":{"lead":"p1"}}`, "seats need a flow"},
+		{"bad seat id", `{"flow":"f1","seats":{"Lead":"p1"}}`, "invalid seat"},
+		{"seat flag injection", `{"flow":"f1","seats":{"lead":"-x"}}`, "invalid character"},
+		{"bad flow param", `{"flow":"f1","params":{"topic":"y"}}`, "invalid param name"},
+	}
+	for _, c := range cases {
+		rec := th.call("POST", "/api/debates", c.body)
+		if rec.Code != 400 {
+			t.Errorf("%s: status %d, want 400 (%s)", c.name, rec.Code, rec.Body.String())
+			continue
+		}
+		if msg, _ := decode(t, rec)["error"].(string); !strings.Contains(msg, c.want) {
+			t.Errorf("%s: error %q does not contain %q", c.name, msg, c.want)
+		}
+	}
+}
+
+func TestDebateFlowArgvAndSummary(t *testing.T) {
+	th := newTestHub(t, nil)
+	body := `{"flow":"f1","project":"server-guardian","params":{"TOPIC":"x"},"seats":{"lead":"p2","close":"p3"}}`
+	rec := th.call("POST", "/api/debates", body)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("start: %d %s", rec.Code, rec.Body.String())
+	}
+	started := decode(t, rec)
+	id := started["id"].(string)
+	if started["task"] != "flow: f1" || started["flow"] != "f1" {
+		t.Errorf("running summary = %v", started)
+	}
+	th.waitDone(t, id)
+	data, err := os.ReadFile(filepath.Join(th.dir, "debate-args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := "--debate=-\n--flow=f1\n--param=TOPIC=x\n--seat=close=p3\n--seat=lead=p2\n--project=server-guardian"
+	if !strings.Contains(string(data), wantArgs) {
+		t.Errorf("argv = %q, want it to contain %q", data, wantArgs)
+	}
+	detail := decode(t, th.call("GET", "/api/debates/"+id, ""))
+	if detail["task"] != "rendered from f1" {
+		t.Errorf("finished task = %v", detail["task"])
+	}
+	if seats, _ := detail["seats"].(map[string]interface{}); seats["lead"] != "p2" {
+		t.Errorf("seats not echoed: %v", detail["seats"])
+	}
+
+	// A flow without its own task text takes the person's task.
+	rec = th.call("POST", "/api/debates", `{"flow":"f1","task":"review it"}`)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("start with task: %d %s", rec.Code, rec.Body.String())
+	}
+	id = decode(t, rec)["id"].(string)
+	th.waitDone(t, id)
+	data, _ = os.ReadFile(filepath.Join(th.dir, "debate-args.txt"))
+	if !strings.Contains(string(data), "--debate=review it\n--flow=f1") {
+		t.Errorf("argv with task = %q", data)
 	}
 }

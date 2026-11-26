@@ -175,9 +175,20 @@ class GateTests(unittest.TestCase):
         self.assertFalse(out["auto"])
         self.assertTrue(any("objection" in r for r in out["reasons"]))
 
-    def test_an_uncounted_objection_is_only_advice_but_the_approval_stays_needed(self) -> None:
-        self.assertTrue(gate([free_step()], [vote("c1"), vote("c2", "oppose", counted=False)])["auto"])
+    def test_an_uncited_objection_holds_a_free_script(self) -> None:
+        # decided 2026-10-30: nobody reads a free script, so an objection to its text needs no server-check citation
+        out = gate([free_step()], [vote("c1"), vote("c2", "oppose", counted=False)])
+        self.assertFalse(out["auto"])
+        self.assertTrue(any("objection from c2" in r for r in out["reasons"]), out)
         self.assertFalse(gate([free_step()], [vote("c2", "oppose", counted=False)])["auto"])
+
+    def test_elsewhere_an_uncited_objection_stays_advice(self) -> None:
+        self.assertTrue(gate([step()], [vote("c1"), vote("c2", "oppose", counted=False)])["auto"])
+
+    def test_the_vote_task_says_that_an_objection_needs_no_citation_here(self) -> None:
+        self.assertIn("even without a citation", batch_votes.vote_task("t", "g", "a" * 64, [free_step()]))
+        self.assertNotIn("even without a citation",
+                         batch_votes.vote_task("t", "g", "a" * 64, [free_step() | {"free_script": False}]))
 
     def test_the_policy_opt_in_still_applies(self) -> None:
         self.assertFalse(gate([free_step()], [vote()], policy={**POLICY, "auto": False})["auto"])
@@ -208,6 +219,7 @@ class VotePromptTests(unittest.TestCase):
         free = batch_votes.vote_task("t", "g", "a" * 64, [free_step()])
         self.assertIn("RUNS WITHOUT A PERSON", free)
         self.assertIn("Your vote is the only review", free)
+        self.assertIn("do not approve by default", free)
         plain = batch_votes.vote_task("t", "g", "a" * 64, [free_step() | {"free_script": False}])
         self.assertNotIn("RUNS WITHOUT A PERSON", plain)
         self.assertNotIn("only review", plain)

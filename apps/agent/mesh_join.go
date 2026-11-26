@@ -23,6 +23,11 @@ const (
 	meshTimeoutSec  = 30
 	meshDefaultTags = "tag:fleet"
 	meshRoute       = "/api/mesh/join"
+
+	// meshWorkstationTag is the reserved tag of an operator workstation (docs/design/operator-sessions.md, SD3a).
+	// It is usable only when GUARDIAN_HEADSCALE_TAGS lists it, and a workstation joins with it alone: servers and
+	// workstations get different ACLs, which the operator applies in headscale.
+	meshWorkstationTag = "tag:workstation"
 )
 
 var (
@@ -239,6 +244,18 @@ func handleMeshJoin(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, err)
 		return
 	}
+	workstation := false
+	for _, t := range tags {
+		if t == meshWorkstationTag {
+			workstation = true
+		}
+	}
+	if workstation && len(tags) > 1 {
+		err := badField("tags", "%s is the workstation tag: a workstation joins with it alone, never together with a server tag such as tag:fleet (servers and workstations get different ACLs, which the operator applies in headscale)", meshWorkstationTag)
+		a.fail(err)
+		writeAPIError(w, err)
+		return
+	}
 	name := strings.TrimSpace(req.Name)
 	if name != "" && !validNodeID(name) {
 		err := badField("name", "must match ^[a-z0-9][a-z0-9-]{0,62}$ (lowercase letters, digits and dashes)")
@@ -269,6 +286,12 @@ func handleMeshJoin(w http.ResponseWriter, r *http.Request) {
 	}
 	if f["warning"] != "" {
 		resp["warning"] = f["warning"]
+	}
+	if workstation {
+		// The next step lives on the hub (S1 of operator-sessions.md): register the workstation with its tailnet
+		// address; the link public key comes from the workstation's installer.
+		resp["workstation"] = true
+		resp["next"] = fmt.Sprintf("guardian.py --session-add %s --address %s --key '<link public key>'", f["name"], f["ipv4"])
 	}
 	a.ok(fmt.Sprintf("mesh join: node %d %s %s tags=%s", nodeID, f["name"], f["ipv4"], strings.Join(tags, ",")))
 	jsonResponse(w, http.StatusOK, resp)

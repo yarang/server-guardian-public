@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react';
 import type { IconName } from '@server-guardian/ui';
 import { tr } from './i18n';
 
-export type RouteId = 'fleet' | 'debates' | 'approvals' | 'settings';
+export type RouteId = 'overview' | 'fleet' | 'debates' | 'approvals' | 'settings';
 
 export interface RouteDef {
   id: RouteId;
@@ -13,30 +13,31 @@ export interface RouteDef {
   icon: IconName;
 }
 
-/** The four destinations; the sidebar and the mobile tab bar list all of them. */
+/** The five destinations; the sidebar and the mobile tab bar list all of them. */
 export const ROUTES: RouteDef[] = [
+  { id: 'overview', label: tr.shell.nav.routes.overview.label, title: tr.shell.nav.routes.overview.title, icon: 'grid' },
   { id: 'fleet', label: tr.shell.nav.routes.fleet.label, title: tr.shell.nav.routes.fleet.title, icon: 'server' },
-  { id: 'debates', label: tr.shell.nav.routes.debates.label, title: tr.shell.nav.routes.debates.title, icon: 'chat' },
+  { id: 'debates', label: tr.shell.nav.routes.debates.label, title: tr.shell.nav.routes.debates.title, icon: 'flow' },
   { id: 'approvals', label: tr.shell.nav.routes.approvals.label, title: tr.shell.nav.routes.approvals.title, icon: 'check' },
-  { id: 'settings', label: tr.shell.nav.routes.settings.label, title: tr.shell.nav.routes.settings.title, icon: 'lock' },
+  { id: 'settings', label: tr.shell.nav.routes.settings.label, title: tr.shell.nav.routes.settings.title, icon: 'gear' },
 ];
 
-export const DEFAULT_ROUTE: RouteId = 'fleet';
+export const DEFAULT_ROUTE: RouteId = 'overview';
 
-/** Tabs of the Fleet page: the first path segment after `#/fleet` (`summary` is the bare `#/fleet`). */
+/** Tabs of the Fleet page: the first path segment after `#/fleet`. */
 export const FLEET_TABS = [
-  { value: 'summary', label: tr.shell.nav.fleetTabs.summary },
   { value: 'nodes', label: tr.shell.nav.fleetTabs.nodes },
+  { value: 'groups', label: tr.shell.nav.fleetTabs.groups },
   { value: 'ssh', label: tr.shell.nav.fleetTabs.ssh },
   { value: 'commands', label: tr.shell.nav.fleetTabs.commands },
-  { value: 'groups', label: tr.shell.nav.fleetTabs.groups },
+  { value: 'commandSets', label: tr.shell.nav.fleetTabs.commandSets },
 ] as const;
 
 export type FleetTab = (typeof FLEET_TABS)[number]['value'];
 
-/** Fleet tab named by the first path param; anything else (or none) is the summary. */
+/** Fleet tab named by the first path param; anything else (or none) is the node list. */
 export function fleetTab(param: string | undefined): FleetTab {
-  return FLEET_TABS.find((t) => t.value === param)?.value ?? 'summary';
+  return FLEET_TABS.find((t) => t.value === param)?.value ?? 'nodes';
 }
 
 /**
@@ -44,9 +45,8 @@ export function fleetTab(param: string | undefined): FleetTab {
  * the URL's own query is kept (`#/run?target=a1` -> `#/fleet/commands?target=a1`).
  */
 const ALIASES: Record<string, { route: RouteId; prefix?: string[] }> = {
-  overview: { route: 'fleet' },
-  assistant: { route: 'fleet' },
-  more: { route: 'fleet' },
+  assistant: { route: 'overview' },
+  more: { route: 'overview' },
   nodes: { route: 'fleet', prefix: ['nodes'] },
   security: { route: 'fleet', prefix: ['ssh'] },
   ssh: { route: 'fleet', prefix: ['ssh'] },
@@ -73,7 +73,7 @@ function decode(s: string): string {
   }
 }
 
-/** `#/fleet/nodes/a1?x=1`, `#fleet/nodes` and legacy aliases all parse; unknown or empty hashes fall back to the Fleet summary. */
+/** `#/fleet/nodes/a1?x=1`, `#fleet/nodes` and legacy aliases all parse; unknown or empty hashes fall back to Overview. */
 export function parseHash(hash: string): ParsedRoute {
   const body = hash.replace(/^#\/?/, '');
   const qi = body.indexOf('?');
@@ -86,8 +86,16 @@ export function parseHash(hash: string): ParsedRoute {
     query[key] = value;
   });
 
-  // Node groups moved from Settings to the Fleet Groups tab; the old deep link (`?edit=<id>` kept) still works.
+  // Node groups and command sets moved from Settings to Fleet tabs; the old deep links (`?edit=<id>` kept) still work.
   if (head === 'settings' && rest[0] === 'groups') return { route: 'fleet', params: ['groups'], query };
+  if (head === 'settings' && rest[0] === 'commandSets') return { route: 'fleet', params: ['commandSets'], query };
+
+  // Flow kinds and the persona page moved from Workflows into Settings -> flow setup (ui-verification-review.md, M1/M2).
+  if (head === 'debates' && rest[0] === 'templates') return { route: 'settings', params: ['flows'], query };
+  if (head === 'debates' && rest[0] === 'personas') return { route: 'settings', params: ['personas', ...rest.slice(1).map(decode)], query };
+
+  // The fleet summary became the Overview destination; the bare `#/fleet` and `#/fleet/summary` keep opening it.
+  if (head === 'fleet' && (rest.length === 0 || rest[0] === 'summary')) return { route: 'overview', params: [], query };
 
   const direct = ROUTES.find((r) => r.id === head);
   const alias = direct ? undefined : ALIASES[head];
@@ -108,9 +116,9 @@ export function hrefFor(id: RouteId, params: string[] = [], query: Record<string
   return `#/${path}${search ? `?${search}` : ''}`;
 }
 
-/** Href of a Fleet tab (`summary` is the bare `#/fleet`); `rest` are further params such as a node id. */
+/** Href of a Fleet tab; `rest` are further params such as a node id. */
 export function fleetHref(tab: FleetTab, rest: string[] = [], query: Record<string, string> = {}): string {
-  return hrefFor('fleet', tab === 'summary' ? [] : [tab, ...rest], query);
+  return hrefFor('fleet', [tab, ...rest], query);
 }
 
 /** Programmatic navigation; the hashchange listener in useRoute re-renders the app. */

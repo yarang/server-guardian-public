@@ -1,0 +1,26 @@
+flowchart TB
+    subgraph L0["L0 Selection (who sits where, before any prompt)"]
+        direction LR
+        T["team file / flow / template"] --> S["seat: expert, proposer, critic,<br/>verifier, judge, stage, side, solo"]
+        S --> C["character or persona<br/>(swappable with --seat)"]
+    end
+    subgraph ROLE["RolePrompt (one per turn)"]
+        L1["L1 Persona<br/>character body: identity, expertise,<br/>stance, checks, boundaries"]
+        L2["L2 Role card<br/>seat rules for the home seat<br/>(code or ops kind)"]
+        L3["L3 Turn task<br/>project header, task, seat ask by kind,<br/>carried critique, flow text, judge material"]
+        L4["L4 Rules<br/>language rule, output envelope,<br/>judge contract and tool catalog"]
+    end
+    subgraph ENGINE["Engine layers (same for every seat)"]
+        L5["L5 Protocols<br/>retrieval protocol (static) and repository state (dynamic),<br/>MCP tool section, ops check protocol"]
+        L6["L6 Context<br/>code context pack, earlier rounds<br/>(thread digest above 16 KiB)"]
+    end
+    L7["L7 Delivery<br/>claude and zai: system prompt plus short message<br/>codex, agy, exaone: one plain message"]
+    C --> L1
+    L1 --> L2 --> L3 --> L4
+    L4 --> L5 --> L6 --> L7
+    classDef sel fill:#eef,stroke:#669
+    classDef role fill:#efe,stroke:#696
+    classDef eng fill:#fee,stroke:#966
+    class T,S,C sel
+    class L1,L2,L3,L4 role
+    class L5,L6 eng

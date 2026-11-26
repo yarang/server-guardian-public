@@ -92,13 +92,21 @@ describe('Language choice', () => {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en');
     const { GuardianRoot } = await import('@server-guardian/ui');
     const { SettingsPage } = await import('../src/pages/SettingsPage');
-    render(
+    // The hub connection group holds the URL panel; the language panel lives under Display.
+    const endpoint = render(
       <GuardianRoot>
         <SettingsPage agentUrl="http://hub.test:9870" onEditEndpoint={() => undefined} section="endpoint" />
       </GuardianRoot>,
     );
     expect(screen.getAllByText(en.shell.settingsPage.endpointTitle).length).toBeGreaterThan(0);
-    expect((screen.getByRole('combobox', { name: en.shell.language.label }) as HTMLSelectElement).value).toBe('en');
     expect(screen.queryByText(ko.shell.settingsPage.endpointTitle)).toBeNull();
+    endpoint.unmount();
+    render(
+      <GuardianRoot>
+        <SettingsPage agentUrl="http://hub.test:9870" onEditEndpoint={() => undefined} section="display" />
+      </GuardianRoot>,
+    );
+    expect((screen.getByRole('combobox', { name: en.shell.language.label }) as HTMLSelectElement).value).toBe('en');
+    expect(screen.queryByLabelText(ko.shell.language.label)).toBeNull();
   });
 });

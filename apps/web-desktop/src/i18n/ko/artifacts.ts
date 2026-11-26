@@ -36,7 +36,7 @@ export const artifacts = {
   download: '내려받기',
   downloaded: (where: string) => `${where}에 저장했어요`,
   downloadFailed: (why: string) => `내려받지 못했어요: ${why}`,
-  desktopMarkdownOnly: '데스크톱 앱에서는 내보내기 폴더를 정하지 않으면 문서(.md)만 내려받을 수 있어요. 설정에서 폴더를 정하거나 브라우저에서 열어 주세요.',
+  desktopMarkdownOnly: '데스크톱 앱에서는 문서(.md)만 내려받을 수 있어요. 다른 파일은 브라우저에서 대시보드를 열어 내려받아 주세요.',
   sha: (short: string) => `sha256 ${short}`,
   makingOffice: '만드는 중…',
   officeMade: (name: string) => `${name}을(를) 만들었어요`,

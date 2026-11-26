@@ -5,8 +5,8 @@ English | [한국어](debate-code-index-wiki.ko.md)
 This adds navigation aids on top of the retrieval in `debate-agent-retrieval.md` (repo blocks, `repo_*` MCP) without changing it.
 Retrieval is still the only way to get evidence; every feature in this document only narrows down "where to read".
 
-Current values (2026-10-18): `INDEX_VERSION` 2 (`code_index.py`), `MAP_VERSION` 3 (`repo_map.py`), `GOINDEX_VERSION` 1 (`go_facts.py`),
-`WIKI_PROMPT_VERSION` `2026-10-16.wiki6` (`wiki_build.py`), `RETRIEVAL_PROMPT_VERSION` `2026-10-17.p10` (`debate_engine.py`; the bumps
+Current values (2026-10-30): `INDEX_VERSION` 2 (`code_index.py`), `MAP_VERSION` 3 (`repo_map.py`), `GOINDEX_VERSION` 1 (`go_facts.py`),
+`WIKI_PROMPT_VERSION` `2026-10-30.wiki7` (`wiki_build.py`), `RETRIEVAL_PROMPT_VERSION` `2026-10-30.p23` (`debate_engine.py`; the bumps
 after p2.6 come from features outside this document). Version values in the implementation notes below are those of their phase.
 
 ## Problem
@@ -1144,3 +1144,18 @@ wiki), P1+P2, P1+P2+P3.
   in the result.
 - Wiki narratives are not used for the judge's action checks (`ContextPack.saw`). The judge builds patches only from source it read,
   as today.
+
+### Writer prompt wiki7 (2026-10-30)
+
+- **Link candidates.** The writer was offered the first 60 page ids in alphabetical order and told not to invent ids,
+  so in a wiki with more pages the later ones could not be linked. `link_candidates` puts the page's own family (its
+  overview and group pages) first and `build_prompt` offers up to 300 ids (`MAX_LINK_IDS`).
+- **One size.** An overview page read "about 4000 characters" in its context and "under about 6000" in the answer
+  format; the answer format now names 4000 for an overview and 6000 for every other page.
+- **Findings block.** The answer format says that a findings block after the page is allowed and removed, which the
+  retrieval protocol asks for and `parse_answer` already did.
+- **Language rule.** The writer (like the audit and the solo agent) gets the language rule without the debate's
+  "decision, rationale, constraints, checks and action reasons" (`answer_language_rule(..., debate=False)`); debate
+  prompts are unchanged.
+- The bump makes `--stale` select every LLM page written with wiki6, so the next manual refresh rewrites the whole wiki
+  (operator's choice of 2026-10-30).

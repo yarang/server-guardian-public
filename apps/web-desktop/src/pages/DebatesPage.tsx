@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Icon, Panel, SegmentedControl } from '@server-guardian/ui';
-import { AuthRequiredError, fetchTeams } from '../api';
+import { AuthRequiredError, fetchFlows, fetchPersonas, fetchTeams } from '../api';
 import { Card } from '../components/Card';
 import { Disclosure } from '../components/Disclosure';
 import { CheckboxField } from '../components/CheckboxField';
@@ -23,10 +23,12 @@ import { useProjectStore } from '../state/projectStore';
 import type { DebateJob, TeamCatalog } from '../types';
 import { RunDetail } from './agents/RunDetail';
 import { RunList } from './agents/RunList';
+import { AskTab } from './ask/AskTab';
 import { JobResult } from './debate/JobResult';
 import { StartForm } from './debate/StartForm';
 import { ArtifactsTab } from './artifacts/ArtifactsTab';
-import { PersonasTab } from './personas/PersonasTab';
+import { ResidentsTab } from './residents/ResidentsTab';
+import { ReviewTab } from './review/ReviewTab';
 import { ResultsTab } from './results/ResultsTab';
 import { WikiTab } from './wiki/WikiTab';
 import type { ContinueRequest, RerunInputs } from './debate/StartForm';
@@ -124,6 +126,9 @@ function DebateDetail({
  */
 function DebatesView({ jobId }: { jobId?: string }) {
   const teams = useHubData(fetchTeams);
+  // An older hub has no such endpoint: the error leaves the list empty and the picker hidden.
+  const flows = useHubData(fetchFlows);
+  const personas = useHubData(fetchPersonas);
   const { selected } = useProjectStore();
   const { watcher, recent } = useDebateStore();
   const { refresh } = useApprovalsStore();
@@ -167,8 +172,6 @@ function DebatesView({ jobId }: { jobId?: string }) {
         <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <ProjectSwitcher />
           <Row>
-            <a href={hrefFor('settings', ['teams'])}>{tr.debate.page.manageTeams}</a>
-            <a href={hrefFor('debates', ['personas'])}>{tr.personas.link}</a>
             <Button
               variant={formOpen ? 'outline' : 'primary'}
               icon={<Icon name="chat" size={14} />}
@@ -186,7 +189,8 @@ function DebatesView({ jobId }: { jobId?: string }) {
         <Panel title={tr.debate.page.newDebate}>
           <StartForm
             project={selected}
-            teams={teams.data?.teams ?? []}
+            flows={flows.data?.flows}
+            personas={personas.data?.personas ?? []}
             maxRounds={(teams.data?.catalog ?? FALLBACK_CATALOG).max_rounds || 10}
             watcher={watcher}
             continueRequest={continueRequest}
@@ -244,10 +248,12 @@ function DebatesView({ jobId }: { jobId?: string }) {
 
 /**
  * Debates, the project's code wiki and its results. `#/debates[/:jobId]` is the debate list with the selected run;
- * `#/debates/wiki[/:page]` is the Wiki view and `#/debates/results[/:thread]` the Results view. Code wiki build jobs are listed with the debates (marked as
- * such) because the monitor beside the list follows them too.
+ * `#/debates/wiki[/:page]` is the Wiki view, `#/debates/results[/:thread]` the Results view, `#/debates/ask[/:id]`
+ * the Quick ask view (solo runs, which are never listed with the debates) and `#/debates/residents[?agent=]` the
+ * resident agents monitor (read-only, hub-wide). Code wiki build jobs are listed with the debates (marked as such)
+ * because the monitor beside the list follows them too.
  */
-export function DebatesPage({ jobId, wikiPage, extra = [] }: { jobId?: string; wikiPage?: string; extra?: string[] }) {
+export function DebatesPage({ jobId, wikiPage, extra = [], query = {} }: { jobId?: string; wikiPage?: string; extra?: string[]; query?: Record<string, string> }) {
   const { recent } = useDebateStore();
   const reload = recent.reload;
   useEffect(() => {
@@ -264,44 +270,52 @@ export function DebatesPage({ jobId, wikiPage, extra = [] }: { jobId?: string; w
   const wiki = jobId === 'wiki' && !noRepo;
   // The Artifacts viewer is open to every kind: a code or ops report kept as a document lands there too.
   const artifacts = jobId === 'artifacts';
-  // `#/debates/personas[/new|/:id]`: the persona page, for every project kind; it has its own way back.
-  const personas = jobId === 'personas';
   const results = jobId === 'results';
+  // Quick ask (solo agent) belongs to every project kind too: a question a single role answers alone.
+  const ask = jobId === 'ask';
+  // Resident agents (mail store monitor) are hub-wide, so every project kind sees the same tab.
+  const residents = jobId === 'residents';
+  // Quick review (docs/design/verification-layer.md, V1c): one reviewer checks one change; code projects only.
+  const review = jobId === 'review' && !noRepo;
   const resultsTab = { value: 'results', label: tr.debate.page.tabResults };
+  const debatesTab = { value: 'debates', label: tr.debate.page.tabDebates };
+  const askTab = { value: 'ask', label: tr.debate.page.tabAsk };
+  const residentsTab = { value: 'residents', label: tr.debate.page.tabResidents };
+  const reviewTab = { value: 'review', label: tr.debate.page.tabReview };
   // Every project kind has a Results tab: the debate reports it produced (and, for design, its artifacts).
+  // Order of docs/design/ui-verification-review.md: the quick review first for code projects, resident agents last
+  // (they are not tied to the selected project).
   const tabs = noRepo
     ? design
-      ? [
-          { value: 'debates', label: tr.debate.page.tabDebates },
-          { value: 'artifacts', label: tr.debate.page.tabArtifacts },
-          resultsTab,
-        ]
-      : [{ value: 'debates', label: tr.debate.page.tabDebates }, resultsTab]
-    : [
-        { value: 'debates', label: tr.debate.page.tabDebates },
-        { value: 'wiki', label: tr.debate.page.tabWiki },
-        resultsTab,
-      ];
+      ? [debatesTab, askTab, { value: 'artifacts', label: tr.debate.page.tabArtifacts }, resultsTab, residentsTab]
+      : [debatesTab, askTab, resultsTab, residentsTab]
+    : [reviewTab, debatesTab, askTab, { value: 'wiki', label: tr.debate.page.tabWiki }, resultsTab, residentsTab];
   return (
     <Stack>
-      {personas ? null : (
-        <SegmentedControl
-          aria-label={tr.debate.page.sections}
-          options={tabs}
-          value={wiki ? 'wiki' : artifacts ? (design ? 'artifacts' : 'results') : results ? 'results' : 'debates'}
-          onChange={(v) => navigate('debates', v === 'debates' ? [] : [v])}
-        />
-      )}
-      {personas ? (
-        <PersonasTab params={[wikiPage, ...extra].filter((p): p is string => p !== undefined)} />
+      <SegmentedControl
+        aria-label={tr.debate.page.sections}
+        options={tabs}
+        value={review ? 'review' : wiki ? 'wiki' : artifacts ? (design ? 'artifacts' : 'results') : results ? 'results' : ask ? 'ask' : residents ? 'residents' : 'debates'}
+        onChange={(v) => navigate('debates', v === 'debates' ? [] : [v])}
+      />
+      {review ? (
+        <ReviewTab params={[wikiPage, ...extra].filter((p): p is string => p !== undefined)} />
       ) : wiki ? (
         <WikiTab page={wikiPage} />
       ) : artifacts ? (
         <ArtifactsTab params={[wikiPage, ...extra].filter((p): p is string => p !== undefined)} />
       ) : results ? (
         <ResultsTab params={[wikiPage, ...extra].filter((p): p is string => p !== undefined)} />
+      ) : ask ? (
+        <AskTab params={[wikiPage, ...extra].filter((p): p is string => p !== undefined)} />
+      ) : residents ? (
+        <ResidentsTab query={query} />
       ) : (
-        <DebatesView jobId={jobId === 'wiki' || jobId === 'artifacts' || jobId === 'results' ? undefined : jobId} />
+        <DebatesView
+          jobId={
+            jobId === 'wiki' || jobId === 'artifacts' || jobId === 'results' || jobId === 'ask' || jobId === 'residents' || jobId === 'review' ? undefined : jobId
+          }
+        />
       )}
     </Stack>
   );

@@ -60,10 +60,14 @@ export const ops: Messages['ops'] = {
       open: 'Open approvals',
     },
     debates: {
-      title: 'Recent debates',
+      title: 'Recent checks',
       what: 'debates',
       none: 'No debates yet',
       open: 'Open debates',
+      reviewsHeading: 'Quick reviews',
+      debatesHeading: 'Debates',
+      reviewsWhat: 'quick reviews',
+      openReviews: 'Open quick reviews',
     },
   },
   approvals: {

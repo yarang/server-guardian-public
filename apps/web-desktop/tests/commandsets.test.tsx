@@ -9,7 +9,7 @@ vi.mock('../src/api', async (importOriginal) => {
   return makeApiMock(await importOriginal());
 });
 import * as api from '../src/api';
-import { SettingsPage } from '../src/pages/SettingsPage';
+import { FleetPage } from '../src/pages/FleetPage';
 import { useRoute } from '../src/router';
 import { AppStores } from '../src/state/AppStores';
 import type { CommandSet, CommandSetList } from '../src/types';
@@ -30,11 +30,12 @@ const mine: CommandSet = { ...builtin, id: 'old-logs', description: 'Remove old 
 const list: CommandSetList = { ok: true, max_age_days: 180, stale: [{ id: 'old-logs', reviewed: '2026-01-02', age_days: 291 }], sets: [builtin, mine] };
 
 function Routed() {
-  return <SettingsPage agentUrl="http://hub.test:9870" onEditEndpoint={vi.fn()} section={useRoute().params[0]} />;
+  const { params, query } = useRoute();
+  return <FleetPage params={params} query={query} />;
 }
 
 async function mount() {
-  window.location.hash = '#/settings/commandSets';
+  window.location.hash = '#/fleet/commandSets';
   render(
     <GuardianRoot>
       <AppStores>
@@ -56,7 +57,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe('Command sets settings', () => {
+describe('Command sets editor (Fleet commandSets tab)', () => {
   it('keeps the catalog the same shape in ko and en', () => {
     expect(Object.keys(en.debate.commandSet).sort()).toEqual(Object.keys(ko.debate.commandSet).sort());
   });

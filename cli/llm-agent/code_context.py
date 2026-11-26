@@ -87,7 +87,7 @@ def validate_patterns(patterns: List[str]) -> List[str]:
 
 
 def validate_ref(ref: str) -> str:
-    if not REF_PATTERN.match(ref) or ref.startswith("-"):
+    if not REF_PATTERN.fullmatch(ref) or ref.startswith("-"):
         raise ContextError(f"invalid context ref: {ref!r}")
     return ref
 

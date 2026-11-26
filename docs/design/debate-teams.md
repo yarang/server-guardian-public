@@ -103,7 +103,7 @@ On top of that, the `expert_id` / `critic_id` / `judge_id` arguments override on
 | `expert`, `judge` | yes | `{"persona", "providers"}` or a persona id string |
 | `critic` | yes | One member or a list of 1-4 |
 | `proposers` | | Optional list of 0-2 extra drafters (added 2026-10-18, [multi-perspective.md](multi-perspective.md)). In the first round of a run they write drafts blind to the expert; ignored with a warning in ops and design projects. Personas must differ from the expert's and from each other |
-| `providers` | | Order to try. Empty means the execution host's default order. `claude, codex, agy, opencode, ollama, llm` |
+| `providers` | | Order to try. Empty means the execution host's default order (`claude, codex, agy, zai, opencode, ollama, llm`). Known: those plus `exaone` |
 | `code_tools` | | Optional per member (added 2026-10-18). `"mcp"` lets a claude or codex member use the read-only repository tools (`repo_mcp.py`). Needs `GUARDIAN_REPO_MCP=1` on the execution host. Opt-in: the team editor shows an "Add repository tools" checkbox (off by default, field omitted when off). Only code projects use it; an ops or design project ignores it and logs a warning at debate start (2026-10-19) |
 | `max_rounds` | | 1-10 |
 | `allowed_tools` | | Upper bound of the judge's tools. Omitted means the persona's setting |
@@ -126,6 +126,17 @@ python3 cli/llm-agent/guardian.py --teams                        # list + valida
 python3 cli/llm-agent/guardian.py --debate "task" --team cross-review
 python3 cli/llm-agent/guardian.py --debate "follow-up instruction" --thread <ID>  # reuses the stored lineup
 ```
+
+## Persona fields that reach the model (2026-10-30)
+
+Only `system_prompt` reaches an agent, and `mcp_capabilities` narrows the judge's tools. The optional `profile` (`tagline`, `look`; added 2026-10-30 with the "Suggest with AI" card, `agent-characters.md` 2.6) is shown only, never sent. `domain`, `focus_areas` and
+`critique_focus` are stored and shown, never sent, and a focus that should steer an agent belongs in its
+`system_prompt`. `temperature` was removed on 2026-10-23 (the LLM CLIs take none; old files still load, validation
+drops it). With prompt `p21` (the GitHub mirror's number; `p23` after the merge with the local history) the generic personas were rewritten to the rules of the newer ones: `domain_architect` proposes the smallest
+change on code it read and cites `file:line`; `critic_redteam` cites, grades high/medium/low with a concrete scenario
+and says when it finds nothing; `devops_specialist` (a critic in `cross-review`, a proposer in `proposer_eval`) has
+rules for both roles; `server_guardian` (the CLI chat) proposes actions for a person to approve instead of claiming to
+manage a fixed number of hosts on its own. The `proposer_eval` configurations of 2026-10-19 used the old texts.
 
 ## Next steps
 

@@ -92,7 +92,6 @@ class CalibrationTests(unittest.TestCase):
     def test_the_cleanup_team_keeps_the_critic_it_always_had(self) -> None:
         lineup = TeamManager(Path("/nonexistent")).load("fleet-ops")
         self.assertIn("ops_safety_critic", [m.persona for m in lineup.critics])
-        self.assertNotIn("[차단]", self.prompt("ops_safety_critic"))
 
 
 class BundlesCheckTests(unittest.TestCase):
@@ -226,8 +225,25 @@ class PromptGateTests(unittest.TestCase):
         self.assertNotIn("ops:package_install", judge)
         self.assertEqual(ops_checks.protocol_text(), ops_checks.protocol_text(False))
 
+    def test_ops_turns_ask_for_ops_work(self) -> None:
+        # p18: ops experts and critics get their own turn text; the plan is still a person's without batch.auto
+        runner = self.run_debate("fleet-provision", batch=True)
+        expert, critic, judge = (self.seen(runner, r) for r in ("expert", "critic", "judge"))
+        self.assertIn("what the server checks show", expert)
+        self.assertNotIn("architectural proposal", expert)
+        self.assertIn("within the scope your instructions give you", critic)
+        self.assertNotIn("security flaws, and performance risks", critic)
+        self.assertIn("A plan is never run without a person's approval", judge)
+
+    def test_a_judge_without_tools_is_told_so(self) -> None:
+        # p21: fleet-mesh has allowed_tools [] and reads one sentence instead of an empty catalog
+        judge = self.seen(self.run_debate("fleet-mesh"), "judge")
+        self.assertIn("This lineup offers no tool actions", judge)
+        self.assertNotIn("Available tools:", judge)
+        self.assertIn("Available tools:", self.seen(self.run_debate("fleet-services"), "judge"))
+
     def test_the_prompt_version_names_this_change(self) -> None:
-        self.assertEqual(debate_engine.RETRIEVAL_PROMPT_VERSION, "2026-10-23.p20")
+        self.assertEqual(debate_engine.RETRIEVAL_PROMPT_VERSION, "2026-11-11.p29")
 
 
 if __name__ == "__main__":

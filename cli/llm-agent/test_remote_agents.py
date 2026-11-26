@@ -202,6 +202,7 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(hub.calls[0]["plain_prompt"], "plain")
 
     def test_protocol_mismatch_falls_back_and_marks_the_host_down(self) -> None:
+        # A worker answering 4 (anything outside COMPATIBLE_PROTOCOLS) is refused and the call runs on the hub.
         old = dict(ok_ping(), protocol=PROTOCOL + 1)
         router, hub, transport = self.router({"node-1": by_op(ping=old, run=ok_run())})
         with workers("node-1"):
@@ -211,6 +212,36 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(len(hub.calls), 2)
         self.assertEqual(sum(1 for h, r, t in transport.requests if r["op"] == "ping"), 1)  # negative cache
         self.assertIn("node-1", second.failures[0])
+
+    @staticmethod
+    def old_worker() -> Any:
+        """A worker installed before protocol 3: it answers 2 and refuses a request that carries 3."""
+        def ping(request: Dict[str, Any]) -> Dict[str, Any]:
+            if request["protocol"] != 2:
+                return {"ok": False, "error": "protocol mismatch: worker speaks 2", "protocol": 2}
+            return dict(ok_ping(), protocol=2)
+        return ping
+
+    def test_a_worker_answering_protocol_2_serves_debate_seats(self) -> None:
+        router, hub, transport = self.router({"node-1": by_op(ping=self.old_worker(), run=ok_run())})
+        with workers("node-1"):
+            result = router.run("node-1", "hello")
+        self.assertEqual((result.text, result.host), ("remote answer", "node-1"))
+        self.assertEqual(hub.calls, [])
+        pings = [r for h, r, t in transport.requests if r["op"] == "ping"]
+        self.assertEqual([p["protocol"] for p in pings], [PROTOCOL, 2])  # the hub steps its ping down once
+        run = next(r for h, r, t in transport.requests if r["op"] == "run")
+        self.assertEqual(run["protocol"], 2)
+
+    def test_a_cancel_to_an_old_worker_carries_its_own_protocol(self) -> None:
+        def run(_request: Dict[str, Any]) -> Any:
+            return WorkerError("no reply within 5s")
+
+        router, hub, transport = self.router({"node-1": by_op(ping=self.old_worker(), run=run, cancel={"ok": True})})
+        with workers("node-1"):
+            router.run("node-1", "a")
+        cancel = next(r for h, r, t in transport.requests if r["op"] == "cancel")
+        self.assertEqual(cancel["protocol"], 2)
 
     def test_busy_worker_falls_back_but_stays_usable(self) -> None:
         busy = {"ok": False, "busy": True, "error": "busy: 2 jobs running"}
@@ -443,6 +474,25 @@ class WorkerReportTests(unittest.TestCase):
         self.assertEqual(rows["node-2"]["state"], "down")
         self.assertIn("protocol mismatch", rows["node-2"]["error"])
 
+    def test_a_worker_answering_protocol_2_is_up_with_its_protocol(self) -> None:
+        def old_ping(request: Dict[str, Any]) -> Dict[str, Any]:
+            if request["protocol"] != 2:
+                return {"ok": False, "error": "protocol mismatch: worker speaks 2", "protocol": 2}
+            return dict(ok_ping(), protocol=2)
+
+        report = self.report({"node-1": by_op(ping=old_ping)})
+        rows = {row["id"]: row for row in report["workers"]}
+        self.assertEqual((rows["node-1"]["state"], rows["node-1"]["protocol"]), ("up", 2))
+        self.assertEqual([r["protocol"] for h, r, t in self.requests if r["op"] == "ping" and h == "node-1"],
+                         [PROTOCOL, 2])
+
+    def test_a_worker_answering_protocol_4_is_refused_and_shown_with_it(self) -> None:
+        report = self.report({"node-1": by_op(ping={"ok": True, "protocol": PROTOCOL + 1, "version": "abc"})})
+        rows = {row["id"]: row for row in report["workers"]}
+        self.assertEqual(rows["node-1"]["state"], "down")
+        self.assertEqual(rows["node-1"]["protocol"], PROTOCOL + 1)
+        self.assertIn("update the worker", rows["node-1"]["error"])
+
     def test_the_report_asks_for_a_fresh_ping_at_the_current_protocol(self) -> None:
         self.report({"node-1": by_op(ping=ok_ping()), "node-2": by_op(ping=ok_ping())})
         for _host, request, timeout in self.requests:
@@ -529,6 +579,14 @@ class WorkerDaemonTests(unittest.TestCase):
         self.assertFalse(self.ask(self.run_request(providers=["rm -rf"]))["ok"])
         self.assertFalse(self.ask(dict(self.run_request(), job="../etc"))["ok"])
         self.assertFalse(self.ask({"op": "shell", "protocol": PROTOCOL})["ok"])
+
+    def test_requests_at_every_compatible_protocol_are_served(self) -> None:
+        # An old hub may still send 2: the worker serves it and always answers with its own protocol.
+        self.start(self.ECHO)
+        for protocol in remote_agents.COMPATIBLE_PROTOCOLS:
+            reply = self.ask({"op": "ping", "protocol": protocol})
+            self.assertTrue(reply["ok"], reply)
+            self.assertEqual(reply["protocol"], PROTOCOL)
 
     def test_client_without_a_daemon_says_so(self) -> None:
         reply = self.ask({"op": "ping", "protocol": PROTOCOL})

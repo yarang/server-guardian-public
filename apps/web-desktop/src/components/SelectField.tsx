@@ -15,7 +15,7 @@ export function SelectField({
 }: { label: string; options: SelectOption[] } & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'>) {
   const id = useId();
   return (
-    <div style={{ display: 'grid', gap: 'var(--sg-s-2)', minWidth: 220 }}>
+    <div style={{ display: 'grid', gap: 'var(--sg-s-2)', minWidth: 'min(220px, 100%)', maxWidth: '100%' }}>
       <label htmlFor={id} style={{ color: 'var(--sg-text-secondary)', fontSize: 12, fontWeight: 600 }}>
         {label}
       </label>
@@ -23,6 +23,9 @@ export function SelectField({
         id={id}
         {...rest}
         style={{
+          // A long option text must not widen the field past its container (narrow screens).
+          minWidth: 0,
+          maxWidth: '100%',
           height: 40,
           padding: '0 var(--sg-s-4)',
           background: 'var(--sg-surface)',

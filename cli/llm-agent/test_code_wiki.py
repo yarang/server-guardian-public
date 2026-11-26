@@ -585,7 +585,7 @@ class WikiPromptTests(EngineHarness):
         self.assertEqual((self.started()["wiki_pages"], self.started()["wiki_stale"]), (3, 1))
         self.assertEqual(self.last_result["context"]["wiki"], {"shown": ["svc", "tool"],
                                                               "states": {"old": "broken", "svc": "fresh", "tool": "fresh"}})
-        self.assertEqual(self.started()["prompt_version"], "2026-10-23.p20")
+        self.assertEqual(self.started()["prompt_version"], "2026-11-11.p29")
 
     def test_at_most_forty_fresh_pages_are_listed(self) -> None:
         for n in range(45):
@@ -835,6 +835,18 @@ class WriterTests(BuildCase):
             self.assertIn(needle, first)
         self.assertNotIn("Code wiki (navigation notes)", first)  # the writer never sees other pages' text
         self.assertNotIn("Zebra title", first)
+        # wiki7: no debate words in the language rule, one size, the findings block named
+        self.assertNotIn("decision, rationale, constraints", first)
+        self.assertIn("Keep the page under about 6000 characters", first)
+        self.assertIn("A ```findings block after the page is allowed", first)
+
+    def test_link_candidates_put_the_family_first_and_reach_past_sixty(self) -> None:
+        known = [f"a{i:03}" for i in range(100)] + ["zz", "zz--one", "zz--two"]
+        offered = wiki_build.link_candidates("zz--one", known)
+        self.assertEqual(offered[:2], ["zz", "zz--two"])
+        self.assertNotIn("zz--one", offered)
+        self.assertEqual(len(offered), 102)
+        self.assertGreaterEqual(wiki_build.MAX_LINK_IDS, len(offered))
 
     def test_wiki_op_is_not_available_to_the_writer_session(self) -> None:
         self.store.save(make_page(RepoTools(self.repo, self.sha), id="other", title="Other"))

@@ -16,7 +16,10 @@ export type IconName =
   | 'trash'
   | 'lock'
   | 'plus'
-  | 'copy';
+  | 'copy'
+  | 'grid'
+  | 'flow'
+  | 'gear';
 
 /** All icon names, useful for galleries and tests. */
 export const ICON_NAMES: IconName[] = [
@@ -34,6 +37,9 @@ export const ICON_NAMES: IconName[] = [
   'lock',
   'plus',
   'copy',
+  'grid',
+  'flow',
+  'gear',
 ];
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -75,6 +81,28 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="8" height="8" rx="1.5" />
+      <rect x="13" y="3" width="8" height="5" rx="1.5" />
+      <rect x="13" y="10" width="8" height="11" rx="1.5" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" />
+    </>
+  ),
+  flow: (
+    <>
+      <rect x="3" y="4" width="6" height="5" rx="1.5" />
+      <rect x="15" y="4" width="6" height="5" rx="1.5" />
+      <rect x="9" y="15" width="6" height="5" rx="1.5" />
+      <path d="M9 6.5h6M6 9v8.5h3M18 9v8.5h-3" />
+    </>
+  ),
+  gear: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M10.0 5.5 L10.4 2.9 L13.6 2.9 L14.0 5.5 L15.2 6.0 L17.3 4.5 L19.5 6.7 L18.0 8.8 L18.5 10.0 L21.1 10.4 L21.1 13.6 L18.5 14.0 L18.0 15.2 L19.5 17.3 L17.3 19.5 L15.2 18.0 L14.0 18.5 L13.6 21.1 L10.4 21.1 L10.0 18.5 L8.8 18.0 L6.7 19.5 L4.5 17.3 L6.0 15.2 L5.5 14.0 L2.9 13.6 L2.9 10.4 L5.5 10.0 L6.0 8.8 L4.5 6.7 L6.7 4.5 L8.8 6.0Z" />
     </>
   ),
 };

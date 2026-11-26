@@ -69,6 +69,8 @@ node (`remote-agents.md`). `expert` stays required (the lead who consolidates in
 
 1. **Closed list, not a graph.** Kinds are implemented and tested in the engine; a team picks one. A generic stage
    list or node graph would force every guarantee above to be generalised per stage and is not done now.
+   *Revised 2026-10-29: the closed list may be a list of step kinds that a template combines, with the shared close,
+   no model-driven branching and a byte-identical re-expression of the five kinds; see `flow-templates.md`.*
 2. **The close is shared** (see above); this is also why the Judge is mandatory.
 3. **Validation in `team_manager.py`**: unknown `kind`, wrong member counts, `stance` missing or longer than 400
    characters, a flow field on a team of another kind are `TeamValidationError`. Snapshots omit `flow` when it is
@@ -108,8 +110,14 @@ node (`remote-agents.md`). `expert` stays required (the lead who consolidates in
   for three drafters) suggests starting with the existing limit (3 panelists) and raising it after F5.
 - `versus` has a fixed `exchanges` (1, at most 2); the Judge cannot ask for a third.
 - Cost labels in the team editor (calls per round per flow) are worth showing; the numbers come from F5.
+- The flow picker of F4 and the start form meet in `flow-templates.md` (template -> parameters -> team); build them
+  together there, not twice.
 
 ## Implementation notes
+
+> Since flow templates T2 (2026-10-29) the engine functions named below (`_flow_debate`, `_flow_critique`,
+> `_flow_pipeline`, `_flow_versus`) are step lists run by `_flow_steps`; see `flow-templates.md`. The notes keep the
+> names they were written with.
 
 - **F0** (`bdbed56`): a pure refactor. The middle of the round became `DebateEngine._flow_debate()` with `FlowContext`
   and `Middle`. The gate was a golden dump of every builtin team under five scenarios (plain, proposers, resumed, two

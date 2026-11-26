@@ -22,6 +22,7 @@ import {
 } from '../../lib/debate';
 import { errorText } from '../../lib/format';
 import { useOptionalApprovalsStore } from '../../state/approvalsStore';
+import { ActionReviews } from '../review/ActionReviews';
 import { navigate } from '../../router';
 import { useOperationsStore } from '../../state/operationsStore';
 import type { ActionItem, JevRecheckResponse } from '../../types';
@@ -312,6 +313,8 @@ export function ActionDialog({ id, onClose, onChanged }: { id: number; onClose: 
               {running ? <span style={{ color: 'var(--sg-text-secondary)' }}>{tr.debate.dialog.runningNote}</span> : null}
             </Row>
           ) : null}
+          {/* V2e: quick reviews of the proposed patch; advisory only, so it sits apart from execute / reject. */}
+          {a.tool === 'jev_mcp:apply_patch' ? <ActionReviews projectId={a.project_id} actionId={a.id} proposed={isProposed} /> : null}
           {status === 'HELD' ? (
             <Stack gap="var(--sg-s-3)">
               <Notice tone="warn">

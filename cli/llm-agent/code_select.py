@@ -46,12 +46,12 @@ def parse_selector(pattern: str) -> Selector:
     """Splits 'glob#Symbol' or 'glob:START-END'. Raises ValueError for a malformed selector."""
     if "#" in pattern:
         glob, symbol = pattern.rsplit("#", 1)
-        if not glob or not SYMBOL_PATTERN.match(symbol):
+        if not glob or not SYMBOL_PATTERN.fullmatch(symbol):
             raise ValueError(f"invalid symbol selector: {pattern!r} (use path#Name or path#Type.Method)")
         return Selector(glob, symbol=symbol)
     head, sep, tail = pattern.rpartition(":")
-    if sep and RANGE_PATTERN.match(tail):
-        start, end = (int(x) for x in RANGE_PATTERN.match(tail).groups())
+    if sep and RANGE_PATTERN.fullmatch(tail):
+        start, end = (int(x) for x in RANGE_PATTERN.fullmatch(tail).groups())
         if not head or start < 1 or end < start:
             raise ValueError(f"invalid line range: {pattern!r} (use path:START-END with START <= END)")
         return Selector(head, lines=(start, end))

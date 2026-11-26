@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 import ops_checks
 from mcp_client import MCPClient
 from project_registry import ProjectManager
+from role_cards import persona_text
 from team_manager import TeamManager, judge_tools
 
 # the lineups the specialists must not disturb: fleet-ops runs the nightly watch and keeps its members
@@ -89,7 +90,8 @@ class CalibrationTests(unittest.TestCase):
     """Critics grade their objections and invent no prohibitions, as the provisioning critics do."""
 
     def prompt(self, persona_id: str) -> str:
-        return persona(persona_id).get("system_prompt", "")
+        # what reaches the model: an opted-in persona's citation sentence comes from its ops role card (C1)
+        return persona_text(persona(persona_id))
 
     def test_critics_grade_each_objection(self) -> None:
         for pid in CRITICS:
@@ -121,9 +123,26 @@ class CalibrationTests(unittest.TestCase):
             with self.subTest(persona=pid):
                 self.assertIn("다른 검토자의 일", self.prompt(pid))
 
-    def test_fleet_ops_prompts_are_untouched(self) -> None:
-        self.assertNotIn("[차단]", self.prompt("ops_safety_critic"))
-        self.assertNotIn("[차단]", self.prompt("ops_capacity_critic"))
+    def test_fleet_ops_is_calibrated_like_the_specialists(self) -> None:
+        # the operator's decision of 2026-10-30: the watch team grades objections too (it kept its members)
+        for pid in FLEET_OPS["critics"]:
+            with self.subTest(persona=pid):
+                self.assertIn("[차단]", self.prompt(pid))
+                self.assertIn("[권고]", self.prompt(pid))
+                self.assertIn("[#번호 조회 호스트]", self.prompt(pid))
+                self.assertIn("다른 검토자의 일", self.prompt(pid))
+        judge = self.prompt(FLEET_OPS["judge"])
+        self.assertIn("금지 조건", judge)
+        self.assertIn("[권고]", judge)
+        self.assertIn("이 도구로는 못 한다", judge)
+
+    def test_the_capacity_critic_asks_for_no_config_check(self) -> None:
+        # no check reads journald or logrotate settings: the prompt names that as out of the tools
+        text = self.prompt("ops_capacity_critic")
+        self.assertIn("도구 밖", text)
+        for name in ("journal_usage", "package_cache", "docker_usage", "largest_dirs", "largest_files"):
+            self.assertIn(name, KNOWN_CHECKS)
+            self.assertIn(name, text)
 
 
 class CheckNamesTests(unittest.TestCase):

@@ -25,7 +25,7 @@ const renderPage = () =>
       </AppStores>
     </GuardianRoot>
   );
-/** The Summary never audits by itself: the operator starts the fleet SSH audit from its card. */
+/** The Overview page never audits by itself: the operator starts the fleet SSH audit from its card. */
 const runAudit = async () => fireEvent.click(await screen.findByRole('button', { name: ko.ops.overview.ssh.runAudit }));
 const card = async (title: string) => (await screen.findByRole('region', { name: title })) as HTMLElement;
 
@@ -103,7 +103,7 @@ describe('OverviewPage', () => {
     expect(mocked.fetchFleetSSHAudit).toHaveBeenCalledWith([], true);
   });
 
-  it('titles the summary with the glance heading', async () => {
+  it('titles the page with the glance heading', async () => {
     renderPage();
     expect(await screen.findByRole('region', { name: ko.ops.overview.glance.title })).toBeTruthy();
     expect(screen.queryByText('Needs attention')).toBeNull();
@@ -242,6 +242,21 @@ describe('OverviewPage', () => {
     const c = await card(ko.ops.overview.debates.title);
     expect(await within(c).findByRole('link', { name: 'Harden sshd' })).toBeTruthy();
     expect(within(c).queryByText('code wiki build: stale pages')).toBeNull();
+  });
+
+  it('lists the latest quick reviews of a code project above its debates (verification layer V1c)', async () => {
+    mocked.fetchProjects.mockResolvedValue({ custom_dir: '/x', projects: [
+      { id: 'server-guardian', source: 'builtin', data: { id: 'server-guardian', name: 'SG' }, errors: [], status: { present: true } },
+    ] });
+    mocked.fetchReviewList.mockResolvedValue([{ id: 'review_20261123_101112_ab12cd', status: 'completed', label: 'REVIEW',
+      note: 'advisory, no Judge', state: 'done', project: 'server-guardian', range: 'main~1..main',
+      counts: { high: 1, medium: 0, low: 2, notes: 0 }, created: '2026-11-23T10:00:00Z' }]);
+    renderPage();
+    const c = await card(ko.ops.overview.debates.title);
+    const reviews = await within(c).findByRole('region', { name: ko.ops.overview.debates.reviewsHeading });
+    expect(within(reviews).getByRole('link', { name: 'main~1..main' }).getAttribute('href')).toBe('#/debates/review/review_20261123_101112_ab12cd');
+    expect(within(reviews).getByText(ko.review.counts(1, 0, 2))).toBeTruthy();
+    mocked.fetchReviewList.mockResolvedValue([]);
   });
 
   it('says so when there are no debates', async () => {

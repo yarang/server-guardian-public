@@ -86,12 +86,13 @@ MAX_RETENTION_DAYS = artifact_ops.MAX_RETENTION_DAYS
 REVIEW_KEYS = {"rubric"}
 DEFAULT_RUBRIC = ("consistency", "missing requirements", "diagram accuracy")
 MAX_RUBRIC_ITEMS = 10
-DESIGN_POLICY_KEYS = {"allowed_actions"}
+DESIGN_POLICY_KEYS = {"allowed_actions", "resident_query_agents"}
 DESIGN_ACTIONS = (artifact_ops.TOOL,)
+CODE_POLICY_KEYS = {"resident_query_agents"}
 TARGET_KEYS = {"all", "groups", "nodes", "exclude"}
 # Policy keys implemented so far; later phases add theirs (deny_paths, auto_run, ...), unknown keys are refused.
 POLICY_KEYS = {"allowed_actions", "include_hub", "deny_paths", "deny_commands", "protected_packages", "auto_run", "max_auto_runs_per_day", "batch",
-               "watch"}
+               "watch", "resident_query_agents"}
 MAX_AUTO_RUNS_PER_DAY = 100
 MAX_TARGET_IDS = 200
 TARGET_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -221,7 +222,7 @@ def _test_command(raw: Any, i: int) -> Tuple[Tuple[str, ...], Dict[str, bool]]:
     if not isinstance(flags, dict) or len(flags) > 30:
         raise ProjectValidationError(f"{where}.flags must be an object of at most 30 flags")
     for name, takes_value in flags.items():
-        if not FLAG_PATTERN.match(str(name)) or not isinstance(takes_value, bool):
+        if not FLAG_PATTERN.fullmatch(str(name)) or not isinstance(takes_value, bool):
             raise ProjectValidationError(f"{where}.flags: {name!r} must map a flag like '-v' to true/false")
     return prefix, dict(flags)
 
@@ -259,6 +260,24 @@ def _batch_int(raw: Dict[str, Any], key: str, default: int, low: int, high: int)
     if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
         raise ProjectValidationError(f"policy.batch.{key} must be an integer from {low} to {high}")
     return value
+
+
+def _parse_resident_query_agents(raw: Any) -> Optional[List[str]]:
+    """Optional policy.resident_query_agents (docs/design/resident-session-query.md, QD1):
+    None = any declared resident agent; [] = disabled for this project; [addr, ...] = allowlist."""
+    if raw is None:
+        return None
+    if not isinstance(raw, list) or len(raw) > MAX_TARGET_IDS or not all(isinstance(a, str) for a in raw):
+        raise ProjectValidationError("policy.resident_query_agents must be a list of resident addresses (name@node)")
+    import mail_store
+    cleaned: List[str] = []
+    for addr in raw:
+        val = addr.strip()
+        if not mail_store.valid_address(val):
+            raise ProjectValidationError(f"policy.resident_query_agents: invalid resident address {addr!r}")
+        if val not in cleaned:
+            cleaned.append(val)
+    return cleaned
 
 
 def _parse_batch(raw: Any) -> Dict[str, Any]:
@@ -381,6 +400,13 @@ def _parse_ops(data: Dict[str, Any], pid: str) -> Project:
         watch = ops_watch.parse_watch(policy.get("watch"))
     except ValueError as exc:
         raise ProjectValidationError(f"policy.{exc}") from exc
+    rqa = _parse_resident_query_agents(policy.get("resident_query_agents"))
+    ops_policy = {"allowed_actions": list(dict.fromkeys(allowed)), "include_hub": include_hub, "deny_paths": deny_paths,
+                  "deny_commands": deny_commands,
+                  "protected_packages": protected_packages, "auto_run": list(dict.fromkeys(auto_run)),
+                  "max_auto_runs_per_day": max_runs, "watch": watch, "batch": batch}
+    if rqa is not None:
+        ops_policy["resident_query_agents"] = rqa
     return Project(
         id=pid,
         name=_text(data.get("name"), "name") or pid,
@@ -388,10 +414,7 @@ def _parse_ops(data: Dict[str, Any], pid: str) -> Project:
         kind=OPS_KIND,
         team=_team(data),
         targets=parsed,
-        policy={"allowed_actions": list(dict.fromkeys(allowed)), "include_hub": include_hub, "deny_paths": deny_paths,
-                "deny_commands": deny_commands,
-                "protected_packages": protected_packages, "auto_run": list(dict.fromkeys(auto_run)),
-                "max_auto_runs_per_day": max_runs, "watch": watch, "batch": batch},
+        policy=ops_policy,
     )
 
 
@@ -482,12 +505,16 @@ def _parse_design(data: Dict[str, Any], pid: str) -> Project:
             or not set(allowed) <= set(DESIGN_ACTIONS)):
         raise ProjectValidationError(
             f"policy.allowed_actions: a design project may allow {', '.join(DESIGN_ACTIONS)} (or [] for none)")
+    rqa = _parse_resident_query_agents(policy.get("resident_query_agents"))
+    design_policy: Dict[str, Any] = {"allowed_actions": list(dict.fromkeys(allowed))}
+    if rqa is not None:
+        design_policy["resident_query_agents"] = rqa
     return Project(
         id=pid,
         name=_text(data.get("name"), "name") or pid,
         description=_text(data.get("description"), "description"),
         kind=DESIGN_KIND,
-        policy={"allowed_actions": list(dict.fromkeys(allowed))},
+        policy=design_policy,
         artifacts=_parse_artifacts(data.get("artifacts")),
         review=_parse_review(data.get("review")),
     )
@@ -508,7 +535,7 @@ def parse_project(data: Any) -> Project:
     if not isinstance(data, dict):
         raise ProjectValidationError("a project must be a JSON object")
     pid = data.get("id")
-    if not isinstance(pid, str) or not PROJECT_ID_PATTERN.match(pid):
+    if not isinstance(pid, str) or not PROJECT_ID_PATTERN.fullmatch(pid):
         raise ProjectValidationError("id: use 1-64 lowercase letters, digits, - or _ (starting with a letter or digit)")
     kind = data.get("kind", CODE_KIND)
     if kind not in KINDS:
@@ -517,9 +544,20 @@ def parse_project(data: Any) -> Project:
         if pid == DEFAULT_PROJECT_ID:
             raise ProjectValidationError(f"{DEFAULT_PROJECT_ID} is the code project of this repository")
         return _parse_ops(data, pid) if kind == OPS_KIND else _parse_design(data, pid)
-    for key in ("targets", "policy", "runbook"):
+    for key in ("targets", "runbook"):
         if data.get(key) is not None:
             raise ProjectValidationError(f"{key} belongs to ops projects; set \"kind\": \"ops\"")
+    code_policy: Dict[str, Any] = {}
+    if data.get("policy") is not None:
+        raw_pol = data["policy"]
+        if not isinstance(raw_pol, dict):
+            raise ProjectValidationError("policy must be an object")
+        extra_keys = sorted(set(raw_pol) - CODE_POLICY_KEYS)
+        if extra_keys:
+            raise ProjectValidationError(f"policy ({', '.join(extra_keys)}) belongs to ops projects; set \"kind\": \"ops\"")
+        rqa = _parse_resident_query_agents(raw_pol.get("resident_query_agents"))
+        if rqa is not None:
+            code_policy["resident_query_agents"] = rqa
     _refuse_design_keys(data)
     repo = data.get("repo") or None
     # "${GUARDIAN_SELF_REPO}": the URL comes from the hub's environment (the installer writes it into agent.env), so
@@ -527,10 +565,10 @@ def parse_project(data: Any) -> Project:
     env_ref = ENV_REF.fullmatch(repo) if isinstance(repo, str) else None
     if env_ref:
         repo = os.environ.get(env_ref.group(1), "").strip() or None
-    if repo is not None and (not isinstance(repo, str) or not REPO_PATTERN.match(repo) or ".." in repo):
+    if repo is not None and (not isinstance(repo, str) or not REPO_PATTERN.fullmatch(repo) or ".." in repo):
         raise ProjectValidationError("repo must be an https URL without credentials, e.g. https://git.example.com/me/repo.git")
     branch = data.get("branch") or "main"
-    if not isinstance(branch, str) or not BRANCH_PATTERN.match(branch) or ".." in branch:
+    if not isinstance(branch, str) or not BRANCH_PATTERN.fullmatch(branch) or ".." in branch:
         raise ProjectValidationError("branch: invalid branch name")
     workspace_raw = data.get("workspace") or None
     if workspace_raw is not None:
@@ -583,6 +621,7 @@ def parse_project(data: Any) -> Project:
         context=context,
         wiki_docs=wiki_docs,
         team=_team(data),
+        policy=code_policy,
     )
     if repo is None and workspace_raw is None:
         raise ProjectValidationError("give a repo to clone, or the workspace of an existing clone")
@@ -704,7 +743,7 @@ class ProjectManager:
         return list(merged.values())
 
     def get_raw(self, project_id: str) -> Optional[Dict[str, Any]]:
-        if not PROJECT_ID_PATTERN.match(project_id or ""):
+        if not PROJECT_ID_PATTERN.fullmatch(project_id or ""):
             return None
         for directory in (self.directory, self.builtin_dir):
             path = directory / f"{project_id}.json"
@@ -724,7 +763,7 @@ class ProjectManager:
         return project
 
     def is_custom(self, project_id: str) -> bool:
-        return bool(PROJECT_ID_PATTERN.match(project_id or "")) and (self.directory / f"{project_id}.json").exists()
+        return bool(PROJECT_ID_PATTERN.fullmatch(project_id or "")) and (self.directory / f"{project_id}.json").exists()
 
     def save(self, data: Dict[str, Any]) -> Project:
         data = {k: v for k, v in data.items() if k != "source"} if isinstance(data, dict) else data

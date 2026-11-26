@@ -1,0 +1,14 @@
+{
+  "id": "jev",
+  "name": "jev verdict",
+  "kind": "jev",
+  "description": "TypeSafe System One answers whether the judge can write the decision now (question set 2); the decision is still written by the close's character.",
+  "reviewed": "2026-11-02",
+  "roles": ["decide", "alarm"],
+  "projects": ["code", "ops", "design"],
+  "timeout_s": 60,
+  "questions": 2,
+  "approve_at": 0.8,
+  "reject_at": 0.2,
+  "shadow_bar": {"min_verdicts": 30, "min_agreement": 0.9}
+}

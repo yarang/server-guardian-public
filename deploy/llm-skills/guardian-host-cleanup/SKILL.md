@@ -14,12 +14,18 @@ done here: on the hub use `guardian-fleet-ops`, so the actions are debated, audi
 
 ## Rules (never break them)
 
+- First look at what this host is: `uname -s` and `/etc/os-release`. The commands below are for Debian and Ubuntu
+  (apt, dpkg, GNU tools). On any other system (macOS, a dnf or zypper distribution) say which actions do not apply here
+  and run none of those; do not translate them into another package manager's commands.
 - Only the actions below. No other `rm`, no package removal other than old kernels, no config edits.
-- Never touch: `/`, `/etc`, `/boot`, `/usr`, `/bin`, `/sbin`, `/lib*`, `/var/lib` (docker data only through docker),
-  `/var/backups`, `/proc`, `/sys`, `/dev`, `/run`, `/snap`, `/home/<user>` or `/root` themselves, and any path with a
-  component `.ssh`, `.gnupg`, `.aws`, `.docker`, `.kube`, `.claude`, `.codex`, `.gemini`, `.guardian`, `.config`,
-  `.local`, `server-guardian`, `guardian-workspace`, `guardian-eval` or `gitea`, or a secret-looking file
-  (`*.enc`, `.env`, `*.key`, `*.pem`, `id_*`, `*credential*`, `*secret*`).
+- Never touch: `/`, `/etc`, `/boot`, `/usr`, `/bin`, `/sbin`, `/lib`, `/var/lib` (docker data only through docker),
+  `/var/backups`, `/proc`, `/sys`, `/dev`, `/run`, `/snap`, `/lib32`, `/lib64`, `/libx32` (nothing at or below them),
+  and any path with a component `.ssh`, `.gnupg`, `.aws`, `.docker`, `.kube`, `.claude`, `.codex`, `.gemini`,
+  `.guardian`, `.config`, `.local`, `server-guardian`, `guardian-workspace`, `guardian-workspaces`, `guardian-eval` or
+  `gitea`, or a secret-looking file (`*.enc`, `.env`, `*.key`, `*.pem`, `id_*`, `*credential*`, `*secret*`).
+- Never remove or empty these directories themselves, only named paths below them: `/`, `/home`, `/root`, `/var`,
+  `/var/lib`, `/var/log`, `/var/cache`, `/var/tmp`, `/var/spool`, `/var/mail`, `/tmp`, `/opt`, `/srv`, `/mnt`,
+  `/media`, `/snap`, and a user's home directory (`/home/<user>`).
 - Paths must be plain absolute paths shown by a check: no globs, no `..`, never across a mount point.
 - Use `sudo -n` (never a password prompt). If it fails, report that the node has no passwordless sudo and stop.
 - Before each action: measure, show what will be deleted and how much, ask "실행할까요?" and wait for a clear yes.

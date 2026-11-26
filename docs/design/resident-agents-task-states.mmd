@@ -1,0 +1,18 @@
+stateDiagram-v2
+    [*] --> blocked: task_create with open blocked_by (existing, visible tasks only)
+    [*] --> pending: task_create, no open blocker
+    blocked --> pending: last blocker completed
+    blocked --> cancelled: a blocker failed, was cancelled or expired
+    pending --> in_progress: task_claim by the assignee (or anyone if unassigned), owner set, generation + 1
+    in_progress --> completed: task_update by owner at current generation, with result and call log
+    in_progress --> failed: task_update by owner at current generation, with reason
+    in_progress --> pending: task_release by owner, or hub after 10 min not ready; owner cleared, generation + 1
+    pending --> cancelled: operator or creator cancels
+    in_progress --> cancelled: operator cancels (shutdown)
+    pending --> expired: lifetime reached
+    blocked --> expired: lifetime reached
+    in_progress --> expired: lifetime reached
+    completed --> [*]
+    failed --> [*]
+    cancelled --> [*]
+    expired --> [*]

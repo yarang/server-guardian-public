@@ -15,6 +15,8 @@ EnvironmentFile=/home/ubuntu/.guardian/agent.env
 # Design artifacts (docs/design/design-project.md, decision 11): expire old versions first; "-" keeps a failure here from
 # skipping the watch.
 ExecStartPre=-/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --artifacts-prune
+ExecStartPre=-/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --solo-prune
+ExecStartPre=-/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --review-prune
 ExecStart=/usr/bin/python3 /home/ubuntu/.guardian/current/cli/llm-agent/guardian.py --ops-watch
 
 NoNewPrivileges=yes

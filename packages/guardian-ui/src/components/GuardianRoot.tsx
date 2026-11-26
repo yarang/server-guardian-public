@@ -3,8 +3,8 @@ import { cx } from '../utils/cx';
 
 /** Props for {@link GuardianRoot}. */
 export interface GuardianRootProps extends HTMLAttributes<HTMLDivElement> {
-  /** Color theme. Only the dark graphite theme exists today. */
-  theme?: 'dark';
+  /** Color theme. Only the warm paper light theme exists today. */
+  theme?: 'light';
 }
 
 /**
@@ -13,7 +13,7 @@ export interface GuardianRootProps extends HTMLAttributes<HTMLDivElement> {
  * Wrap your whole app (or each mounted island) in this component; import
  * `@server-guardian/ui/styles.css` once at the application entry.
  */
-export function GuardianRoot({ theme = 'dark', className, children, ...rest }: GuardianRootProps) {
+export function GuardianRoot({ theme = 'light', className, children, ...rest }: GuardianRootProps) {
   return (
     <div className={cx('sg-root', className)} data-sg-theme={theme} {...rest}>
       {children}

@@ -342,3 +342,12 @@ CLI가 통신합니다).
 - 확인된 것: `host` 배치(`worker:any`, `worker:other`), 실제 모델 CLI로 허브 → ssh → 워커 경로, 결과가 공유 Judge 마무리로
   이어지는 흐름. 확인되지 않은 것: 실제 노드에서의 폴백 경로(가짜 플릿 시험만 있음), 워커가 바쁜 경우(`max_jobs` 2에
   닿은 적 없음), 허브와 워커 실행의 품질 차이(토론 한 번).
+
+### 스냅샷 경로 검사 (2026-10-30)
+
+`import_stream`은 트리 밖을 가리키는 경로를 `git fast-import`가 거부해 주리라 믿었다. git 2.43.0(Ubuntu 24.04의 기본값)은 `../escape.txt`를
+그대로 저장하므로 그 환경에서 `test_remote_repo.HostileUploadTests`가 실패했고, 그 git을 쓰는 워커에는 이 검사가 없었다. 탐침은 git이
+있는지만 보고 버전은 보지 않는다. 이제 워커가 가져온 트리를 나열하고(`git ls-tree -r -z --name-only`), 경로에 빈 구성 요소, `.`나 `..`
+구성 요소, 대소문자와 상관없이 `.git` 구성 요소가 있으면 업로드를 거부하고 아무것도 남기지 않는다(`repo_snapshot.unsafe_path`). 예전에도
+새어 나간 것은 없었다. 스냅샷은 체크아웃하지 않는 bare 저장소이고, `RepoTools`는 git 객체를 읽으며 요청한 경로의 `..`를 거부한다. 허브가
+만드는 스냅샷에는 그런 경로가 없다. 워커는 다시 설치해야(`install-worker.sh`) 이 검사를 받는다. 스트림 형식과 `SNAPSHOT_FORMAT`은 그대로다.

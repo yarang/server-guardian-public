@@ -34,7 +34,7 @@ from code_context import ContextError, resolve_sha
 from debate_engine import DebateEngine, answer_language_rule, retrieval_enabled
 from debate_events import EventWriter
 from evidence import (
-    MAX_FINDINGS,
+    FINDINGS_BLOCK,
     MAX_QUOTE_CHARS,
     check_findings,
     citation_slack,
@@ -42,7 +42,6 @@ from evidence import (
     is_whole,
     line_covered,
     lines_covered,
-    parse_findings,
 )
 from llm_runner import BUILTIN_PROVIDER
 from mcp_client import MCPClient
@@ -76,6 +75,9 @@ MAX_CLAIM_CHARS = 800
 MAX_UNSEEN_LISTED = 40
 MAX_EVENT_UNVERIFIED = 20
 SEVERITIES = ("high", "medium", "low")
+# Findings one shard answer may hold; the debate's 50 (evidence.MAX_FINDINGS) is too few for a part of a repository
+# (the A4 second run averaged 22 per shard). The prompt states it, and a cut is recorded on the shard.
+MAX_AUDIT_FINDINGS = 200
 DEFAULT_MIN_SEVERITY = "medium"
 RECHECK_SESSION_KEY = "audit-recheck"  # its own retrieval books, apart from the shard's coverage
 RECHECK_EXCERPT_LINES = 80  # at most this many numbered lines of a finding's unit go into the re-check prompt
@@ -168,9 +170,10 @@ FINDINGS_FORMAT = (
     'failure: which input or state, through which path, gives which wrong result or harm>", "severity": "high" | '
     '"medium" | "low"}\n'
     "Severity: high = it goes wrong or can be abused in normal use; medium = it goes wrong under a condition that can "
-    "really occur; low = it holds but is harmless in practice. Report one item per place, at the line where the problem "
-    "is. An empty list `[]` says that you checked every unit and found nothing. Before the block you may add a short "
-    "summary of what you checked."
+    "really occur; low = it is a real instance but harmless in practice. Report one item per place, at the line where "
+    f"the problem is, at most {MAX_AUDIT_FINDINGS} items; if you have more, keep the most severe. An empty list `[]` "
+    "says that you checked every unit and found nothing. The block must be valid JSON: an unreadable block is asked "
+    "for once more and then fails the part. Before the block you may add a short summary of what you checked."
 )
 
 # What made most of the false and debatable findings of the A4 second run (docs/analysis/2026-10-19-audit-a4b).
@@ -184,6 +187,24 @@ PRECISION_RULES = (
     "that already checked them (look at the callers before you call something unchecked);\n"
     "- anything for which you cannot write a concrete failure scenario."
 )
+
+
+def parse_audit_findings(text: str) -> Tuple[Optional[List[Any]], Optional[str], int]:
+    """(items, problem, cut) of the last ```findings block of a shard answer.
+
+    items is None without a block. A block that is there but cannot be read gives ([], problem): unlike a debate's
+    optional block, an empty audit list means "checked and found nothing", so a broken one must not read as that.
+    cut counts the items above MAX_AUDIT_FINDINGS that were left out."""
+    blocks = FINDINGS_BLOCK.findall(text or "")
+    if not blocks:
+        return None, None, 0
+    try:
+        data = json.loads(blocks[-1])
+    except ValueError as exc:
+        return [], f"the findings block is not valid JSON ({exc.msg} at line {exc.lineno})", 0
+    if not isinstance(data, list):
+        return [], "the findings block is not a JSON list", 0
+    return data[:MAX_AUDIT_FINDINGS], None, max(0, len(data) - MAX_AUDIT_FINDINGS)
 
 
 def build_shard_prompt(plan: Dict[str, Any], shard: Dict[str, Any], language_rule: str) -> str:
@@ -223,11 +244,15 @@ def build_shard_prompt(plan: Dict[str, Any], shard: Dict[str, Any], language_rul
     ])
 
 
-def build_followup(plan: Dict[str, Any], missing: List[Dict[str, Any]], no_block: bool) -> str:
-    """The single re-ask of a shard: the units not completely shown and/or the missing findings block."""
+def build_followup(plan: Dict[str, Any], missing: List[Dict[str, Any]], no_block: bool,
+                   problem: Optional[str] = None) -> str:
+    """The single re-ask of a shard: the units not completely shown, the missing findings block and/or why the block
+    could not be read."""
     parts = ["=== AUDIT CHECK ==="]
     if no_block:
         parts.append("Your answer has no ```findings block, so it cannot be used.")
+    if problem:
+        parts.append(f"Your ```findings block cannot be read: {problem}. Write it again as valid JSON.")
     if missing:
         parts.append("You were not shown all lines of these units, so they cannot count as checked:")
         for unit in missing[:MAX_UNSEEN_LISTED]:
@@ -271,7 +296,7 @@ def judge_findings(repo: Any, items: List[Any], units: List[Dict[str, Any]], sho
     file within `slack` lines and the line among those shown to the session (any line of a file-level file)."""
     checked = check_findings(repo, items, slack)
     out = []
-    for item, check in zip(items[:MAX_FINDINGS], checked):
+    for item, check in zip(items[:MAX_AUDIT_FINDINGS], checked):
         if not isinstance(item, dict):  # kept, never dropped silently
             out.append({"unit": None, "path": "", "line": 0, "quote": "", "claim": "", "severity": "medium",
                         "verified": False, "reason": "the finding is not an object"})
@@ -437,7 +462,8 @@ class AuditRunner:
             raise RunError(f"commit {self.plan['sha'][:12]} of the plan is not in the workspace: {exc}") from exc
         self.engine.mcp = MCPClient(workspace=self.project.workspace, project=self.project)
         self.engine._wiki_exposure = False  # a shard is not judged on what a wiki page claims
-        self.engine._language_rule = answer_language_rule(self.language_name)
+        self.engine._findings_rules = False  # FINDINGS_FORMAT replaces the debate's optional findings block
+        self.engine._language_rule = answer_language_rule(self.language_name, debate=False)
         self.engine._system_prompt = AUDIT_SYSTEM
 
     def run(self, max_shards: Optional[int] = None) -> Dict[str, Any]:
@@ -576,29 +602,37 @@ class AuditRunner:
             return self._failure(why)
         if not text.strip() or text.lstrip().startswith("(no answer"):
             return {"state": "failed", "error": "no_answer: the session ended without an answer"}
-        items = parse_findings(text)
+        items, problem, cut = parse_audit_findings(text)
         shown, file_level = shown_state()
         missing = unseen_units(units, shown, file_level)
-        if items is None or missing:  # one re-ask for the block and for the units that were not completely shown
+        if items is None or problem or missing:  # one re-ask for the block and the units not completely shown
             again_trace: Dict[str, Any] = {}
-            provider_2, text_2, why = ask(build_followup(self.plan, missing, items is None), 2, again_trace)
-            again = parse_findings(text_2) if provider_2 != BUILTIN_PROVIDER else None
-            if provider_2 == BUILTIN_PROVIDER and (items is None or is_rate_limited(why)):
+            provider_2, text_2, why = ask(build_followup(self.plan, missing, items is None, problem), 2, again_trace)
+            again, again_problem, again_cut = (parse_audit_findings(text_2) if provider_2 != BUILTIN_PROVIDER
+                                               else (None, None, 0))
+            if provider_2 == BUILTIN_PROVIDER and (items is None or problem or is_rate_limited(why)):
                 return self._failure(why)  # a quota failure here defers the shard, it does not end it as incomplete
-            if again is not None:
-                provider, items, trace = provider_2, again, again_trace
+            # take the second block unless it is broken where the first was readable
+            if again is not None and not (again_problem and items is not None and not problem):
+                provider, items, problem, cut, trace = provider_2, again, again_problem, again_cut, again_trace
             shown, file_level = shown_state()
             missing = unseen_units(units, shown, file_level)
         if items is None:
             return {"state": "failed", "error": "bad_format: the answer has no findings block"}
+        if problem:
+            return {"state": "failed", "error": f"bad_format: {problem}"[:300]}
         findings = judge_findings(repo, items, units, shown, file_level, slack)
         unverified, candidates, notes = split_findings(findings, audit_min_severity())
         checked = self._recheck(shard, thread_id, repo, units_by_id, candidates, agent_name)
         if "state" in checked:  # out of quota: the shard is deferred and its first session is run again later
             return checked
         notes += checked["notes"]
-        return self._record(shard, provider, checked["confirmed"] + unverified, notes, checked["summary"], missing,
-                            trace, shown)
+        record = self._record(shard, provider, checked["confirmed"] + unverified, notes, checked["summary"], missing,
+                              trace, shown)
+        if cut:  # items the answer held above MAX_AUDIT_FINDINGS: the shard is not reported as if it had no more
+            record["findings_cut"] = cut
+            self.events.emit("audit_findings_cut", {"shard": shard["id"], "cut": cut, "kept": MAX_AUDIT_FINDINGS})
+        return record
 
     def _recheck(self, shard: Dict[str, Any], thread_id: str, repo: Any, units_by_id: Dict[str, Dict[str, Any]],
                  candidates: List[Dict[str, Any]], agent_name: str) -> Dict[str, Any]:

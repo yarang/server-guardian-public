@@ -13,13 +13,17 @@ import { navigate } from '../../router';
 import { hasNoRepository, opsProjectFor } from '../../lib/project';
 import { clearDebatePrefill, useDebatePrefill } from '../../state/debatePrefill';
 import { useProjectStore } from '../../state/projectStore';
-import type { DebateStartRequest, TeamEntry } from '../../types';
+import { buildParams, paramDefaults, paramLabel, paramMax } from '../../lib/flowTemplates';
+import type { ParamIssue } from '../../lib/flowTemplates';
+import { CLOSE, characterFits, startableFlows } from '../../lib/flowGraph';
+import type { DebateStartRequest, FlowEntry, PersonaConfig } from '../../types';
 import { tr } from '../../i18n';
 
 /** The inputs of a finished debate, handed to the form by "Run again" (a fresh run: no thread is carried over). */
 export interface RerunInputs {
   project?: string;
   task: string;
+  /** The team or flow the debate ran with; run again picks the flow of that id when the list has it. */
   team: string;
   rounds: number;
   contextPaths: string[];
@@ -36,14 +40,70 @@ export interface ContinueRequest {
   n: number;
 }
 
+/** The sentence for a parameter problem, naming the field by the label the form shows. */
+function issueText(issue: ParamIssue, flow: FlowEntry): string {
+  const spec = flow.data.params?.[issue.name];
+  const name = spec ? paramLabel(issue.name, spec) : issue.name;
+  const t = tr.debate.start.template;
+  switch (issue.code) {
+    case 'required': return t.required(name);
+    case 'tooLong': return t.tooLong(name, issue.max);
+    case 'oneLine': return t.oneLine(name);
+    case 'notInt': return t.notInt(name);
+    case 'range': return t.range(name, issue.min, issue.max);
+    case 'notOption': return t.notOption(name);
+  }
+}
+
+/** The characters of a flow's seats, each swappable for another that can take the seat's job (D7). */
+function SeatSwaps({ flow, personas, swaps, onChange }: {
+  flow: FlowEntry;
+  personas: PersonaConfig[];
+  swaps: Record<string, string>;
+  onChange: (swaps: Record<string, string>) => void;
+}) {
+  const name = (id: string) => personas.find((p) => p.id === id)?.name || id;
+  const seats = [
+    ...flow.data.seats.filter((s) => s.job !== 'summarise' && s.character).map((s) => ({ id: s.id, job: s.job, mode: s.mode, character: s.character as string })),
+    { id: CLOSE, job: 'close' as const, mode: undefined, character: flow.data.close.character },
+  ];
+  return (
+    <Disclosure summary={tr.flows.start.seats}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--sg-s-5)' }}>
+        {seats.map((seat) => (
+          <SelectField
+            key={seat.id}
+            label={seat.id === CLOSE ? tr.flows.fixed.close : `${seat.id} · ${tr.flows.job[seat.job] ?? seat.job}`}
+            value={swaps[seat.id] ?? ''}
+            onChange={(e) => {
+              const next = { ...swaps };
+              if (e.target.value) next[seat.id] = e.target.value;
+              else delete next[seat.id];
+              onChange(next);
+            }}
+            options={[
+              { value: '', label: tr.flows.start.seatDefault(name(seat.character)) },
+              ...personas
+                .filter((p) => p.id !== seat.character && characterFits(p, seat.job, seat.mode))
+                .map((p) => ({ value: p.id, label: `${p.name || p.id} (${p.id})` })),
+            ]}
+          />
+        ))}
+      </div>
+    </Disclosure>
+  );
+}
+
 /**
- * The "New debate" form: task, team and the advanced fields (rounds, continue a thread, reference code).
+ * The "New debate" form: flow, task and the advanced fields (rounds, continue a thread, reference code). Without a
+ * chosen flow the debate runs the project's default flow (its `team` key, D7 of docs/design/flow-graph.md).
  * It stays mounted while collapsed so a draft survives. The watcher is owned by the app-level debate
  * store: starting a job hands it to the watcher and moves the URL to `#/debates/<id>`.
  */
 export function StartForm({
   project,
-  teams,
+  flows,
+  personas = [],
   maxRounds,
   watcher,
   continueRequest,
@@ -52,7 +112,10 @@ export function StartForm({
 }: {
   /** Project the debate reads and changes (configs/projects); chosen in the project switcher. */
   project: string;
-  teams: TeamEntry[];
+  /** Flows of the hub (stored, templates and teams converted); empty on an older hub, then the picker is not shown. */
+  flows?: FlowEntry[];
+  /** Characters a flow's seats may be swapped to. */
+  personas?: PersonaConfig[];
   maxRounds: number;
   watcher: DebateJobState;
   /** Set by the result view's "Continue thread" action. */
@@ -62,11 +125,14 @@ export function StartForm({
   /** Called when a task or a thread was handed in, so the page can expand the form. */
   onPrefill?: () => void;
 }) {
-  const [team, setTeam] = useState('');
+  // A flow seats its own characters: its parameter values (and, without its own text, the task) are asked instead.
+  const [templateId, setTemplateId] = useState('');
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [swaps, setSwaps] = useState<Record<string, string>>({});
   const [task, setTask] = useState('');
   const [thread, setThread] = useState('');
   const [rounds, setRounds] = useState('');
-  // Set once the user edits the reference-code fields (or continues a thread); team defaults then no longer apply.
+  // Set once the user edits the reference-code fields (or continues a thread).
   const [ctx, setCtx] = useState<{ paths: string; ref: string } | null>(null);
   const [startError, setStartError] = useState('');
   const [starting, setStarting] = useState(false);
@@ -75,9 +141,14 @@ export function StartForm({
 
   const { projects, select } = useProjectStore();
   // An ops or design project reads no code: the reference-code fields are hidden and never sent.
-  const noRepo = hasNoRepository(projects.data?.projects.find((p) => p.id === project));
+  const projectEntry = projects.data?.projects.find((p) => p.id === project);
+  const noRepo = hasNoRepository(projectEntry);
+  const startable = useMemo(() => startableFlows(flows, projectEntry?.data.kind), [flows, projectEntry]);
+  // A flow that stops being startable (another project, a changed list) falls back to the free task.
+  const template = startable.find((t) => t.id === templateId);
+  const flowTask = !!template?.data.task?.trim();
 
-  // Hand-off from another page (Fleet summary, node, group, SSH audit): take the prefilled task once, then clear it.
+  // Hand-off from another page (Overview, node, group, SSH audit): take the prefilled task once, then clear it.
   // Fleet, node and group debates belong to an ops project; the page switches to it so the debate lands there.
   const prefill = useDebatePrefill();
   const projectList = projects.data?.projects;
@@ -86,6 +157,7 @@ export function StartForm({
     // A scoped hand-off waits for the project list (or its failure) so it can pick the ops project.
     if (prefill && !(prefill.ops && listPending)) {
       setTask(prefill.task);
+      setTemplateId('');
       const target = prefill.ops ? opsProjectFor(projectList, prefill.ops) : undefined;
       if (target) select(target);
       clearDebatePrefill();
@@ -101,7 +173,11 @@ export function StartForm({
       // Run again: the same inputs in a new thread. A job of another project is run in that project.
       if (again.project) select(again.project);
       setTask(again.task);
-      setTeam(again.team);
+      // The lineup it ran with: the flow of that id (teams are listed converted), unless it writes its own task.
+      const same = startable.find((t) => t.id === again.team && !t.data.task?.trim());
+      setTemplateId(same ? same.id : '');
+      setValues(same ? paramDefaults(same.data) : {});
+      setSwaps({});
       setRounds(again.rounds ? String(again.rounds) : '');
       setThread('');
       setCtx({ paths: again.contextPaths.join('\n'), ref: again.contextRef });
@@ -110,6 +186,7 @@ export function StartForm({
       return;
     }
     setThread(continueRequest.thread ?? '');
+    setTemplateId('');
     setAdvancedOpen(true);
     setCtx({ paths: '', ref: '' });
     onPrefill?.();
@@ -117,26 +194,44 @@ export function StartForm({
     // `select` is left out of the deps on purpose: only a new request may re-run this.
   }, [continueRequest, onPrefill]);
 
-  const teamDefaults = useMemo(() => {
-    const c = teams.find((t) => t.id === team)?.data?.context;
-    return c && Array.isArray(c.paths) && c.paths.length ? { paths: c.paths.map(String).join('\n'), ref: c.ref ? String(c.ref) : '' } : null;
-  }, [teams, team]);
-  const shown = ctx ?? teamDefaults ?? { paths: '', ref: '' };
-  const ctxHint = ctx === null && teamDefaults ? tr.debate.start.teamDefault : thread && !shown.paths.trim() ? tr.debate.start.reuseThread : undefined;
+  const shown = ctx ?? { paths: '', ref: '' };
+  const ctxHint = thread && !shown.paths.trim() ? tr.debate.start.reuseThread : undefined;
+  const projectFlow = projectEntry?.data.team;
+
+  /** Choosing a flow (or the free task) resets the parameter values and the swapped characters. */
+  const pickTemplate = (id: string) => {
+    setTemplateId(id);
+    const entry = startable.find((t) => t.id === id);
+    setValues(entry ? paramDefaults(entry.data) : {});
+    setSwaps({});
+    setStartError('');
+  };
+  const setValue = (name: string, value: string) => setValues((v) => ({ ...v, [name]: value }));
 
   const onStart = async () => {
     if (startingRef.current) return;
     const text = task.trim();
-    if (!text) return setStartError(tr.debate.start.enterTask);
-    if (text.length > TASK_MAX) return setStartError(tr.debate.start.taskTooLong(TASK_MAX));
+    let params: Record<string, string> | undefined;
+    if (template) {
+      const built = buildParams(template.data, values);
+      if ('issue' in built) return setStartError(issueText(built.issue, template));
+      params = built.params;
+    }
+    if (!flowTask) {
+      if (!text) return setStartError(tr.debate.start.enterTask);
+      if (text.length > TASK_MAX) return setStartError(tr.debate.start.taskTooLong(TASK_MAX));
+    }
     /** Reports a problem with a field inside Advanced and opens it so the field is in view. */
     const advancedError = (message: string) => {
       setAdvancedOpen(true);
       setStartError(message);
     };
-    const req: DebateStartRequest = { task: text, project };
-    if (team) req.team = team;
-    const threadId = thread.trim();
+    const req: DebateStartRequest = template ? { flow: template.id, project } : { task: text, project };
+    if (template && params && Object.keys(params).length) req.params = params;
+    if (template && !flowTask) req.task = text;
+    if (template && Object.keys(swaps).length) req.seats = swaps;
+    // A template always starts a new thread.
+    const threadId = template ? '' : thread.trim();
     if (threadId) {
       if (!THREAD_ID_RE.test(threadId)) return advancedError(tr.debate.start.badThread);
       req.thread_id = threadId;
@@ -173,29 +268,83 @@ export function StartForm({
   return (
       <div>
         <Stack gap="var(--sg-s-6)">
-          <TextAreaField
-            label={tr.debate.start.task}
-            rows={4}
-            maxLength={TASK_MAX}
-            placeholder={tr.debate.start.taskPlaceholder}
-            hint={`${task.length} / ${TASK_MAX}`}
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-          />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sg-s-6)', alignItems: 'flex-start' }}>
+          {startable.length ? (
             <SelectField
-              label={tr.debate.start.team}
-              value={team}
-              onChange={(e) => setTeam(e.target.value)}
+              label={tr.flows.start.label}
+              value={template ? template.id : ''}
+              onChange={(e) => pickTemplate(e.target.value)}
               options={[
-                { value: '', label: tr.debate.start.defaultTeam },
-                ...teams.map((t) => {
-                  const bad = (t.errors || []).length > 0;
-                  return { value: t.id, label: `${t.name || t.id} (${t.id})${bad ? tr.debate.start.invalidSuffix : ''}`, disabled: bad };
-                }),
+                { value: '', label: tr.flows.start.free },
+                ...startable.map((t) => ({ value: t.id, label: tr.flows.start.use(t.name || t.id) })),
               ]}
             />
-          </div>
+          ) : null}
+          {template ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--sg-s-6)' }}>
+              {Object.entries(template.data.params ?? {}).map(([name, spec]) => {
+                const label = paramLabel(name, spec);
+                const value = values[name] ?? '';
+                if (spec.type === 'enum') {
+                  return (
+                    <SelectField
+                      key={name}
+                      label={label}
+                      value={value}
+                      onChange={(e) => setValue(name, e.target.value)}
+                      options={[{ value: '', label: '' }, ...(spec.values ?? []).map((v) => ({ value: v, label: v }))]}
+                    />
+                  );
+                }
+                if (spec.type === 'int') {
+                  return (
+                    <TextField
+                      key={name}
+                      label={label}
+                      type="number"
+                      min={spec.min}
+                      max={spec.max}
+                      step={1}
+                      value={value}
+                      onChange={(e) => setValue(name, e.target.value)}
+                    />
+                  );
+                }
+                const max = paramMax(spec);
+                if (spec.type === 'text') {
+                  return (
+                    <TextAreaField
+                      key={name}
+                      label={label}
+                      rows={4}
+                      maxLength={max}
+                      hint={max ? `${value.length} / ${max}` : undefined}
+                      value={value}
+                      onChange={(e) => setValue(name, e.target.value)}
+                    />
+                  );
+                }
+                return <TextField key={name} label={label} maxLength={max} value={value} onChange={(e) => setValue(name, e.target.value)} />;
+              })}
+            </div>
+          ) : null}
+          {flowTask ? null : (
+            <TextAreaField
+              label={tr.debate.start.task}
+              rows={4}
+              maxLength={TASK_MAX}
+              placeholder={tr.debate.start.taskPlaceholder}
+              hint={`${task.length} / ${TASK_MAX}`}
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+            />
+          )}
+          {template ? (
+            <SeatSwaps flow={template} personas={personas} swaps={swaps} onChange={setSwaps} />
+          ) : (
+            <div style={{ color: 'var(--sg-text-secondary)', fontSize: 13 }}>
+              {projectFlow ? tr.debate.start.projectFlow(projectFlow) : tr.debate.start.projectFlowNone}
+            </div>
+          )}
           <Disclosure
             summary={tr.debate.start.advanced}
             open={advancedOpen}
@@ -212,14 +361,16 @@ export function StartForm({
                 value={rounds}
                 onChange={(e) => setRounds(e.target.value)}
               />
-              <TextField
-                id="debate-thread"
-                label={tr.debate.start.continueThread}
-                mono
-                placeholder="thread_..."
-                value={thread}
-                onChange={(e) => setThread(e.target.value)}
-              />
+              {template ? null : (
+                <TextField
+                  id="debate-thread"
+                  label={tr.debate.start.continueThread}
+                  mono
+                  placeholder="thread_..."
+                  value={thread}
+                  onChange={(e) => setThread(e.target.value)}
+                />
+              )}
             </div>
             {noRepo ? null : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--sg-s-6)' }}>
               <TextAreaField

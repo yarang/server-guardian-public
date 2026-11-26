@@ -7,6 +7,11 @@ commands over SSH, and runs multi-agent debates through LLM CLIs (claude, codex,
 a repository (code projects) or checks and cleans up nodes (ops projects). Every change that a debate proposes waits
 for approval, except the small set that a policy allows to run on its own.
 
+Guardian is a verification and control layer plus fleet operations, not an agent development environment: it checks
+work produced elsewhere (by people, other tools or its own agents), cites the lines its findings rest on, and keeps
+writes behind typed actions and approval ([verification layer](docs/design/verification-layer.md), decided
+2026-11-23).
+
 The detailed system specification is [agent.md](agent.md).
 
 ---

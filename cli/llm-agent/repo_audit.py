@@ -43,7 +43,9 @@ from code_wiki import data_root
 AUDIT_PLAN_VERSION = 1
 # Part of every shard key: bump it when the audit prompt or the findings format changes (A2), so that finished shards
 # of the old wording are not taken for finished work of the new one.
-AUDIT_PROMPT_VERSION = 3  # 2: A2 shard prompt and findings block; 3: precision rules, scenario, re-check
+AUDIT_PROMPT_VERSION = 4  # 2: A2 shard prompt and findings block; 3: precision rules, scenario, re-check;
+# 4: the cap of 200 findings and the valid-JSON rule in the format, no debate findings text in the protocol,
+# the language rule without the debate's decision words
 REPORT_VERSION = 1
 DEFAULT_SHARD_BYTES = 120 * 1024
 MIN_SHARD_BYTES = 1024

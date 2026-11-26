@@ -17,8 +17,9 @@ UNIT="guardian-worker.service"
 # Must list the basenames of deploy/worker/files.txt (cli/llm-agent/test_worker_install.py checks it).
 CODE=(
     code_context.py code_index.py code_select.py code_wiki.py env_policy.py evidence.py go_facts.py
-    go_ops.py llm_runner.py mcp_stdio.py remote_agents.py repo_map.py repo_mcp.py repo_snapshot.py
-    repo_tools.py worker.py
+    go_ops.py llm_runner.py mailbox_mcp.py mcp_stdio.py remote_agents.py repo_map.py repo_mcp.py
+    repo_snapshot.py repo_tools.py resident_driver.py resident_node.py resident_open.py
+    resident_repo_mcp.py resident_tasks.py worker.py
 )
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"

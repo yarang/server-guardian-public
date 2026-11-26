@@ -141,10 +141,11 @@ class ProposerTeamTests(unittest.TestCase):
             parse_lineup({**PROPOSER_TEAM, "proposers": "devops_specialist"})
 
     def test_diversity_warning(self) -> None:
-        self.assertEqual([w for w in validate_lineup(parse_lineup(PROPOSER_TEAM)) if "proposers" in w], [])
+        # devops_specialist's home seat is critic, so the proposer seat also warns about role_card; that is not this test
+        self.assertEqual([w for w in validate_lineup(parse_lineup(PROPOSER_TEAM)) if "same provider" in w], [])
         same = {**PROPOSER_TEAM, "proposers": [{"persona": "devops_specialist", "providers": ["claude"]}]}
         self.assertTrue(any("same provider" in w for w in validate_lineup(parse_lineup(same))))
-        self.assertFalse(any("proposers" in w for w in validate_lineup(parse_lineup(PANEL_TEAM))))
+        self.assertFalse(any("same provider" in w for w in validate_lineup(parse_lineup(PANEL_TEAM))))
 
     def test_draft_order_rotates_per_round(self) -> None:
         self.assertEqual(draft_labels(3, 1), [0, 1, 2])
@@ -325,6 +326,18 @@ class TeamManagerTests(unittest.TestCase):
             self.assertIsNone(manager.get_team("broken"))
             with self.assertRaisesRegex(TeamValidationError, "no team"):
                 manager.load("missing")
+
+    def test_an_id_with_a_trailing_newline_is_refused(self) -> None:
+        # "$" also matches just before a trailing newline, so only fullmatch refuses "panel\n"
+        # (which would otherwise name a file "panel\n.json").
+        with self.assertRaisesRegex(TeamValidationError, "id"):
+            parse_lineup({**PANEL_TEAM, "id": "panel\n"})
+        with TemporaryDirectory() as tmp:
+            manager = TeamManager(Path(tmp))
+            manager.save(PANEL_TEAM)
+            self.assertEqual(manager.load("panel").id, "panel")
+            self.assertIsNone(manager.get_team("panel\n"))
+            self.assertFalse(manager.is_custom("panel\n"))
 
     def test_default_without_file_and_mismatched_id(self) -> None:
         with TemporaryDirectory() as tmp:

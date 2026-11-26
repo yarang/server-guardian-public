@@ -722,7 +722,7 @@ class RepoTools:
     @staticmethod
     def _symbol_error(symbol: Any, glob: Any) -> Optional[str]:
         """Why a defs/refs symbol or glob is unusable, or None."""
-        if not isinstance(symbol, str) or not SYMBOL_PATTERN.match(symbol):
+        if not isinstance(symbol, str) or not SYMBOL_PATTERN.fullmatch(symbol):
             return "invalid symbol (use Name or Type.Method)"
         if glob is not None and (not isinstance(glob, str) or len(glob) > MAX_PATTERN_CHARS
                                  or glob.startswith("-") or any(c in glob for c in "\0\n\r")):

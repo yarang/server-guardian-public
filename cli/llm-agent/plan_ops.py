@@ -585,7 +585,7 @@ def list_plans_json(db: DecisionDBManager, mcp: Any, thread_id: Optional[str] = 
 
 
 def show_plan_json(db: DecisionDBManager, mcp: Any, plan_id: str) -> Result:
-    if not PLAN_ID.match(plan_id):
+    if not PLAN_ID.fullmatch(plan_id):
         return _error(INVALID_INPUT, "plan id: use plan_ and letters, digits or _")
     view = plan_view(db, mcp, plan_id)
     if view is None:
@@ -595,9 +595,9 @@ def show_plan_json(db: DecisionDBManager, mcp: Any, plan_id: str) -> Result:
 
 def run_plan_json(db: DecisionDBManager, mcp: Any, plan_id: str, actor: str, **options: Any) -> Result:
     """Runs an approved plan. The caller has already shown it to a person who confirmed it."""
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return _error(INVALID_INPUT, "actor: use 1-64 letters, digits or @:._-")
-    if not PLAN_ID.match(plan_id):
+    if not PLAN_ID.fullmatch(plan_id):
         return _error(INVALID_INPUT, "plan id: use plan_ and letters, digits or _")
     try:
         outcome = run_plan(db, mcp, plan_id, actor, **options)
@@ -610,9 +610,9 @@ def run_plan_json(db: DecisionDBManager, mcp: Any, plan_id: str, actor: str, **o
 
 
 def reject_plan_json(db: DecisionDBManager, mcp: Any, plan_id: str, actor: str) -> Result:
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return _error(INVALID_INPUT, "actor: use 1-64 letters, digits or @:._-")
-    if not PLAN_ID.match(plan_id):
+    if not PLAN_ID.fullmatch(plan_id):
         return _error(INVALID_INPUT, "plan id: use plan_ and letters, digits or _")
     if db.get_plan(plan_id) is None:
         return _error(NOT_FOUND, f"plan {plan_id} not found")

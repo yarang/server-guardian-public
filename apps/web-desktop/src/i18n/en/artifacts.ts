@@ -40,7 +40,7 @@ export const artifacts: Messages['artifacts'] = {
   download: 'Download',
   downloaded: (where) => `Saved to ${where}`,
   downloadFailed: (why) => `Could not download: ${why}`,
-  desktopMarkdownOnly: 'Without an export folder the desktop app can only download documents (.md). Choose a folder in Settings, or open the dashboard in a browser.',
+  desktopMarkdownOnly: 'The desktop app can only download documents (.md). Open the dashboard in a browser to download other files.',
   sha: (short) => `sha256 ${short}`,
   makingOffice: 'Building…',
   officeMade: (name) => `Created ${name}`,

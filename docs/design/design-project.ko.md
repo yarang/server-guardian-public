@@ -282,6 +282,11 @@ LLM이 만든 HTML/SVG를 대시보드와 같은 출처에서 스크립트가 �
 - **이벤트는 구현하지 않았다**(`artifact_created`, `artifact_version_finished`, `artifact_skipped`). `write_artifact`는 승인된 액션의 CLI 실행(`action_ops._execute`) 안에서 돌고 어떤 작업의 `events.jsonl`에도 속하지 않아서, 이벤트를 쓸 곳이 없다. 기록은 감사 줄과 manifest다. 이벤트를 넣으려면 작업과 무관한 싱크가 필요하다. 하지 않았다.
 - **진입점**: `pages/debate/ArtifactsLink.tsx`가 `JobResult`와 `RunDetail`의 `ReportButton` 옆에 "산출물 보기" 링크(`#/debates/artifacts/<thread>`)를 둔다. 끝난 토론에만 보인다. 토론이 선택된 프로젝트의 것이고 그 프로젝트가 `kind: "design"`일 때만 보인다. 산출물 탭이 선택된 설계 프로젝트에만 있기 때문이다. 프로젝트가 없는 작업은 기본 코드 프로젝트로 본다. 스레드에 저장된 버전이 있는지는 확인하지 않는다. 비어 있으면 탭이 자기 빈 화면을 보여 준다.
 - **하지 않은 것**: 실제 브라우저 내려받기 확인(대시보드에서 클릭해 저장한 파일의 sha256을 manifest와 비교). Go 테스트가 쿠키 없는 401, Bearer 200, Range 206, 경로 이탈·심볼릭 링크 404, 제공·zip 바이트의 sha256을 확인하고, `ci.sh web`과 `go`가 통과한다. 브라우저 확인은 P3의 종료 조건으로 **열려 있다**.
+- **탭의 실제 브라우저 확인(2026-10-31, 허브 대시보드를 Chrome에서, 읽기만).** `fleet`은 빈 안내를 보이고, `dashboard-ui` 설계
+  프로젝트는 스레드 하나와 버전 2개를 보인다. v2에는 `ui-map.mmd`, `ui-review.docx`, `ui-review.md`, `ui-review.pptx`가 있고
+  행마다 종류, 크기, 단계, 작성자, sha256이 나온다. 두 파일이 이미 있어 Word/PowerPoint 만들기 버튼은 숨는다. Markdown 보기는
+  제목과 표를 그리고, `.docx` 보기는 내려받아 열라고 안내하며, `.mmd` 보기는 다이어그램을 그린다(`office-export.md`에 적은
+  결함대로 어두운 Mermaid 테마). "내려받기" 버튼은 있지만 누르지 않았으므로 위의 sha256 비교는 여전히 열려 있다.
 
 ### 심어 둔 결함 말뭉치 (P2 평가)
 

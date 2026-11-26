@@ -10,6 +10,8 @@ Orchestrates 4 specialized agents:
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from typing import Any, Dict, List, Optional
+
+import character
 from agent_client import NodeAgentClient
 from llm_runner import LLMRunner
 from persona_manager import PersonaManager
@@ -58,7 +60,11 @@ class MultiAgentSystem:
             "id": "server_guardian",
             "name": "Server Guardian System Guardian",
             "role": "Infrastructure & SSH Guardian Agent",
-            "system_prompt": "당신은 지능형 서버 자원 모니터링, SSH 보안 감사 및 24대 호스트 자율 관리 시스템의 'Server Guardian 수호자 AI'입니다.",
+            # same text as configs/personas/server_guardian.json, for a checkout without the personas directory
+            "system_prompt": ("당신은 Server Guardian의 서버 운영 도우미입니다. 서버 자원 병목(CPU, 메모리, 디스크, 상위 "
+                              "프로세스) 분석, sshd 설정 보안 감사, 안전한 조치 계획 수립을 맡습니다. 판단은 받은 측정값과 "
+                              "점검 결과에만 기대고, 없는 수치는 지어내지 마세요. 조치는 제안만 하며, 실행은 사람이 승인한 "
+                              "뒤에 이루어집니다. 조치를 제안할 때는 대상 서버, 명령, 영향, 되돌리는 방법을 함께 적으세요."),
         }
 
     def set_active_persona(self, persona_id: str) -> Optional[Dict[str, Any]]:
@@ -310,19 +316,17 @@ class MultiAgentSystem:
     def run_supervisor_chat(self, user_query: str) -> Dict[str, Any]:
         """Supervisor Agent: Conversational reasoning using the active persona."""
         persona = self.active_persona
-        system_prompt = persona.get("system_prompt", "당신은 Server Guardian 수호자 AI입니다.")
+        # a character (format 2) has no system_prompt: its rendered persona block is the role line
+        system_prompt = (character.body_text(persona) if character.is_character(persona)
+                         else persona.get("system_prompt", "당신은 Server Guardian 수호자 AI입니다."))
         name = persona.get("name", "Supervisor Agent")
         role = persona.get("role", "AI Agent")
 
-        prompt = (
-            f"Persona Config:\n"
-            f"- Name: {name}\n"
-            f"- Role: {role}\n"
-            f"- System Instruction: {system_prompt}\n\n"
-            f"사용자 질의: {user_query}\n\n"
-            f"위 페르소나 지침에 따라 전문적이고 정교하게 답변하십시오."
-        )
-        provider, response = self.llm.run_prompt(prompt, {"user_query": user_query, "persona": persona})
+        # The persona's system_prompt is the role line, alone: no default "Linux System & SSH Security Engineer" header
+        # and no persona JSON (temperature, focus lists) in the model's prompt. The context only feeds the no-LLM text.
+        prompt = f"사용자 질의: {user_query}\n\n위 지침에 따라 답변하십시오. 받지 않은 측정값이나 서버 상태는 지어내지 마십시오."
+        provider, response = self.llm.run_prompt(prompt, {"user_query": user_query, "persona": persona},
+                                                 system=system_prompt)
         return {
             "agent": "SupervisorAgent",
             "persona_id": persona.get("id"),

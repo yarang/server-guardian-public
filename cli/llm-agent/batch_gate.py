@@ -112,8 +112,11 @@ def _conditions(steps: List[Dict[str, Any]], votes: List[Dict[str, Any]], policy
         reasons.append("automatic runs are switched off (GUARDIAN_AUTO_APPLY or GUARDIAN_UI_ACTIONS)")
     if not jev_passed:
         reasons.append("the jev gate did not pass")
+    # A free script has no person reading it: an objection to its text holds it even without a server-check
+    # citation (decided 2026-10-30, docs/design/batch-execution.md 5.2); elsewhere an uncited objection is advice.
+    free = any(item.get("free_script") for item in steps)
     for item in votes:
-        if item.get("vote") == OPPOSE and item.get("counted"):
+        if item.get("vote") == OPPOSE and (item.get("counted") or free):
             reasons.append(f"objection from {item.get('critic')}: {str(item.get('reason') or '')[:200]}")
     if not steps:
         reasons.append("the plan has no steps")

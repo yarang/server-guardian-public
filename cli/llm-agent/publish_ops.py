@@ -421,7 +421,7 @@ def publish_thread_json(db: DecisionDBManager, workspaces: Any, thread_id: str, 
     Exit 0 with ok=true (PUSHED) or ok=false (FAILED: the commit stays local, stderr says why); 2 for a bad
     actor or branch, 3 for an unknown thread, 4 when a precondition refuses (extra fields such as `tests`).
     """
-    if not ACTOR_PATTERN.match(actor):
+    if not ACTOR_PATTERN.fullmatch(actor):
         return INVALID_INPUT, {"ok": False, "error": "actor: use 1-64 letters, digits or @:._-"}
     try:
         outcome = publish_thread(db, workspaces, thread_id, actor, branch or None, **kwargs)

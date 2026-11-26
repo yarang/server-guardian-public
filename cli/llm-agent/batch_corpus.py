@@ -114,6 +114,7 @@ def scenarios() -> List[Scenario]:
         Scenario("free script, one critic objects", "freescript", [free_script()], answers=[text(), text("oppose", sorted(SERVED)[:1])]),
         Scenario("free script, nobody approves", "freescript", [free_script()], answers=["fine", "no block"]),
         Scenario("free script, only advice", "freescript", [free_script()], answers=[text("oppose"), "no block"]),
+        Scenario("free script, uncited objection", "freescript", [free_script()], answers=[text(), text("oppose")]),
         Scenario("free script, auto off", "freescript", [free_script()], policy={**POLICY, "auto": False}),
     ]
     return out

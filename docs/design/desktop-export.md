@@ -2,7 +2,10 @@
 
 English | [한국어](desktop-export.ko.md)
 
-Status: approved 2026-10-25 (with the amendments marked "amended" below), nothing built. The operator asked for the
+Status: **removed 2026-11-24** (UD3 of [ui-verification-review.md](ui-verification-review.md), approved by the operator):
+the export folder, manual and automatic, is gone from the dashboard and the desktop shell (`export.rs`, the dialog
+plugin); the shell keeps `save_download` for Markdown. The rest of this document describes the removed feature.
+Earlier: approved 2026-10-25 (with the amendments marked "amended" below), nothing built at that time. The operator asked for the
 desktop app to save results into a directory of their choice, organized. Decisions are in chapter 5; automatic export
 (E3) is in scope, which departs from the manual-first recommendation.
 

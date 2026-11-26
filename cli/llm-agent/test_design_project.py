@@ -266,7 +266,7 @@ class DesignPromptTests(unittest.TestCase):
         self.assertIn("cannot read files", text)
 
     def test_prompt_version_was_bumped_for_the_design_prompts(self) -> None:
-        self.assertEqual(RETRIEVAL_PROMPT_VERSION, "2026-10-23.p20")
+        self.assertEqual(RETRIEVAL_PROMPT_VERSION, "2026-11-11.p29")
 
 
 class DesignDebateTests(unittest.TestCase):

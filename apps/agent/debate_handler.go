@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -64,8 +65,15 @@ var (
 	threadPattern = regexp.MustCompile(`^thread_[A-Za-z0-9_]{1,80}$`)
 	jobIDPattern  = regexp.MustCompile(`^dbt_[0-9]{8}_[0-9]{6}_[0-9a-f]{6}$`)
 	actionIDForm  = regexp.MustCompile(`^[1-9][0-9]{0,9}$`)
-	actorUnsafe   = regexp.MustCompile(`[^A-Za-z0-9@:._-]`)
-	contextRefRe  = regexp.MustCompile(`^[A-Za-z0-9._/~^-]{1,100}$`)
+	// mailIDPattern matches resident mail store ids, m-YYYYMMDD-NNNN with a 4-9 digit sequence
+	// (mail_store._mail_id; docs/design/resident-monitor.md section 4).
+	mailIDPattern       = regexp.MustCompile(`^m-[0-9]{8}-[0-9]{4,9}$`)
+	artifactIDPattern   = regexp.MustCompile(`^a-[0-9a-f]{12}$`)
+	queryIDPattern      = regexp.MustCompile(`^q-[0-9]{8}-[0-9]{4,9}$`)
+	sessionKeyPattern   = regexp.MustCompile(`^(main|project:[A-Za-z0-9][A-Za-z0-9._-]{0,63}(:[a-z0-9][a-z0-9-]{0,23})?)$`)
+	residentAddrPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}@[A-Za-z0-9][A-Za-z0-9._-]{0,62}$`)
+	actorUnsafe         = regexp.MustCompile(`[^A-Za-z0-9@:._-]`)
+	contextRefRe        = regexp.MustCompile(`^[A-Za-z0-9._/~^-]{1,100}$`)
 	// branchPattern mirrors the CLI's branch validation (mcp_client.BRANCH_PATTERN); the CLI checks the rest.
 	branchPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
 )
@@ -90,6 +98,13 @@ type debateConfig struct {
 	// PlanStartGrace is how long POST /api/plans/{id}/run waits for the CLI to refuse the plan (exit 2/3/4)
 	// before answering 202; 0 means the default.
 	PlanStartGrace time.Duration
+	// MaxSolo is the slot count of solo agent runs (GUARDIAN_MAX_SOLO, default 2, like the CLI's own slots).
+	MaxSolo int
+	// SoloStartGrace is how long POST /api/solo waits for the CLI to refuse the run (exit 2/4) before
+	// answering 202; 0 means the default.
+	SoloStartGrace time.Duration
+	// MaxReviews is the slot count of quick reviews (GUARDIAN_MAX_REVIEWS, default 2, like the CLI's own slots).
+	MaxReviews int
 }
 
 func (c debateConfig) actionsDisabled() bool {
@@ -117,6 +132,8 @@ func debateConfigFromEnv() debateConfig {
 
 		MaxWikiBuilds:  1,
 		WikiStartGrace: defaultWikiStartGrace,
+		MaxSolo:        defaultMaxSolo,
+		MaxReviews:     defaultMaxReviews,
 	}
 	if cfg.DataDir == "" {
 		home, _ := os.UserHomeDir()
@@ -133,6 +150,12 @@ func debateConfigFromEnv() debateConfig {
 	}
 	if n, err := strconv.Atoi(os.Getenv("GUARDIAN_MAX_WIKI_BUILDS")); err == nil && n > 0 {
 		cfg.MaxWikiBuilds = n
+	}
+	if n, err := strconv.Atoi(os.Getenv("GUARDIAN_MAX_SOLO")); err == nil && n > 0 {
+		cfg.MaxSolo = n
+	}
+	if n, err := strconv.Atoi(os.Getenv("GUARDIAN_MAX_REVIEWS")); err == nil && n > 0 {
+		cfg.MaxReviews = n
 	}
 	return cfg
 }
@@ -163,6 +186,14 @@ type debateSummary struct {
 	// ContextPaths and ContextRef echo the code-context request (committed files shown to the agents).
 	ContextPaths []string `json:"context_paths,omitempty"`
 	ContextRef   string   `json:"context_ref,omitempty"`
+	// Template and Params echo a flow-template start (docs/design/flow-templates.md). Task then holds a
+	// placeholder until the job finishes and the CLI's result file supplies the rendered task.
+	Template string            `json:"template,omitempty"`
+	Params   map[string]string `json:"params,omitempty"`
+	// Flow and Seats echo a flow start (docs/design/flow-graph.md, G4): the flow id and the characters swapped
+	// into its seats. Like a template start, Task holds a placeholder until the result file supplies the task.
+	Flow  string            `json:"flow,omitempty"`
+	Seats map[string]string `json:"seats,omitempty"`
 	// ThreadClosed is set on every job of a thread the user closed (status CLOSED in the decision
 	// database) so the dashboard can hide them; a completed debate on the thread clears it.
 	ThreadClosed bool `json:"thread_closed,omitempty"`
@@ -208,6 +239,10 @@ type debateHub struct {
 	actionRuns map[int]struct{}
 	// planRuns holds the plan ids being run right now (guarded by mu).
 	planRuns map[string]struct{}
+	// soloRuns holds the solo run ids being run right now (guarded by mu; see solo_handler.go).
+	soloRuns map[string]struct{}
+	// reviewRuns holds the quick review ids being run right now (guarded by mu; see review_handler.go).
+	reviewRuns map[string]struct{}
 	// eventPoll and eventHeartbeat pace the follow stream (fields so tests can shorten them).
 	eventPoll, eventHeartbeat time.Duration
 	// closed and published cache the DB's CLOSED / published thread ids for the job list.
@@ -295,8 +330,9 @@ func registerDebateRoutes(mux *http.ServeMux) {
 }
 
 func newDebateHub(cfg debateConfig) *debateHub {
-	h := &debateHub{cfg: cfg, runs: map[string]*debateRun{}, actionRuns: map[int]struct{}{}, planRuns: map[string]struct{}{},
-		eventPoll: eventPollInterval, eventHeartbeat: eventHeartbeatInterval}
+	h := &debateHub{cfg: cfg, runs: map[string]*debateRun{}, actionRuns: map[int]struct{}{}, planRuns: map[string]struct{}{}, soloRuns: map[string]struct{}{},
+		reviewRuns: map[string]struct{}{},
+		eventPoll:  eventPollInterval, eventHeartbeat: eventHeartbeatInterval}
 	h.markInterrupted()
 	return h
 }
@@ -304,12 +340,30 @@ func newDebateHub(cfg debateConfig) *debateHub {
 func (h *debateHub) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/personas", h.guard(h.configGet("--personas")))
 	mux.HandleFunc("POST /api/personas", h.guard(h.configSave("--persona-save")))
+	mux.HandleFunc("POST /api/personas/suggest", h.guard(h.personaSuggest))
 	mux.HandleFunc("DELETE /api/personas/{id}", h.guard(h.configDelete("--persona-delete")))
 	mux.HandleFunc("GET /api/teams", h.guard(h.configGet("--teams")))
 	// Read-only: the model workers' probe records and a live ping per enabled host (the CLI pings, not this agent).
 	mux.HandleFunc("GET /api/workers", h.guard(h.configGet("--workers")))
+	// Read-only: resident agent monitor, docs/design/resident-monitor.md.
+	mux.HandleFunc("GET /api/residents/monitor", h.guard(h.configGet("--resident-monitor")))
+	mux.HandleFunc("GET /api/residents/mail/{id}", h.guard(h.residentMailBody))
+	mux.HandleFunc("GET /api/residents/artifacts", h.guard(h.configGet("--resident-artifacts")))
+	mux.HandleFunc("GET /api/residents/artifacts/{id}", h.guard(h.residentArtifactGet))
+	mux.HandleFunc("POST /api/residents/queries", h.guard(h.residentQuerySubmit))
+	mux.HandleFunc("GET /api/residents/queries", h.guard(h.residentQueryList))
+	mux.HandleFunc("GET /api/residents/queries/{id}", h.guard(h.residentQueryGet))
+	mux.HandleFunc("DELETE /api/residents/queries/{id}", h.guard(h.residentQueryCancel))
+	mux.HandleFunc("GET /api/residents/sessions", h.guard(h.residentSessionList))
+	mux.HandleFunc("POST /api/residents/sessions/reset", h.guard(h.residentSessionReset))
 	mux.HandleFunc("POST /api/teams", h.guard(h.configSave("--team-save")))
 	mux.HandleFunc("DELETE /api/teams/{id}", h.guard(h.configDelete("--team-delete")))
+	mux.HandleFunc("GET /api/flow-templates", h.guard(h.configGet("--flow-templates")))
+	mux.HandleFunc("POST /api/flow-templates", h.guard(h.configSave("--flow-template-save")))
+	mux.HandleFunc("DELETE /api/flow-templates/{id}", h.guard(h.configDelete("--flow-template-delete")))
+	mux.HandleFunc("GET /api/flows", h.guard(h.configGet("--flows")))
+	mux.HandleFunc("POST /api/flows", h.guard(h.configSave("--flow-save")))
+	mux.HandleFunc("DELETE /api/flows/{id}", h.guard(h.configDelete("--flow-delete")))
 	mux.HandleFunc("GET /api/projects", h.guard(h.configGet("--projects")))
 	mux.HandleFunc("POST /api/projects", h.guard(h.configSave("--project-save")))
 	mux.HandleFunc("DELETE /api/projects/{id}", h.guard(h.configDelete("--project-delete")))
@@ -320,6 +374,7 @@ func (h *debateHub) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/package-roles", h.guard(h.configGet("--package-roles")))
 	// Command sets (docs/design/batch-execution.md, B4c): the operator's own sets; builtin ones are read-only.
 	mux.HandleFunc("GET /api/command-sets", h.guard(h.configGet("--command-sets")))
+	mux.HandleFunc("GET /api/verdict-sources", h.guard(h.configGet("--verdict-sources")))
 	mux.HandleFunc("POST /api/command-sets", h.guard(h.configSave("--command-set-save")))
 	mux.HandleFunc("DELETE /api/command-sets/{id}", h.guard(h.configDelete("--command-set-delete")))
 	// Confirming takes only the id (the CLI reads the stored text), so it shares configDelete's id-only shape.
@@ -353,6 +408,8 @@ func (h *debateHub) register(mux *http.ServeMux) {
 	h.registerWikiRoutes(mux)
 	h.registerArtifactRoutes(mux)
 	h.registerResultRoutes(mux)
+	h.registerSoloRoutes(mux)
+	h.registerReviewRoutes(mux)
 }
 
 // guard returns 503 when the CLI is missing on this host. CORS is owned by withSecurity.
@@ -494,6 +551,264 @@ func (h *debateHub) configDelete(flag string) http.HandlerFunc {
 	}
 }
 
+// residentMailBody returns one resident mail's body (docs/design/resident-monitor.md). The id is
+// checked before the CLI runs, so a bad id never spawns a process.
+func (h *debateHub) residentMailBody(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !mailIDPattern.MatchString(id) {
+		errJSON(w, http.StatusBadRequest, "invalid mail id")
+		return
+	}
+	code, out, errOut, err := h.runConfigCLI(nil, "--resident-mail-body", id, "--json")
+	h.respondConfig(w, code, out, errOut, err)
+}
+
+// residentArtifactGet returns one resident artifact's metadata+content as JSON, or raw bytes when
+// ?download=1 is passed (docs/design/resident-codex-and-policy.md, PD4).
+func (h *debateHub) residentArtifactGet(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !artifactIDPattern.MatchString(id) {
+		errJSON(w, http.StatusBadRequest, "invalid artifact id")
+		return
+	}
+	code, out, errOut, err := h.runConfigCLI(nil, "--resident-artifact-get", id, "--json")
+	if r.URL.Query().Get("download") != "1" || err != nil || code != 0 {
+		h.respondConfig(w, code, out, errOut, err)
+		return
+	}
+	var payload struct {
+		Filename   string `json:"filename"`
+		Mime       string `json:"mime"`
+		ContentB64 string `json:"content_b64"`
+		Missing    bool   `json:"missing"`
+	}
+	if jerr := json.Unmarshal(out, &payload); jerr != nil || payload.Missing || payload.ContentB64 == "" {
+		errJSON(w, http.StatusNotFound, "artifact content unavailable")
+		return
+	}
+	raw, berr := base64.StdEncoding.DecodeString(payload.ContentB64)
+	if berr != nil {
+		errJSON(w, http.StatusInternalServerError, "invalid artifact encoding")
+		return
+	}
+	name := filepath.Base(payload.Filename)
+	if name == "" || name == "." || name == "/" {
+		name = id + ".bin"
+	}
+	mime := payload.Mime
+	if mime == "" {
+		mime = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", name))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(raw)
+}
+
+const residentQueryBodyLimit = 40 << 10
+
+// residentQuerySubmit queues one project-scoped direct query to an active resident session
+// (docs/design/resident-session-query.md, QD1-QD4). Returns 202 Accepted on success.
+func (h *debateHub) residentQuerySubmit(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, residentQueryBodyLimit))
+	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			errJSON(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		errJSON(w, http.StatusBadRequest, "cannot read request body")
+		return
+	}
+	var req struct {
+		Address    string `json:"address"`
+		Project    string `json:"project"`
+		Prompt     string `json:"prompt"`
+		SessionKey string `json:"session_key"`
+		Mode       string `json:"mode"`
+		Task       string `json:"task"`
+		TimeoutSec int    `json:"timeout_sec"`
+	}
+	if jerr := json.Unmarshal(body, &req); jerr != nil {
+		errJSON(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if !residentAddrPattern.MatchString(req.Address) {
+		errJSON(w, http.StatusBadRequest, "invalid resident address")
+		return
+	}
+	if !idPattern.MatchString(req.Project) {
+		errJSON(w, http.StatusBadRequest, "invalid project id")
+		return
+	}
+	if strings.TrimSpace(req.Prompt) == "" {
+		errJSON(w, http.StatusBadRequest, "prompt is required")
+		return
+	}
+	if len(req.Prompt) > 32*1024 {
+		errJSON(w, http.StatusBadRequest, "prompt exceeds 32 KiB")
+		return
+	}
+	args := []string{"--resident-query", req.Address, "--project", req.Project, "--prompt-stdin", "--no-wait", "--json"}
+	if req.SessionKey != "" {
+		if !sessionKeyPattern.MatchString(req.SessionKey) {
+			errJSON(w, http.StatusBadRequest, "invalid session_key")
+			return
+		}
+		args = append(args, "--query-session-key", req.SessionKey)
+	}
+	if req.Mode != "" {
+		if req.Mode != "in_place" && req.Mode != "fork" {
+			errJSON(w, http.StatusBadRequest, "mode must be in_place or fork")
+			return
+		}
+		args = append(args, "--query-mode", req.Mode)
+	}
+	if req.Task != "" {
+		if !idPattern.MatchString(req.Task) {
+			errJSON(w, http.StatusBadRequest, "invalid task id")
+			return
+		}
+		args = append(args, "--query-task", req.Task)
+	}
+	if req.TimeoutSec != 0 {
+		if req.TimeoutSec < 10 || req.TimeoutSec > 600 {
+			errJSON(w, http.StatusBadRequest, "timeout_sec must be between 10 and 600")
+			return
+		}
+		args = append(args, "--query-timeout", strconv.Itoa(req.TimeoutSec))
+	}
+	code, out, errOut, runErr := h.runConfigCLI([]byte(req.Prompt), args...)
+	if runErr == nil && code == 0 && json.Valid(out) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write(out)
+		return
+	}
+	h.respondConfig(w, code, out, errOut, runErr)
+}
+
+// residentQueryList lists recent resident session query metadata (no prompt/answer bodies).
+func (h *debateHub) residentQueryList(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	args := []string{"--resident-queries"}
+	if agent := q.Get("agent"); agent != "" {
+		if !residentAddrPattern.MatchString(agent) {
+			errJSON(w, http.StatusBadRequest, "invalid resident address")
+			return
+		}
+		args = append(args, agent)
+	}
+	if proj := q.Get("project"); proj != "" {
+		if !idPattern.MatchString(proj) {
+			errJSON(w, http.StatusBadRequest, "invalid project id")
+			return
+		}
+		args = append(args, "--project", proj)
+	}
+	if skey := q.Get("session_key"); skey != "" {
+		if !sessionKeyPattern.MatchString(skey) {
+			errJSON(w, http.StatusBadRequest, "invalid session_key")
+			return
+		}
+		args = append(args, "--query-session-key", skey)
+	}
+	if rawLimit := q.Get("limit"); rawLimit != "" {
+		n, err := strconv.Atoi(rawLimit)
+		if err != nil || n < 1 || n > 200 {
+			errJSON(w, http.StatusBadRequest, "limit must be between 1 and 200")
+			return
+		}
+		args = append(args, "--query-limit", strconv.Itoa(n))
+	}
+	args = append(args, "--json")
+	code, out, errOut, err := h.runConfigCLI(nil, args...)
+	h.respondConfig(w, code, out, errOut, err)
+}
+
+// residentQueryGet returns one resident query with masked prompt & answer (mode=ro).
+func (h *debateHub) residentQueryGet(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !queryIDPattern.MatchString(id) {
+		errJSON(w, http.StatusBadRequest, "invalid query id")
+		return
+	}
+	code, out, errOut, err := h.runConfigCLI(nil, "--resident-query-get", id, "--json")
+	h.respondConfig(w, code, out, errOut, err)
+}
+
+// residentQueryCancel cancels a queued/dispatched resident query.
+func (h *debateHub) residentQueryCancel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !queryIDPattern.MatchString(id) {
+		errJSON(w, http.StatusBadRequest, "invalid query id")
+		return
+	}
+	code, out, errOut, err := h.runConfigCLI(nil, "--resident-query-cancel", id, "--json")
+	h.respondConfig(w, code, out, errOut, err)
+}
+
+// residentSessionList lists scoped active sessions for resident agents (mode=ro).
+func (h *debateHub) residentSessionList(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	args := []string{"--resident-sessions"}
+	if agent := q.Get("agent"); agent != "" {
+		if !residentAddrPattern.MatchString(agent) {
+			errJSON(w, http.StatusBadRequest, "invalid resident address")
+			return
+		}
+		args = append(args, agent)
+	}
+	if proj := q.Get("project"); proj != "" {
+		if !idPattern.MatchString(proj) {
+			errJSON(w, http.StatusBadRequest, "invalid project id")
+			return
+		}
+		args = append(args, "--project", proj)
+	}
+	if q.Get("include_inactive") == "1" || q.Get("include_inactive") == "true" {
+		args = append(args, "--include-inactive")
+	}
+	args = append(args, "--json")
+	code, out, errOut, err := h.runConfigCLI(nil, args...)
+	h.respondConfig(w, code, out, errOut, err)
+}
+
+// residentSessionReset archives/resets one scoped session on a resident agent.
+func (h *debateHub) residentSessionReset(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, actionBodyLimit))
+	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			errJSON(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		errJSON(w, http.StatusBadRequest, "cannot read request body")
+		return
+	}
+	var req struct {
+		Address    string `json:"address"`
+		SessionKey string `json:"session_key"`
+	}
+	if jerr := json.Unmarshal(body, &req); jerr != nil {
+		errJSON(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if !residentAddrPattern.MatchString(req.Address) {
+		errJSON(w, http.StatusBadRequest, "invalid resident address")
+		return
+	}
+	if !sessionKeyPattern.MatchString(req.SessionKey) || req.SessionKey == "main" {
+		errJSON(w, http.StatusBadRequest, "invalid scoped session_key")
+		return
+	}
+	code, out, errOut, runErr := h.runConfigCLI(
+		nil, "--resident-session-reset", req.Address, "--session-key", req.SessionKey, "--json",
+	)
+	h.respondConfig(w, code, out, errOut, runErr)
+}
+
 // syncProject clones or fast-forwards a project's workspace on the hub. A clone can take a
 // while, so it gets the action timeout rather than the short config one.
 func (h *debateHub) syncProject(w http.ResponseWriter, r *http.Request) {
@@ -526,10 +841,106 @@ type debateRequest struct {
 	// ContextPaths are globs of committed files for the agents to read; ContextRef is the git ref.
 	ContextPaths []string `json:"context_paths"`
 	ContextRef   string   `json:"context_ref"`
+	// Template starts a flow template (configs/flow-templates) instead of a free task; Params fill its
+	// ${NAME} placeholders. Python is the only validator of the values; Go bounds their shape.
+	Template string            `json:"template"`
+	Params   map[string]string `json:"params"`
+	// Flow starts a flow (docs/design/flow-graph.md): a stored flow, or a template or team converted. Seats swap
+	// characters into its seats (seat id or "close" -> character id). A flow seats its own team.
+	Flow  string            `json:"flow"`
+	Seats map[string]string `json:"seats"`
+}
+
+const (
+	maxTemplateParams     = 8
+	maxTemplateParamChars = 4000
+)
+
+var (
+	paramNamePattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,39}$`)
+	seatIDPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
+)
+
+const maxFlowSeats = 16
+
+// validateFlow checks the flow fields of a start request: a flow seats its own characters (no team, no template)
+// and starts a new thread; seats mean nothing without a flow. The task is optional (a flow may have its own text).
+func (req *debateRequest) validateFlow() string {
+	if req.Flow == "" {
+		if len(req.Seats) > 0 {
+			return "seats need a flow"
+		}
+		return ""
+	}
+	switch {
+	case !idPattern.MatchString(req.Flow):
+		return "invalid flow"
+	case req.Template != "":
+		return "start either a flow or a template"
+	case req.Team != "":
+		return "a flow seats its own characters; drop team (use seats)"
+	case req.ThreadID != "":
+		return "a flow starts a new thread; drop thread_id"
+	case len(req.Seats) > maxFlowSeats:
+		return fmt.Sprintf("seats must have at most %d entries", maxFlowSeats)
+	}
+	for seat, character := range req.Seats {
+		if !seatIDPattern.MatchString(seat) {
+			return fmt.Sprintf("invalid seat %q", seat)
+		}
+		if !idPattern.MatchString(character) {
+			return fmt.Sprintf("invalid character for seat %s", seat)
+		}
+	}
+	return ""
+}
+
+// validateTemplate checks the template fields of a start request: a template supplies the task and starts
+// a new thread, and params mean nothing without one.
+func (req *debateRequest) validateTemplate() string {
+	if req.Template == "" {
+		if len(req.Params) > 0 && req.Flow == "" {
+			return "params need a template or a flow"
+		}
+		return checkParams(req.Params)
+	}
+	switch {
+	case !idPattern.MatchString(req.Template):
+		return "invalid template"
+	case req.Task != "":
+		return "a template supplies the task; drop task"
+	case req.ThreadID != "":
+		return "a template starts a new thread; drop thread_id"
+	}
+	return checkParams(req.Params)
+}
+
+// checkParams bounds the shape of template and flow parameters; Python validates the values.
+func checkParams(params map[string]string) string {
+	if len(params) > maxTemplateParams {
+		return fmt.Sprintf("params must have at most %d entries", maxTemplateParams)
+	}
+	for name, value := range params {
+		switch {
+		case !paramNamePattern.MatchString(name):
+			return fmt.Sprintf("invalid param name %q", name)
+		case utf8.RuneCountInString(value) > maxTemplateParamChars:
+			return fmt.Sprintf("param %s must be at most %d characters", name, maxTemplateParamChars)
+		case strings.ContainsRune(value, 0):
+			return fmt.Sprintf("param %s contains invalid characters", name)
+		}
+	}
+	return ""
 }
 
 func (req *debateRequest) validate() string {
-	if strings.TrimSpace(req.Task) == "" {
+	if msg := req.validateTemplate(); msg != "" {
+		return msg
+	}
+	if msg := req.validateFlow(); msg != "" {
+		return msg
+	}
+	if req.Template == "" && req.Flow == "" && strings.TrimSpace(req.Task) == "" {
 		return "task required"
 	}
 	if utf8.RuneCountInString(req.Task) > maxTaskChars {
@@ -609,8 +1020,35 @@ func (h *debateHub) startDebate(w http.ResponseWriter, r *http.Request) {
 
 		ContextPaths: req.ContextPaths,
 		ContextRef:   req.ContextRef,
+		Template:     req.Template,
+		Params:       req.Params,
+		Flow:         req.Flow,
+		Seats:        req.Seats,
 	}}
 	args := []string{"--debate=" + req.Task}
+	if req.Template != "" {
+		// "-" tells the CLI the task comes from the template; the rendered text returns in result.json.
+		run.summary.Task = "template: " + req.Template
+		args = []string{"--debate=-", "--flow-template=" + req.Template}
+		names := make([]string, 0, len(req.Params))
+		for name := range req.Params {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			args = append(args, "--param="+name+"="+req.Params[name])
+		}
+	}
+	if req.Flow != "" {
+		// Without a task the flow's own text is the task ("-"); the rendered text returns in result.json.
+		if strings.TrimSpace(req.Task) == "" {
+			run.summary.Task = "flow: " + req.Flow
+			args = []string{"--debate=-"}
+		}
+		args = append(args, "--flow="+req.Flow)
+		args = append(args, sortedPairs("--param=", req.Params)...)
+		args = append(args, sortedPairs("--seat=", req.Seats)...)
+	}
 	if req.Team != "" {
 		args = append(args, "--team", req.Team)
 	}
@@ -771,6 +1209,7 @@ func (h *debateHub) finish(run *debateRun, waitErr error, dir string) {
 	}
 	var result struct {
 		ThreadID string `json:"thread_id"`
+		Task     string `json:"task"`
 	}
 	resultOK := false
 	if data, err := os.ReadFile(filepath.Join(dir, "result.json")); err == nil {
@@ -792,6 +1231,9 @@ func (h *debateHub) finish(run *debateRun, waitErr error, dir string) {
 		s.Status = "completed"
 		if s.ThreadID == "" {
 			s.ThreadID = result.ThreadID
+		}
+		if (s.Template != "" || s.Flow != "") && result.Task != "" {
+			s.Task = result.Task
 		}
 		if s.Kind != kindCodeWiki {
 			// A finished debate sets the thread's status again, which reopens a CLOSED thread.
@@ -1479,4 +1921,19 @@ func (h *debateHub) readRetrieval(id string) *debateRetrieval {
 		}
 	}
 	return nil
+}
+
+// sortedPairs turns a map into "<prefix>KEY=VALUE" argv entries in key order: one entry each, so a value can never
+// be parsed as a separate flag.
+func sortedPairs(prefix string, values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, prefix+key+"="+values[key])
+	}
+	return out
 }

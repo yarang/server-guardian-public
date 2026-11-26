@@ -389,7 +389,9 @@ class PromptIntegrationTests(EngineHarness):
     def test_the_mcp_guidance_names_repo_map(self) -> None:
         engine = self.engine()
         engine._repo = RepoTools(self.repo, self.sha)
-        self.assertIn("mcp__repo__repo_map", engine._mcp_text())
+        text = engine._mcp_text()
+        self.assertIn("repo_map", text)  # plain names now: the prefix varies by provider
+        self.assertIn("such as mcp__repo__repo_read or repo_repo_read", text)
 
 
 def ranking_files() -> Dict[str, str]:

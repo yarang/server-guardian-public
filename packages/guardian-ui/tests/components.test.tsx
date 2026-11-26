@@ -82,7 +82,7 @@ describe('GuardianRoot', () => {
     render(<GuardianRoot data-testid="r">x</GuardianRoot>);
     const el = screen.getByTestId('r');
     expect(el.className).toContain('sg-root');
-    expect(el.getAttribute('data-sg-theme')).toBe('dark');
+    expect(el.getAttribute('data-sg-theme')).toBe('light');
   });
 });
 

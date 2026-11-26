@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Server Guardian session link daemon (docs/design/operator-sessions.md, S2). Rendered by
+     scripts/install-session-link.sh, which replaces the placeholders below and bootstraps the
+     agent as gui/<uid>/dev.guardian.session-link. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.guardian.session-link</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>@PYTHON@</string>
+        <string>@LIB@/session_daemon.py</string>
+        <string>--home</string>
+        <string>@HOME_DIR@</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>@ROOT@/daemon.err</string>
+</dict>
+</plist>

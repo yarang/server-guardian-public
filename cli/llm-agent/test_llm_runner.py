@@ -67,7 +67,8 @@ class ProviderDetectionTests(unittest.TestCase):
     @patch("llm_runner.shutil.which")
     def test_detects_installed_providers_in_default_order(self, which: MagicMock) -> None:
         which.side_effect = lambda command, **_: f"/bin/{command}" if command in {"agy", "claude", "codex"} else None
-        with patch.dict(os.environ, {"GUARDIAN_LLM_PROVIDERS": ""}):
+        # zai runs the claude binary and is detected by its key alone; an operator shell may export one.
+        with patch.dict(os.environ, {"GUARDIAN_LLM_PROVIDERS": "", "ZAI_API_KEY": ""}):
             runner = LLMRunner()
 
         self.assertEqual(runner.available_providers, ["claude", "codex", "agy"])
@@ -646,10 +647,10 @@ class SessionTests(unittest.TestCase):
 
     @patch("llm_runner.subprocess.run")
     def test_stateless_provider_returns_no_session(self, run: MagicMock) -> None:
-        run.return_value = _ok("opencode answer")
-        result = _runner("opencode").run_session_prompt("Analyze")
+        run.return_value = _ok("ollama answer")
+        result = _runner("ollama").run_session_prompt("Analyze")
 
-        self.assertEqual((result.provider, result.text, result.session_id), ("opencode-cli", "opencode answer", None))
+        self.assertEqual((result.provider, result.text, result.session_id), ("ollama-cli", "ollama answer", None))
 
     def test_all_fail_returns_builtin(self) -> None:
         runner = _runner()
@@ -687,18 +688,18 @@ class LLMEnvFileTests(unittest.TestCase):
 
     @patch("llm_runner.subprocess.run")
     def test_env_file_reaches_every_provider_without_argv(self, run: MagicMock) -> None:
-        run.side_effect = [_fail("x"), _ok("opencode answer")]
+        run.side_effect = [_fail("x"), _ok("ollama answer")]
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "llm.env"
             path.write_text("CLAUDE_CODE_OAUTH_TOKEN=tok-9\n", encoding="utf-8")
             with patch.dict(os.environ, {"GUARDIAN_LLM_ENV": str(path)}):
-                runner = _runner("claude", "opencode")
+                runner = _runner("claude", "ollama")
                 runner.run_prompt("Analyze")
 
-        claude_call, opencode_call = run.call_args_list
+        claude_call, ollama_call = run.call_args_list
         # llm.env reaches the CLI it belongs to, never another provider (env_policy), and never argv.
         self.assertEqual(claude_call.kwargs["env"]["CLAUDE_CODE_OAUTH_TOKEN"], "tok-9")
-        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", opencode_call.kwargs["env"])
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", ollama_call.kwargs["env"])
         for call in run.call_args_list:
             self.assertNotIn("tok-9", " ".join(call.args[0]))
         self.assertIn(str(Path.home() / ".local" / "bin"), run.call_args_list[1].kwargs["env"]["PATH"].split(os.pathsep))
@@ -769,3 +770,25 @@ class BuiltinNoticeTests(unittest.TestCase):
         provider, text = _runner("claude").run_prompt("Critique this proposal")
         self.assertEqual(provider, BUILTIN_PROVIDER)
         self.assertTrue(text.startswith("⚠️ [LLM 응답 없음]"), text[:80])
+
+
+
+class SupervisorChatPromptTests(unittest.TestCase):
+    """The CLI chat sends the persona's system_prompt as the role line and no persona JSON (2026-10-30)."""
+
+    def test_the_chat_prompt_carries_only_the_persona_text_and_the_question(self) -> None:
+        from multi_agent import MultiAgentSystem
+        system = MultiAgentSystem.__new__(MultiAgentSystem)
+        system.active_persona = {"id": "general_assistant", "name": "General", "role": "Assistant",
+                                 "system_prompt": "PERSONA TEXT", "temperature": 0.7, "focus_areas": ["FOCUS ITEM"]}
+        runner = _runner("claude")
+        system.llm = runner
+        sent = []
+        with patch.object(runner, "_invoker", return_value=lambda prompt, workdir: sent.append(prompt) or "answer"):
+            result = system.run_supervisor_chat("너는 누구야")
+        self.assertEqual(result["analysis"], "answer")
+        prompt = sent[0]
+        self.assertTrue(prompt.startswith("System: PERSONA TEXT\n\n"))
+        self.assertIn("너는 누구야", prompt)
+        for leaked in ("Linux System & SSH Security Engineer", "FOCUS ITEM", "temperature", "Context Data"):
+            self.assertNotIn(leaked, prompt)
